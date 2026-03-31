@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Commonplace</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0e0b;
+      --surface:  #171612;
+      --border:   #2a2520;
+      --gold:     #c8903a;
+      --gold-dim: #7a5c22;
+      --text:     #e8e0d4;
+      --muted:    #7a6e64;
+      --radius:   22%;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Playfair Display', Georgia, serif;
+      min-height: 100vh;
+      padding: 0 1.5rem 5rem;
+    }
+
+    /* ── Header ── */
+    header {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 5rem 0 3.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .site-title {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1;
+    }
+    .site-title span { color: var(--gold); }
+    .site-subtitle {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-top: 1rem;
+    }
+
+    /* ── Section labels ── */
+    .section-label {
+      max-width: 800px;
+      margin: 3.5rem auto 1.5rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── App grid ── */
+    .app-grid {
+      max-width: 800px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .app-card {
+      background: var(--bg);
+      padding: 1.6rem 1.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .app-card:hover { background: var(--surface); }
+
+    .app-card.collateral { background: #0c0b09; }
+    .app-card.collateral:hover { background: var(--surface); }
+
+    /* Typographic icon */
+    .app-icon {
+      width: 46px;
+      height: 46px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Georgia, serif;
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: var(--gold);
+      flex-shrink: 0;
+      transition: border-color 0.15s;
+    }
+    .app-card:hover .app-icon { border-color: var(--gold-dim); }
+    .app-icon.sym {
+      font-size: 1.1rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .app-name {
+      font-size: 0.98rem;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .app-desc {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      line-height: 1.6;
+      flex: 1;
+    }
+    .app-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 0.18rem 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      align-self: flex-start;
+    }
+
+    /* Arrow on hover */
+    .app-card::after {
+      content: '\2192';
+      position: absolute;
+      top: 1.4rem;
+      right: 1.3rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--gold-dim);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .app-card:hover::after { opacity: 1; }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 800px;
+      margin: 4rem auto 0;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 540px) {
+      .app-grid { grid-template-columns: 1fr 1fr; }
+      header { padding: 3rem 0 2.5rem; }
+      .section-label { margin-top: 2.5rem; }
+    }
+    @media (max-width: 360px) {
+      .app-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 class="site-title">Common<span>place</span></h1>
+    <p class="site-subtitle">Suite di app personali &nbsp;&middot;&nbsp; Stefano Olengard</p>
+  </header>
+
+  <div class="section-label">Suite</div>
+  <div class="app-grid">
+
+    <a class="app-card" href="https://notes.commonplaceapp.org">
+      <div class="app-icon">N</div>
+      <div class="app-name">NoteS</div>
+      <div class="app-desc">Note di lettura, journal, riunioni e todo &mdash; con registrazione vocale AI.</div>
+    </a>
+
+    <a class="app-card" href="https://listens.commonplaceapp.org">
+      <div class="app-icon">L</div>
+      <div class="app-name">ListenS</div>
+      <div class="app-desc">Podcast e audio: feed RSS, player integrato, sleep timer, episodi ascoltati.</div>
+    </a>
+
+    <a class="app-card" href="https://bookshelf.commonplaceapp.org">
+      <div class="app-icon">B</div>
+      <div class="app-name">BookShelf</div>
+      <div class="app-desc">Libreria personale: letti, in lettura e wishlist &mdash; con ricerca Open Library.</div>
+    </a>
+
+    <a class="app-card" href="https://digest-blqp.onrender.com">
+      <div class="app-icon">D</div>
+      <div class="app-name">Digest</div>
+      <div class="app-desc">Newsletter AI: riassunto quotidiano dei tuoi feed RSS con Claude.</div>
+    </a>
+
+    <a class="app-card" href="https://footnote.commonplaceapp.org">
+      <div class="app-icon">F</div>
+      <div class="app-name">Footnote</div>
+      <div class="app-desc">Note veloci e appunti sparsi &mdash; semplice, veloce, sempre accessibile.</div>
+    </a>
+
+    <a class="app-card" href="https://platea.commonplaceapp.org">
+      <div class="app-icon">P</div>
+      <div class="app-name">Platea</div>
+      <div class="app-desc">Tracking concerti, film e spettacoli visti &mdash; con note e rating.</div>
+      <span class="app-badge">iOS &middot; Android</span>
+    </a>
+
+  </div>
+
+  <div class="section-label">Collaterali</div>
+  <div class="app-grid">
+
+    <a class="app-card collateral" href="https://ledger.commonplaceapp.org">
+      <div class="app-icon sym">&#x20A4;</div>
+      <div class="app-name">Ledger</div>
+      <div class="app-desc">Finanze personali: entrate, uscite, budget mensili e report.</div>
+    </a>
+
+    <a class="app-card collateral" href="https://dnd.commonplaceapp.org">
+      <div class="app-icon sym">&#x2694;</div>
+      <div class="app-name">DnD Master</div>
+      <div class="app-desc">Gestionale per Dungeon Master: personaggi, scontri, mostri e spell.</div>
+    </a>
+
+    <a class="app-card collateral" href="https://reads.commonplaceapp.org">
+      <div class="app-icon">R</div>
+      <div class="app-name">ReadS</div>
+      <div class="app-desc">Lettura ebook sul telefono, con note e segnalibri sincronizzati.</div>
+      <span class="app-badge">iOS &middot; Android</span>
+    </a>
+
+  </div>
+
+  <footer>
+    <span>commonplaceapp.org</span>
+    <span>aggiornato 2026</span>
+  </footer>
+
+</body>
+</html>
