@@ -1295,9 +1295,13 @@ function App() {
   const [showPrefs, setShowPrefs] = useState(false);
   const [apiKey, setApiKey] = useState(true); // proxy server-side, nessuna chiave necessaria
   useEffect(()=>{ document.body.style.background=t.bg; document.body.style.color=t.text; },[t]);
-  function saveBooks(b, syncBook) {
+  function saveBooks(b, syncBooks) {
     setBooks(b); LS.set('rb_books',b);
-    if(user && syncBook) sb.from('fn_books').upsert(bookToRow(syncBook,user.id),{onConflict:'id'}).then(({error})=>{if(error)console.error('fn_books upsert:',error);});
+    if(user && syncBooks) {
+      const toSync = Array.isArray(syncBooks) ? syncBooks : [syncBooks];
+      const rows = toSync.map(bk=>bookToRow(bk,user.id));
+      sb.from('fn_books').upsert(rows,{onConflict:'id'}).then(({error})=>{if(error)console.error('fn_books upsert:',error);});
+    }
   }
   function deleteBook(id) {
     saveBooks(books.filter(b=>b.id!==id));
@@ -1359,7 +1363,7 @@ function App() {
             }));
             const newOnes = bsBooks.filter(i=>!books.find(b=>b.title.toLowerCase()===i.title.toLowerCase()&&b.author.toLowerCase()===i.author.toLowerCase()));
             if (!newOnes.length) { alert('Tutti i libri di BookShelf sono già presenti.'); return; }
-            saveBooks([...books,...newOnes]);
+            saveBooks([...books,...newOnes], newOnes);
             alert(`Importati ${newOnes.length} libri da BookShelf!`);
           }}/>}
         {view==='form'&&<BookForm t={t} onDone={handleBookDone} onCancel={()=>setView('lib')}/>}

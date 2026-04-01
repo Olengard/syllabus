@@ -1,5 +1,5 @@
 // Footnote Service Worker
-const CACHE = 'footnote-v19';
+const CACHE = 'footnote-v20';
 
 self.addEventListener('install', e => {
   e.waitUntil(
