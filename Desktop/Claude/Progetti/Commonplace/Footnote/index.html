@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    if(regs.length>0){
+      Promise.all(regs.map(function(r){return r.unregister();})).then(function(){
+        window.location.reload();
+      });
+    }
+  });
+}
+</script>
+
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Footnote</title>
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png"/>
+<link rel="apple-touch-icon" href="icon-512.png"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0f0e0b"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  window.supabase = { createClient };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script type="module">
+  import { jsonrepair } from 'https://esm.sh/jsonrepair';
+  window.jsonrepair = jsonrepair;
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Crimson Pro',serif}
+input,textarea,select,button{font-family:'Crimson Pro',serif;outline:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+.fu{animation:fadeUp .4s ease both}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+const API_URL = "/api/claude"; // Vercel serverless function (stesso dominio, nessun limite Railway)
+
+const LIGHT = {
+  bg:"#F7F3ED",bgCard:"#FDFAF6",bgAlt:"#EFE9E0",
+  border:"#D4C9B8",borderLight:"#EAE2D6",
+  text:"#2C2416",textSec:"#6B5D4F",textMuted:"#9E8E7E",
+  accent:"#8B4513",accentBg:"#F5EDE3",accentLight:"#C4956A",
+  accent2:"#2D6A4F",accent2Bg:"#E8F5EE",
+  chatUserBg:"#EFE9E0",chatAIBg:"#FDF8F3",
+  inputBg:"#FDFAF6",shadow:"rgba(44,36,22,.09)",danger:"#c0392b"
+};
+const DARK = {
+  bg:"#19140F",bgCard:"#271F14",bgAlt:"#211A10",
+  border:"#3D3120",borderLight:"#2E2518",
+  text:"#F0E8D8",textSec:"#B8A898",textMuted:"#7A6E62",
+  accent:"#C4956A",accentBg:"#2A1F12",accentLight:"#D4A87A",
+  accent2:"#52B788",accent2Bg:"#1A2E22",
+  chatUserBg:"#2E2518",chatAIBg:"#221A10",
+  inputBg:"#271F14",shadow:"rgba(0,0,0,.35)",danger:"#e74c3c"
+};
+
+const LS = {
+  get:(k,fb)=>{try{return JSON.parse(localStorage.getItem(k))||fb;}catch{return fb;}},
+  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v)),
+  raw:(k)=>localStorage.getItem(k)||'',
+  setRaw:(k,v)=>localStorage.setItem(k,v),
+  id:()=>Math.random().toString(36).slice(2)+Date.now().toString(36),
+};
+
+// ── Supabase ─────────────────────────────────────────────────────────────────
+const SB_URL = "https://pchldmiavycxzpkzochn.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaGxkbWlhdnljeHpwa3pvY2huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjk5MDAsImV4cCI6MjA4NzIwNTkwMH0.bVhCJfeCMnPcR5Ub4hLqNSmVdST5P6cT6T_2kzdKGYM";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// Map book obj → Supabase row
+function bookToRow(book, userId) {
+  return {
+    id: book.id, user_id: userId,
+    title: book.title||'', author: book.author||'',
+    edition: book.edition||'', language: book.language||'italiano',
+    has_file: book.hasFile||false, notes: book.notes||'',
+    sessions: book.sessions||[],
+    collection_ids: book.collectionIds||[],
+    bs_book_id: book.bsBookId || (book._fromBookShelf ? book.id.replace(/^bs_/,'') : null),
+    data: book.data || null,
+    added_at: book.addedAt||new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+// Map Supabase row → book obj
+function rowToBook(r) {
+  return {
+    id: r.id, title: r.title, author: r.author,
+    edition: r.edition, language: r.language,
+    hasFile: r.has_file, notes: r.notes,
+    sessions: r.sessions||[], collectionIds: r.collection_ids||[],
+    addedAt: r.added_at, bsBookId: r.bs_book_id||null,
+    data: r.data||null,
+  };
+}
+
+// ── Auth Screen ───────────────────────────────────────────────────────────────
+function AuthScreen({t}) {
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault(); setLoading(true); setMsg(null);
+    if (mode==='login') {
+      const {error} = await sb.auth.signInWithPassword({email,password});
+      if(error) setMsg({type:'err',text:error.message});
+    } else if (mode==='register') {
+      const {error} = await sb.auth.signUp({email,password});
+      if(error) setMsg({type:'err',text:error.message});
+      else setMsg({type:'ok',text:'Controlla la tua email per confermare la registrazione.'});
+    } else {
+      const {error} = await sb.auth.resetPasswordForEmail(email);
+      if(error) setMsg({type:'err',text:error.message});
+      else setMsg({type:'ok',text:'Email di reset inviata.'});
+    }
+    setLoading(false);
+  }
+
+  const inp = {width:'100%',padding:'9px 12px',border:`1px solid ${t.border}`,background:t.inputBg,color:t.text,fontFamily:"'Crimson Pro',serif",fontSize:15,borderRadius:8,boxSizing:'border-box'};
+  const btn = (c)=>({padding:'10px 22px',borderRadius:8,border:'none',cursor:'pointer',fontFamily:"'Crimson Pro',serif",fontSize:15,background:c==='primary'?t.accent:'transparent',color:c==='primary'?'#fff':t.textSec,border:c==='primary'?'none':`1px solid ${t.border}`});
+
+  return (
+    <div style={{minHeight:'100vh',background:t.bg,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,padding:'40px 44px',maxWidth:400,width:'100%',boxShadow:`0 8px 32px ${t.shadow}`}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:t.text,marginBottom:6}}>Footnote</div>
+        <div style={{fontSize:14,color:t.textMuted,fontStyle:'italic',marginBottom:28}}>
+          {mode==='login'?'Accedi al tuo diario di lettura':mode==='register'?'Crea il tuo account':'Recupera la password'}
+        </div>
+        <form onSubmit={submit}>
+          <div style={{marginBottom:14}}><label style={{fontSize:12,color:t.textMuted,display:'block',marginBottom:4}}>EMAIL</label>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required style={inp} placeholder="nome@email.com"/></div>
+          {mode!=='reset'&&<div style={{marginBottom:20}}><label style={{fontSize:12,color:t.textMuted,display:'block',marginBottom:4}}>PASSWORD</label>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required style={inp} placeholder="••••••••"/></div>}
+          {msg&&<div style={{padding:'10px 14px',marginBottom:16,borderRadius:8,background:msg.type==='ok'?t.accent2Bg:t.accentBg,color:msg.type==='ok'?t.accent2:t.accent,fontSize:13}}>{msg.text}</div>}
+          <button type="submit" disabled={loading} style={{...btn('primary'),width:'100%',opacity:loading?.6:1}}>
+            {loading?'...':mode==='login'?'Accedi':mode==='register'?'Registrati':'Invia email di reset'}
+          </button>
+        </form>
+        <div style={{marginTop:20,display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+          {mode!=='login'&&<span onClick={()=>{setMode('login');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Accedi</span>}
+          {mode!=='register'&&<span onClick={()=>{setMode('register');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Crea account</span>}
+          {mode!=='reset'&&<span onClick={()=>{setMode('reset');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Password dimenticata?</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function claude(messages, system, maxTokens) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxTokens || 800,
+      system: system,
+      messages: messages,
+    }),
+  });
+  if (!res.ok) {
+    // Error responses are JSON
+    const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
+    throw new Error(err.error || 'HTTP ' + res.status);
+  }
+  // Success: read streaming plain text response
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch(e) {
+    if (text.trim()) return text; // risposta parziale: proviamo uguale
+    throw new Error('Connessione interrotta durante lo streaming. Riprova.');
+  }
+  if (text.startsWith('__STREAM_ERR__:')) throw new Error(text.slice(15).trim() || 'Errore API Anthropic');
+  if (!text.trim()) throw new Error('Risposta API vuota — riprova. Se persiste, verifica i crediti su console.anthropic.com');
+  return text;
+}
+
+// Parse Claude's JSON response robustly using jsonrepair (handles unescaped quotes, newlines, truncation, etc.)
+function fixJson(raw) {
+  let text = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const s = text.indexOf('{'), e = text.lastIndexOf('}');
+  if (s >= 0 && e > s) text = text.slice(s, e + 1);
+  if (window.jsonrepair) return window.jsonrepair(text);
+  return text; // fallback: return as-is and let JSON.parse throw
+}
+
+async function extractEpub(file) {
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+  let opfPath = '';
+  try {
+    const c = await zip.file('META-INF/container.xml').async('string');
+    const m = c.match(/full-path="([^"]+\.opf)"/);
+    if (m) opfPath = m[1];
+  } catch(e) {}
+  let files = [];
+  if (opfPath) {
+    try {
+      const opf = await zip.file(opfPath).async('string');
+      const base = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/')+1) : '';
+      const mMap = {};
+      let m;
+      const mRe = /<item[^>]+id="([^"]+)"[^>]+href="([^"]+)"[^>]+media-type="application\/xhtml[^"]*"/g;
+      while ((m=mRe.exec(opf))!==null) mMap[m[1]] = base + decodeURIComponent(m[2]);
+      const sRe = /<itemref[^>]+idref="([^"]+)"/g;
+      while ((m=sRe.exec(opf))!==null) if (mMap[m[1]]) files.push(mMap[m[1]]);
+    } catch(e) {}
+  }
+  if (!files.length) files = Object.keys(zip.files).filter(f=>f.endsWith('.xhtml')||f.endsWith('.html')).sort();
+  const parser = new DOMParser();
+  let text = '';
+  for (const path of files.slice(0,50)) {
+    if (text.length > 70000) break;
+    try {
+      const src = await zip.file(path)?.async('string');
+      if (!src) continue;
+      const doc = parser.parseFromString(src, 'application/xhtml+xml');
+      doc.querySelectorAll('script,style,nav').forEach(el=>el.remove());
+      text += ((doc.body||doc.documentElement)?.textContent||'').replace(/\s+/g,' ').trim() + '\n\n';
+    } catch(e) {}
+  }
+  return text.slice(0,70000);
+}
+
+const BS_KEY = 'libreria-personale-v1';
+
+function exportToBookShelf(book) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(BS_KEY)||'[]');
+    const alreadyThere = existing.find(b=>
+      b.title.toLowerCase()===book.title.toLowerCase() &&
+      b.author.toLowerCase()===book.author.toLowerCase()
+    );
+    if (alreadyThere) return {ok:false, msg:'Questo libro è già presente in BookShelf.'};
+    const bsBook = {
+      id: 'rb_'+book.id, title: book.title, originalTitle: '',
+      author: book.author, publisher: book.edition||'',
+      year: '', pages: '', currentPage: '', readMonth: '', readYear: '',
+      rating: 0, tags: book.data?.keyConcepts?.slice(0,3)||[],
+      notes: book.data?.overview ? book.data.overview.slice(0,300)+'…' : '',
+      cover: '', isbn: '', status: 'da leggere', _readingBuddyId: book.id,
+    };
+    localStorage.setItem(BS_KEY, JSON.stringify([bsBook, ...existing]));
+    return {ok:true, msg:'Libro aggiunto a BookShelf come "da leggere"!'};
+  } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
+}
+
+function addSuggestionToWishlist(suggestion, sourceBook) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(BS_KEY)||'[]');
+    const parts = suggestion.split(':');
+    const titleAuthorPart = parts[0].trim();
+    const reason = parts.slice(1).join(':').trim();
+    const dashIdx = titleAuthorPart.indexOf(' - ');
+    const author = dashIdx>0 ? titleAuthorPart.slice(0, dashIdx).trim() : '';
+    const title  = dashIdx>0 ? titleAuthorPart.slice(dashIdx+3).trim() : titleAuthorPart;
+    const alreadyThere = existing.find(b=>b.title.toLowerCase()===title.toLowerCase());
+    if (alreadyThere) return {ok:false, msg:`"${title}" è già in BookShelf.`};
+    const bsBook = {
+      id: 'wish_'+LS.id(), title, author,
+      originalTitle:'', publisher:'', year:'', pages:'',
+      currentPage:'', readMonth:'', readYear:'',
+      rating:0, tags:[], notes:'', cover:'', isbn:'',
+      status: 'wishlist',
+      source: { type:'buddy', bookTitle:sourceBook.title, bookId:sourceBook.id, reason:reason||null },
+    };
+    localStorage.setItem(BS_KEY, JSON.stringify([bsBook, ...existing]));
+    return {ok:true, msg:`"${title}" aggiunto alla wishlist!`};
+  } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
+}
+
+function importFromBookShelf() {
+  try {
+    return JSON.parse(localStorage.getItem(BS_KEY)||'[]').map(b=>({
+      id: LS.id(), title: b.title, author: b.author, edition: b.publisher||'',
+      language: 'italiano', addedAt: new Date().toISOString(),
+      hasFile: false, _fromBookShelf: true, _bsStatus: b.status,
+      data: null, chat: [], collectionIds: [],
+    }));
+  } catch(e) { return []; }
+}
+
+function getReaderProfile() {
+  try {
+    const bs = JSON.parse(localStorage.getItem('libreria-personale-v1')||'[]');
+    const prefs = JSON.parse(localStorage.getItem('rb_reader_prefs')||'{}');
+    if (!bs.length && !Object.keys(prefs).length) return '';
+
+    const read = bs.filter(b=>b.status==='letto');
+    const reading = bs.filter(b=>b.status==='in-lettura');
+    const wishlist = bs.filter(b=>b.status==='wishlist');
+    const abandoned = bs.filter(b=>b.status==='abbandonato');
+
+    // Autori più letti
+    const authorCount = {};
+    read.forEach(b=>{ if(b.author) authorCount[b.author]=(authorCount[b.author]||0)+1; });
+    const topAuthors = Object.entries(authorCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([a])=>a);
+
+    // Tag più usati
+    const tagCount = {};
+    bs.forEach(b=>(b.tags||[]).forEach(tag=>{ tagCount[tag]=(tagCount[tag]||0)+1; }));
+    const topTags = Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t])=>t);
+
+    // Libri amati (4-5 stelle) vs deludenti (1-2)
+    const loved = read.filter(b=>b.rating>=4).map(b=>`"${b.title}"`).slice(0,4);
+    const disappointing = read.filter(b=>b.rating<=2&&b.rating>0).map(b=>`"${b.title}"`).slice(0,3);
+
+    // Note sui libri — estrae frammenti significativi
+    const notedBooks = read.filter(b=>b.notes&&b.notes.length>30)
+      .map(b=>({title:b.title, note:b.notes.slice(0,120)})).slice(0,2);
+
+    // Media voti
+    const rated = read.filter(b=>b.rating>0);
+    const avgRating = rated.length ? (rated.reduce((s,b)=>s+b.rating,0)/rated.length).toFixed(1) : null;
+
+    let profile = `\n\nReader profile (from their personal library):\n`;
+    profile += `- Books read: ${read.length} | Currently reading: ${reading.length} | Wishlist: ${wishlist.length}`;
+    if (abandoned.length) profile += ` | Abandoned: ${abandoned.length}`;
+    profile += '\n';
+    if (avgRating) profile += `- Average rating: ${avgRating}/5\n`;
+    if (loved.length) profile += `- Books they loved (4-5★): ${loved.join(', ')}\n`;
+    if (disappointing.length) profile += `- Books they found disappointing: ${disappointing.join(', ')}\n`;
+    if (topAuthors.length) profile += `- Most-read authors: ${topAuthors.join(', ')}\n`;
+    if (topTags.length) profile += `- Recurring themes/tags: ${topTags.join(', ')}\n`;
+    if (reading.length) profile += `- Currently reading: ${reading.map(b=>`"${b.title}" by ${b.author}`).slice(0,3).join('; ')}\n`;
+    if (notedBooks.length) {
+      profile += `- Personal notes on recent books:\n`;
+      notedBooks.forEach(({title,note})=>{ profile += `  • "${title}": ${note}…\n`; });
+    }
+    // Preferenze manuali
+    if (prefs.readingStyle) profile += `- Reading style: ${prefs.readingStyle}\n`;
+    if (prefs.readingGoal) profile += `- Reading goal: ${prefs.readingGoal}\n`;
+    if (prefs.freeNote) profile += `- About themselves as a reader: ${prefs.freeNote}\n`;
+
+    return profile;
+  } catch(e) { return ''; }
+}
+
+function sysPrompt(book, includeData=false) {
+  const readerProfile = getReaderProfile();
+  let prompt = `You are a sophisticated literary companion. Book: "${book.title}" by ${book.author}${book.edition?', '+book.edition:''}.
+Respond in: ${book.language||'italiano'}.
+Personality: erudite but warm. For structured generation respond ONLY with valid JSON, no markdown. For chat use natural prose.`;
+  if (readerProfile) prompt += readerProfile;
+  if (includeData && book.data) {
+    const d = book.data;
+    prompt += `\n\nYou already generated this reading companion for the book:\n`;
+    if (d.overview) prompt += `Overview: ${d.overview}\n`;
+    if (d.keyConcepts?.length) prompt += `Key concepts: ${d.keyConcepts.join(', ')}\n`;
+    if (d.focusQuestions?.length) prompt += `Focus questions: ${d.focusQuestions.slice(0,3).join(' | ')}\n`;
+    if (d.controversies) prompt += `Controversies: ${d.controversies}\n`;
+    if (d.readingJournal?.length) prompt += `Reading journal prompts: ${d.readingJournal.slice(0,2).join(' | ')}\n`;
+    prompt += `Use this as context — do not repeat it verbatim unless asked.`;
+  }
+  return prompt;
+}
+function initPrompt() {
+  // Full single-call prompt (used when no file is attached)
+  return `Generate a reading companion. IMPORTANT: the "podcasts" array must always contain exactly 2 real podcast recommendations with show name, specific episode or topic, and why it connects to this book. Return ONLY this JSON:
+{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"],"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"]}}`;
+}
+function initPrompt1() {
+  // Call 1 (with file): overview, context, chapters, concepts only
+  return `Generate a reading companion (part 1). Return ONLY this JSON:
+{"overview":"2-3 paragraphs covering historical context, author's intellectual background, and central argument","context":"why this book still matters today — 2-3 sentences","keyChapters":["chapter or section title","chapter or section title","chapter or section title"],"keyConcepts":["concept","concept","concept","concept","concept"]}`;
+}
+function initPrompt2(d) {
+  // Call 2 (no file): reading guide, questions, resources — uses data from call 1 as context
+  const ctx = `Overview: "${(d.overview||'').slice(0,300)}" | Key concepts: ${(d.keyConcepts||[]).slice(0,5).join(', ')}`;
+  return `${ctx}\n\nGenerate a reading companion (part 2). IMPORTANT: the "podcasts" array must always contain exactly 2 real podcast recommendations with show name, specific episode or topic, and why it connects to this book. Return ONLY this JSON:
+{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"],"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"]}}`;
+}
+
+function Dots({color}) {
+  return <span style={{display:'inline-flex',gap:4,alignItems:'center'}}>
+    {[0,1,2].map(i=><span key={i} style={{width:6,height:6,borderRadius:'50%',background:color,
+      animation:`dot 1.2s ease-in-out ${i*.2}s infinite`}}/>)}
+  </span>;
+}
+function Tag({label,t}) {
+  return <span style={{display:'inline-block',padding:'3px 11px',borderRadius:20,fontSize:13,
+    border:`1px solid ${t.border}`,background:t.accentBg,color:t.accent,marginRight:6,marginBottom:6}}>{label}</span>;
+}
+function Card({icon,title,t,delay,children}) {
+  return <div className="fu" style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,
+    borderRadius:14,padding:'20px 24px',marginBottom:16,boxShadow:`0 2px 12px ${t.shadow}`,animationDelay:`${delay||0}s`}}>
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14,paddingBottom:12,borderBottom:`1px solid ${t.borderLight}`}}>
+      <span style={{color:t.accent,fontSize:18}}>{icon}</span>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,color:t.text}}>{title}</h3>
+    </div>
+    {children}
+  </div>;
+}
+
+function ApiKeyModal({t, onDone}) {
+  const [val, setVal] = useState(LS.raw('rb_key'));
+  const [ok, setOk] = useState(false);
+  function save() { LS.setRaw('rb_key', val.trim()); setOk(true); setTimeout(()=>onDone(val.trim()), 700); }
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:999,
+      display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,
+        padding:28,width:'100%',maxWidth:460,boxShadow:`0 8px 40px ${t.shadow}`}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:t.text,marginBottom:8}}>🤖 AI configurata</h3>
+        <p style={{color:t.textMuted,fontSize:14,lineHeight:1.6,marginBottom:20}}>
+          L'AI di Footnote funziona tramite il server Commonplace — nessuna chiave necessaria.
+        </p>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={()=>onDone(true)}
+            style={{flex:1,padding:'10px',background:t.accent,border:'none',
+              borderRadius:8,color:'#fff',fontSize:14,fontWeight:600,cursor:'pointer',
+              fontFamily:"'Playfair Display',serif",transition:'background .3s'}}>
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookForm({t, onDone, onCancel}) {
+  const [form, setForm] = useState({title:'',author:'',edition:'',language:'italiano'});
+  const [file, setFile] = useState(null);
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  async function submit() {
+    if (!form.title.trim()||!form.author.trim()) { setErr('Titolo e autore obbligatori.'); return; }
+    if (file && file.size > 3 * 1024 * 1024) { setErr('File troppo grande (max 3 MB). Prova con un file più piccolo o procedi senza file.'); return; }
+    setErr(''); setLoading(true);
+    let fileText = null, pdfB64 = null;
+    if (file) {
+      try {
+        setMsg('Elaboro il file…');
+        if (file.name.toLowerCase().endsWith('.epub')) fileText = await extractEpub(file);
+        else if (file.name.toLowerCase().endsWith('.pdf')) {
+          const buf = await file.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let bin = '';
+          for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+          pdfB64 = btoa(bin);
+        }
+      } catch(e) { setErr('Errore nel file: '+e.message); setLoading(false); return; }
+    }
+    const book = {...form, id:LS.id(), addedAt:new Date().toISOString(), hasFile:!!file};
+    try {
+      let data;
+      if (file) {
+        // ── Call 1: with file — overview, context, chapters, concepts ──
+        setMsg('Analizzo il testo…');
+        let messages1;
+        if (pdfB64) {
+          messages1 = [{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
+            {type:'text',text:initPrompt1()}
+          ]}];
+        } else {
+          messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
+        }
+        const raw1 = await claude(messages1, sysPrompt(book), 4000);
+        const data1 = JSON.parse(fixJson(raw1));
+        // ── Call 2: no file — reading guide, questions, resources ──
+        setMsg('Genero la guida di lettura…');
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4000);
+        const data2 = JSON.parse(fixJson(raw2));
+        data = {...data1, ...data2};
+      } else {
+        // No file: single call is fine
+        setMsg('Genero la scheda…');
+        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 6000);
+        data = JSON.parse(fixJson(raw));
+      }
+      onDone({...book, data, chat:[], collectionIds:[]});
+    } catch(e) { setErr('Errore: '+e.message); }
+    setLoading(false);
+  }
+  const inp = {width:'100%',padding:'10px 13px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:16};
+  const lbl = {display:'block',fontSize:11,color:t.textMuted,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:5};
+  return (
+    <div className="fu" style={{maxWidth:580,margin:'0 auto',paddingTop:8}}>
+      <div style={{textAlign:'center',marginBottom:28}}>
+        <p style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontStyle:'italic',color:t.text,marginBottom:4}}>Di quale libro vuoi parlare?</p>
+        <p style={{color:t.textMuted,fontSize:15}}>Inserisci i dettagli per generare la guida di lettura</p>
+      </div>
+      <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:16,padding:28,boxShadow:`0 4px 20px ${t.shadow}`}}>
+        {[['title','Titolo *','es. Sapiens'],['author','Autore *','es. Yuval Noah Harari'],['edition','Edizione','es. Bompiani 2021']].map(([k,l,ph])=>(
+          <div key={k} style={{marginBottom:14}}>
+            <label style={lbl}>{l}</label>
+            <input value={form[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} onKeyDown={e=>e.key==='Enter'&&submit()} style={inp}/>
+          </div>
+        ))}
+        <div style={{marginBottom:14}}>
+          <label style={lbl}>Lingua contenuti</label>
+          <select value={form.language} onChange={e=>set('language',e.target.value)} style={inp}>
+            <option value="italiano">Italiano</option>
+            <option value="English">English</option>
+            <option value="Segue la lingua del libro">Segue la lingua del libro</option>
+          </select>
+        </div>
+        <div style={{marginBottom:18}}>
+          <label style={lbl}>Carica libro (opzionale — PDF o ePub)</label>
+          <div onClick={()=>document.getElementById('rbFile').click()}
+            style={{border:`2px dashed ${t.border}`,borderRadius:10,padding:'14px',textAlign:'center',cursor:'pointer',background:t.bgAlt,position:'relative'}}>
+            <input id="rbFile" type="file" accept=".pdf,.epub" style={{position:'absolute',opacity:0,inset:0,cursor:'pointer'}} onChange={e=>setFile(e.target.files[0]||null)}/>
+            <span style={{color:file?t.accent:t.textMuted,fontSize:14}}>{file?'✓ '+file.name:'📄 Clicca o trascina un file'}</span>
+          </div>
+        </div>
+        {err&&<p style={{color:t.danger,fontSize:13,marginBottom:12,lineHeight:1.5}}>{err}</p>}
+        {loading
+          ? <div style={{textAlign:'center',padding:'12px 0'}}>
+              <div style={{fontSize:26,color:t.accent,animation:'spin 2s linear infinite',display:'inline-block'}}>✦</div>
+              <p style={{color:t.textSec,fontSize:14,fontStyle:'italic',marginTop:6}}>{msg}</p>
+            </div>
+          : <div style={{display:'flex',gap:10}}>
+              {onCancel&&<button onClick={onCancel} style={{flex:1,padding:10,background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,cursor:'pointer',fontSize:14}}>Annulla</button>}
+              <button onClick={submit} style={{flex:2,padding:10,background:t.accent,border:'none',borderRadius:8,color:'#fff',cursor:'pointer',fontSize:15,fontFamily:"'Playfair Display',serif",fontWeight:600}}>Inizia la lettura ❧</button>
+            </div>
+        }
+      </div>
+    </div>
+  );
+}
+
+function ReaderPrefsModal({t, onClose}) {
+  const saved = JSON.parse(localStorage.getItem('rb_reader_prefs')||'{}');
+  const [style, setStyle] = useState(saved.readingStyle||'');
+  const [goal, setGoal] = useState(saved.readingGoal||'');
+  const [note, setNote] = useState(saved.freeNote||'');
+  function save() {
+    localStorage.setItem('rb_reader_prefs', JSON.stringify({readingStyle:style, readingGoal:goal, freeNote:note}));
+    onClose();
+  }
+  const sel = {width:'100%',padding:'9px 12px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:14,marginBottom:14};
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,padding:26,width:'100%',maxWidth:460,boxShadow:`0 8px 40px ${t.shadow}`}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:t.text,marginBottom:4}}>Il tuo profilo lettore</h3>
+        <p style={{fontSize:13,color:t.textMuted,marginBottom:18,lineHeight:1.6}}>Informazioni facoltative che aiutano il Buddy a personalizzare le risposte. Puoi compilare tutto, niente, o cambiare in qualsiasi momento.</p>
+        <label style={{fontSize:12,color:t.textMuted,letterSpacing:'.05em',textTransform:'uppercase',display:'block',marginBottom:5}}>Stile di lettura</label>
+        <select value={style} onChange={e=>setStyle(e.target.value)} style={sel}>
+          <option value=''>— non specificato —</option>
+          <option value='slow and deep — I annotate and reflect'>Lento e profondo, con note e riflessioni</option>
+          <option value='focused on ideas and arguments'>Orientato alle idee e agli argomenti</option>
+          <option value='narrative-driven, I love storytelling'>Narrativo, amo le storie</option>
+          <option value='eclectic — I jump between books and genres'>Eclettico, salto tra libri e generi</option>
+          <option value='fast reader, breadth over depth'>Veloce, preferisco la quantità alla profondità</option>
+        </select>
+        <label style={{fontSize:12,color:t.textMuted,letterSpacing:'.05em',textTransform:'uppercase',display:'block',marginBottom:5}}>Obiettivo principale di lettura</label>
+        <select value={goal} onChange={e=>setGoal(e.target.value)} style={sel}>
+          <option value=''>— non specificato —</option>
+          <option value='pleasure and entertainment'>Piacere e svago</option>
+          <option value='intellectual curiosity and self-development'>Curiosità intellettuale e formazione</option>
+          <option value='professional or academic research'>Ricerca professionale o accademica</option>
+          <option value='understanding history and culture'>Capire la storia e la cultura</option>
+          <option value='mix of all the above'>Un mix di tutto</option>
+        </select>
+        <label style={{fontSize:12,color:t.textMuted,letterSpacing:'.05em',textTransform:'uppercase',display:'block',marginBottom:5}}>Qualcosa di più su di te come lettore <span style={{fontStyle:'italic',textTransform:'none'}}>(libero)</span></label>
+        <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3}
+          placeholder="Es: sono interessato soprattutto alla filosofia continentale, leggo molta narrativa sudamericana, non mi piacciono i libri di self-help…"
+          style={{...sel, resize:'vertical', lineHeight:1.5, marginBottom:18}}/>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:10,background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,cursor:'pointer',fontSize:14}}>Annulla</button>
+          <button onClick={save} style={{flex:2,padding:10,background:t.accent,border:'none',borderRadius:8,color:'#fff',cursor:'pointer',fontSize:14,fontFamily:"'Playfair Display',serif",fontWeight:600}}>Salva profilo</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Chat({t, sys, sessions, onSaveSessions}) {
+  // Migrazione: se sessions è vuoto crea sessione iniziale
+  const initSessions = sessions?.length ? sessions : [{id:LS.id(), title:'Sessione 1', createdAt:new Date().toISOString(), messages:[]}];
+  const [allSessions, setAllSessions] = useState(initSessions);
+  const [activeId, setActiveId] = useState(initSessions[initSessions.length-1].id);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const activeSession = allSessions.find(s=>s.id===activeId)||allSessions[0];
+  const msgs = activeSession.messages;
+
+  const activeIdRef = useRef(activeId);
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  const didMountRef = useRef(false);
+  function saveSessions(updated) { setAllSessions(updated); }
+  function setMsgs(fn) {
+    setAllSessions(prev => {
+      const id = activeIdRef.current;
+      const session = prev.find(s => s.id === id) || prev[0];
+      const newMsgs = typeof fn === 'function' ? fn(session.messages) : fn;
+      return prev.map(s => s.id === id ? {...s, messages: newMsgs} : s);
+    });
+  }
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+    onSaveSessions(allSessions);
+  }, [allSessions]);
+  function newSession() {
+    const s = {id:LS.id(), title:`Sessione ${allSessions.length+1}`, createdAt:new Date().toISOString(), messages:[]};
+    const updated = [...allSessions, s];
+    saveSessions(updated);
+    setActiveId(s.id);
+  }
+  function deleteSession(id) {
+    if (allSessions.length===1) return;
+    if (!confirm('Eliminare questa sessione?')) return;
+    const updated = allSessions.filter(s=>s.id!==id);
+    saveSessions(updated);
+    if (activeId===id) setActiveId(updated[updated.length-1].id);
+  }
+  function renameSession(id, title) {
+    saveSessions(allSessions.map(s=>s.id===id?{...s,title:title.trim()||s.title}:s));
+  }
+  function startEditTitle() { setTitleDraft(activeSession.title); setEditingTitle(true); }
+  function commitTitle() { if(titleDraft.trim()) renameSession(activeId, titleDraft); setEditingTitle(false); }
+
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [suggCtx, setSuggCtx] = useState('');
+  const [showSuggCtx, setShowSuggCtx] = useState(false);
+  const suggRef = useRef(null);
+  const end = useRef(null);
+  useEffect(()=>end.current?.scrollIntoView({behavior:'smooth'}),[msgs, activeId]);
+
+  async function send() {
+    if (!input.trim()||busy) return;
+    const next = [...msgs,{role:'user',content:input.trim()}];
+    setMsgs(next); setInput(''); setBusy(true);
+    try {
+      const r = await claude(next, sys, 1000);
+      setMsgs(m=>[...m,{role:'assistant',content:r}]);
+    } catch(e) { setMsgs(m=>[...m,{role:'assistant',content:'Errore: '+e.message}]); }
+    setBusy(false);
+  }
+  async function sendSuggestion() {
+    if (busy) return;
+    setShowSuggCtx(false);
+    let contextPart = '';
+    if (suggCtx.trim()) {
+      contextPart = ` Sto leggendo la parte in cui: "${suggCtx.trim()}".`;
+    } else if (msgs.length >= 2) {
+      contextPart = ` Abbiamo appena parlato di: "${msgs[msgs.length-1]?.content?.slice(0,120)}".`;
+    }
+    const prompt = `In base a questo libro${contextPart} suggeriscimi 2-3 libri, 1-2 podcast e 1 film o documentario strettamente pertinenti. Per ognuno spiega in una riga il collegamento specifico. Sii selettivo e preciso, non generico.`;
+    const next = [...msgs,{role:'user',content:prompt}];
+    setMsgs(next); setSuggCtx(''); setBusy(true);
+    try {
+      const r = await claude(next, sys, 1200);
+      setMsgs(m=>[...m,{role:'assistant',content:r}]);
+    } catch(e) { setMsgs(m=>[...m,{role:'assistant',content:'Errore: '+e.message}]); }
+    setBusy(false);
+  }
+  function toggleSuggCtx() { setShowSuggCtx(s=>!s); setTimeout(()=>suggRef.current?.focus(), 50); }
+
+  return (
+    <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:14,overflow:'hidden',marginBottom:32,boxShadow:`0 2px 12px ${t.shadow}`}}>
+      {/* Header principale */}
+      <div style={{padding:'12px 20px',borderBottom:`1px solid ${t.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{color:t.accent}}>✦</span>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,color:t.text}}>Dialoga con il Buddy</span>
+        </div>
+        <button onClick={toggleSuggCtx} disabled={busy}
+          style={{padding:'5px 13px',background:showSuggCtx?t.accent:t.accentBg,border:`1px solid ${t.accent}`,borderRadius:20,color:showSuggCtx?'#fff':t.accent,fontSize:12,cursor:busy?'default':'pointer',fontFamily:"'Playfair Display',serif",transition:'all .15s'}}>
+          💡 Suggeriscimi
+        </button>
+      </div>
+      {/* Barra sessioni */}
+      <div style={{padding:'8px 16px',borderBottom:`1px solid ${t.borderLight}`,background:t.bgAlt,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+        {allSessions.map(s=>(
+          <div key={s.id} style={{display:'flex',alignItems:'center',gap:3}}>
+            <button onClick={()=>setActiveId(s.id)}
+              style={{padding:'3px 11px',borderRadius:20,fontSize:12,border:`1px solid ${s.id===activeId?t.accent:t.border}`,background:s.id===activeId?t.accentBg:'none',color:s.id===activeId?t.accent:t.textSec,cursor:'pointer',fontFamily:"'Playfair Display',serif",maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+              {s.title}
+              {s.messages.length>0&&<span style={{fontSize:10,color:s.id===activeId?t.accent:t.textMuted,marginLeft:4}}>{Math.floor(s.messages.length/2)}</span>}
+            </button>
+            {allSessions.length>1&&<button onClick={()=>deleteSession(s.id)}
+              style={{background:'none',border:'none',color:t.textMuted,fontSize:11,cursor:'pointer',padding:'0 2px',lineHeight:1}}>×</button>}
+          </div>
+        ))}
+        <button onClick={newSession}
+          style={{padding:'3px 10px',borderRadius:20,fontSize:12,border:`1px dashed ${t.border}`,background:'none',color:t.textMuted,cursor:'pointer'}}>
+          + Nuova
+        </button>
+      </div>
+      {/* Titolo sessione attiva editabile */}
+      <div style={{padding:'6px 18px',borderBottom:`1px solid ${t.borderLight}`,display:'flex',alignItems:'center',gap:8}}>
+        {editingTitle
+          ? <input value={titleDraft} onChange={e=>setTitleDraft(e.target.value)} autoFocus
+              onBlur={commitTitle} onKeyDown={e=>{if(e.key==='Enter')commitTitle();if(e.key==='Escape')setEditingTitle(false);}}
+              style={{fontSize:13,color:t.text,background:'none',border:`1px solid ${t.accent}`,borderRadius:6,padding:'2px 8px',width:220}}/>
+          : <span onClick={startEditTitle} title="Clicca per rinominare"
+              style={{fontSize:13,color:t.textSec,cursor:'text',fontStyle:'italic'}}>
+              {activeSession.title}
+              <span style={{fontSize:10,color:t.textMuted,marginLeft:6}}>✎</span>
+            </span>
+        }
+        <span style={{fontSize:11,color:t.textMuted,marginLeft:'auto'}}>
+          {new Date(activeSession.createdAt).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}
+        </span>
+      </div>
+      {showSuggCtx&&<div style={{borderBottom:`1px solid ${t.borderLight}`,padding:'10px 16px',background:t.accentBg,display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{flex:1}}>
+          <p style={{fontSize:11,color:t.accent,marginBottom:5,letterSpacing:'.04em',textTransform:'uppercase'}}>Su cosa vuoi i suggerimenti? <span style={{fontStyle:'italic',textTransform:'none',opacity:.8}}>(facoltativo — lascia vuoto per il libro in generale)</span></p>
+          <input ref={suggRef} value={suggCtx} onChange={e=>setSuggCtx(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Enter')sendSuggestion();if(e.key==='Escape'){setShowSuggCtx(false);setSuggCtx('');}}}
+            placeholder="es. il capitolo sulla rivoluzione industriale, il tema della memoria, il personaggio di X…"
+            style={{width:'100%',padding:'7px 11px',background:t.inputBg,border:`1px solid ${t.accent}`,borderRadius:7,color:t.text,fontSize:13}}/>
+        </div>
+        <button onClick={sendSuggestion} disabled={busy}
+          style={{padding:'8px 16px',background:t.accent,border:'none',borderRadius:8,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif",fontWeight:600,whiteSpace:'nowrap',flexShrink:0}}>
+          Vai ❧
+        </button>
+      </div>}
+      <div style={{minHeight:60,maxHeight:340,overflowY:'auto',padding:'14px 18px'}}>
+        {msgs.length===0&&<p style={{color:t.textMuted,fontSize:15,fontStyle:'italic',textAlign:'center',marginTop:8}}>Fai una domanda sul libro, chiedi approfondimenti…</p>}
+        {msgs.map((m,i)=>(
+          <div key={i} style={{marginBottom:10,display:'flex',flexDirection:'column',alignItems:m.role==='user'?'flex-end':'flex-start'}}>
+            <div style={{maxWidth:'86%',padding:'8px 13px',fontSize:15,lineHeight:1.65,
+              background:m.role==='user'?t.chatUserBg:t.chatAIBg,color:m.role==='user'?t.text:t.accent,
+              border:`1px solid ${t.borderLight}`,borderRadius:m.role==='user'?'12px 12px 3px 12px':'12px 12px 12px 3px'}}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {busy&&<div style={{display:'flex'}}><div style={{padding:'8px 14px',background:t.chatAIBg,border:`1px solid ${t.borderLight}`,borderRadius:'12px 12px 12px 3px'}}><Dots color={t.accent}/></div></div>}
+        <div ref={end}/>
+      </div>
+      <div style={{borderTop:`1px solid ${t.borderLight}`,padding:'10px 14px',display:'flex',gap:8,alignItems:'flex-end'}}>
+        <textarea value={input} onChange={e=>setInput(e.target.value)} rows={2}
+          onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}
+          placeholder="Scrivi (Invio per inviare, Shift+Invio per andare a capo)…"
+          style={{flex:1,background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,padding:'8px 12px',color:t.text,fontSize:15,resize:'none',lineHeight:1.5}}/>
+        <button onClick={send} disabled={busy||!input.trim()}
+          style={{padding:'9px 16px',background:busy||!input.trim()?t.border:t.accent,color:'#fff',border:'none',borderRadius:8,fontSize:14,cursor:'pointer',fontFamily:"'Playfair Display',serif",whiteSpace:'nowrap'}}>
+          Invia ❧
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RelatedBooks({books, sourceBook, t, sl}) {
+  const [msgs, setMsgs] = useState({});
+  if(!books.length) return null;
+  function addToWishlist(item) {
+    const result = addSuggestionToWishlist(item, sourceBook);
+    setMsgs(m=>({...m,[item]:result.msg}));
+    setTimeout(()=>setMsgs(m=>({...m,[item]:''})), 3000);
+  }
+  return <div style={{marginBottom:12}}>
+    <p style={sl}>📚 Libri</p>
+    {books.map((item,i)=>(
+      <div key={i} style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',
+        gap:10,marginBottom:8,paddingBottom:8,borderBottom:i<books.length-1?`1px solid ${t.borderLight}`:'none'}}>
+        <p style={{fontSize:15,lineHeight:1.6,color:t.text,flex:1}}>{item}</p>
+        <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+          <button onClick={()=>addToWishlist(item)}
+            style={{padding:'3px 10px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textSec,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+            + Wishlist
+          </button>
+          {msgs[item]&&<span style={{fontSize:11,color:t.accent2,textAlign:'right'}}>{msgs[item]}</span>}
+        </div>
+      </div>
+    ))}
+  </div>;
+}
+
+function RelatedPodcasts({podcasts, sourceBook, t, sl}) {
+  const [msgs, setMsgs] = useState({});
+  if(!podcasts?.length) return null;
+  function addToListenS(item) {
+    const result = addPodcastToListenS(item, sourceBook);
+    setMsgs(m=>({...m,[item]:result.msg}));
+    setTimeout(()=>setMsgs(m=>({...m,[item]:''})), 3000);
+  }
+  return <div style={{marginBottom:12}}>
+    <p style={sl}>🎙 Podcast</p>
+    {podcasts.map((item,i)=>(
+      <div key={i} style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',
+        gap:10,marginBottom:8,paddingBottom:8,borderBottom:i<podcasts.length-1?`1px solid ${t.borderLight}`:'none'}}>
+        <p style={{fontSize:15,lineHeight:1.6,color:t.text,flex:1}}>{item}</p>
+        <div style={{display:'flex',flexDirection:'column',gap:4,flexShrink:0}}>
+          <button onClick={()=>addToListenS(item)}
+            style={{padding:'3px 10px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textSec,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+            + ListenS
+          </button>
+          {msgs[item]&&<span style={{fontSize:11,color:t.accent2,textAlign:'right'}}>{msgs[item]}</span>}
+        </div>
+      </div>
+    ))}
+  </div>;
+}
+
+// ── LISTENS BRIDGE ─────────────────────────────────────────────────────────
+const LISTENS_KEY = 'listens_buddy_suggestions';
+
+function addPodcastToListenS(suggestion, sourceBook) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(LISTENS_KEY)||'[]');
+    const colonIdx = suggestion.indexOf(':');
+    const beforeColon = colonIdx>0 ? suggestion.slice(0,colonIdx).trim() : suggestion.trim();
+    const reason = colonIdx>0 ? suggestion.slice(colonIdx+1).trim() : '';
+    const dashIdx = beforeColon.indexOf(' - ');
+    const podcastName = dashIdx>0 ? beforeColon.slice(0,dashIdx).trim() : beforeColon;
+    if(!podcastName) return {ok:false, msg:'Suggerimento non valido.'};
+    const already = existing.find(p=>p.title.toLowerCase()===podcastName.toLowerCase());
+    if(already) return {ok:false, msg:`"${podcastName}" è già in ListenS.`};
+    const podcast = {
+      id:'rb_'+LS.id(), title:podcastName, author:'', description:reason||'',
+      feed_url:'', cover_url:'',
+      source:{type:'buddy', book_title:sourceBook.title, book_id:sourceBook.id},
+      status:'wishlist', addedAt:new Date().toISOString(),
+    };
+    localStorage.setItem(LISTENS_KEY, JSON.stringify([podcast,...existing]));
+    return {ok:true, msg:`"${podcastName}" aggiunto a ListenS!`};
+  } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
+}
+
+function exportCardToPdf(book) {
+  const d = book.data;
+  if (!d) return;
+  const lines = [];
+  lines.push(`<h1 style="font-family:'Georgia',serif;font-size:26px;font-style:italic;color:#2C2416;margin-bottom:4px">${book.title}</h1>`);
+  lines.push(`<p style="color:#6B5D4F;font-size:16px;margin-bottom:24px">${book.author}${book.edition?' · '+book.edition:''}</p>`);
+
+  const sec = (icon, title, content) =>
+    `<h2 style="font-family:'Georgia',serif;font-size:15px;color:#8B4513;margin:22px 0 8px;border-bottom:1px solid #D4C9B8;padding-bottom:5px">${icon} ${title}</h2>${content}`;
+  const p = (txt) => `<p style="font-size:14px;line-height:1.75;color:#2C2416;margin:0 0 8px">${txt||''}</p>`;
+  const tag = (txt) => `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;background:#F5EDE3;color:#8B4513;border:1px solid #D4C9B8;margin:2px 3px">${txt}</span>`;
+
+  if (d.overview) lines.push(sec('◈','Overview & Contesto', p(d.overview)+(d.context?p(d.context):'')
+    +(d.keyChapters?.length?`<p style="font-size:11px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px">Capitoli chiave</p><div>${d.keyChapters.map(tag).join('')}</div>`:'')
+    +(d.keyConcepts?.length?`<p style="font-size:11px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px">Concetti chiave</p><div>${d.keyConcepts.map(tag).join('')}</div>`:'')));
+  if (d.readingGuide) lines.push(sec('◎','Guida di Lettura', p(d.readingGuide)));
+  if (d.focusQuestions?.length) lines.push(sec('◇','Domande di Riflessione',
+    `<ol style="padding-left:20px;margin:0">${d.focusQuestions.map(q=>`<li style="font-size:14px;line-height:1.75;color:#2C2416;margin-bottom:6px">${q}</li>`).join('')}</ol>`));
+  if (d.controversies) lines.push(sec('⚡','Controversie & Dibattiti', p(d.controversies)));
+  if (d.readingJournal?.length) lines.push(sec('✎','Diario di Lettura',
+    `<p style="font-size:12px;color:#6B5D4F;font-style:italic;margin-bottom:8px">Domande da tenerti in mente mentre leggi:</p><ol style="padding-left:20px;margin:0">${d.readingJournal.map(q=>`<li style="font-size:14px;line-height:1.75;color:#2C2416;margin-bottom:6px">${q}</li>`).join('')}</ol>`));
+  if (book.notes?.trim()) lines.push(sec('✎','Note personali', p(book.notes.replace(/\n/g,'<br>'))));
+  if (d.related?.books?.length||d.related?.films?.length||d.related?.podcasts?.length) {
+    let relContent = '';
+    if (d.related?.books?.length) relContent += `<p style="font-size:12px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px">📚 Libri</p><ul style="padding-left:16px;margin:0 0 10px">${d.related.books.map(x=>`<li style="font-size:13px;line-height:1.65;color:#2C2416;margin-bottom:3px">${x}</li>`).join('')}</ul>`;
+    if (d.related?.films?.length) relContent += `<p style="font-size:12px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px">🎬 Film & Documentari</p><ul style="padding-left:16px;margin:0 0 10px">${d.related.films.map(x=>`<li style="font-size:13px;line-height:1.65;color:#2C2416;margin-bottom:3px">${x}</li>`).join('')}</ul>`;
+    if (d.related?.podcasts?.length) relContent += `<p style="font-size:12px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:8px 0 4px">🎙 Podcast</p><ul style="padding-left:16px;margin:0 0 10px">${d.related.podcasts.map(x=>`<li style="font-size:13px;line-height:1.65;color:#2C2416;margin-bottom:3px">${x}</li>`).join('')}</ul>`;
+    lines.push(sec('◉','Letture & Risorse Correlate', relContent));
+  }
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:wght@300;400&display=swap" rel="stylesheet"/>
+    <style>*{box-sizing:border-box}body{font-family:'Crimson Pro',Georgia,serif;margin:0;padding:36px 44px;background:#FDFAF6;color:#2C2416;max-width:780px}@media print{body{padding:24px 32px}}</style>
+    </head><body>${lines.join('\n')}<p style="font-size:10px;color:#C4A882;margin-top:36px;padding-top:12px;border-top:1px solid #EAE2D6;text-align:right">Generato con Footnote · ${new Date().toLocaleDateString('it-IT')}</p></body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  setTimeout(()=>{ win?.print(); URL.revokeObjectURL(url); }, 800);
+}
+
+function GenerateCard({t, book, onGenerate, generating}) {
+  const [file, setFile] = useState(null);
+  return (
+    <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,
+      borderRadius:14,padding:'28px 24px',boxShadow:`0 2px 12px ${t.shadow}`,marginBottom:16}}>
+      <div style={{textAlign:'center',marginBottom:20}}>
+        <p style={{fontSize:32,marginBottom:10}}>❧</p>
+        <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:'italic',color:t.text,marginBottom:4}}>
+          Scheda non ancora generata</p>
+        <p style={{color:t.textMuted,fontSize:14}}>
+          {book._fromBookShelf?'Importato da BookShelf. ':''}
+          Puoi generare dalla conoscenza del modello, o caricare il file per un'analisi più precisa.
+        </p>
+      </div>
+      <div style={{marginBottom:18}}>
+        <div onClick={()=>document.getElementById('gcFile').click()}
+          style={{border:`2px dashed ${file?t.accent:t.border}`,borderRadius:10,padding:'12px 16px',
+            textAlign:'center',cursor:'pointer',background:t.bgAlt,position:'relative',transition:'border-color .2s'}}>
+          <input id="gcFile" type="file" accept=".pdf,.epub"
+            style={{position:'absolute',opacity:0,inset:0,cursor:'pointer'}}
+            onChange={e=>setFile(e.target.files[0]||null)}/>
+          <span style={{color:file?t.accent:t.textMuted,fontSize:14}}>
+            {file?`✓ ${file.name}`:'📄 Carica PDF o ePub (opzionale — migliora la qualità)'}
+          </span>
+        </div>
+        {file&&<p style={{fontSize:11,color:t.textMuted,marginTop:4,textAlign:'center',fontStyle:'italic'}}>
+          Usato solo per generare la scheda</p>}
+      </div>
+      {generating
+        ? <div style={{textAlign:'center',padding:'8px 0'}}>
+            <div style={{fontSize:24,color:t.accent,animation:'spin 2s linear infinite',display:'inline-block'}}>✦</div>
+            <p style={{color:t.textSec,fontSize:14,fontStyle:'italic',marginTop:6}}>
+              {file?'Analizzo il file e genero la scheda…':'Genero la scheda…'}</p>
+          </div>
+        : <button onClick={()=>onGenerate(file)}
+            style={{width:'100%',padding:'11px',background:t.accent,border:'none',borderRadius:10,
+              color:'#fff',fontSize:15,cursor:'pointer',fontFamily:"'Playfair Display',serif",fontWeight:600}}>
+            {file?'Genera scheda dal file ❧':'Genera scheda ❧'}
+          </button>
+      }
+    </div>
+  );
+}
+
+function BookNotes({t, book, onUpdate}) {
+  const [open, setOpen] = useState(!!(book.notes));
+  const [text, setText] = useState(book.notes||'');
+  const timer = useRef(null);
+  function handleChange(val) {
+    setText(val);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(()=>onUpdate({...book, notes:val}), 800);
+  }
+  return (
+    <div style={{marginBottom:16}}>
+      <div onClick={()=>setOpen(o=>!o)}
+        style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'10px 0',borderBottom:`1px solid ${t.borderLight}`,marginBottom:open?12:0}}>
+        <span style={{color:t.accent,fontSize:15}}>✎</span>
+        <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:600,color:t.text}}>Note personali</span>
+        {text&&!open&&<span style={{fontSize:11,color:t.textMuted,fontStyle:'italic',marginLeft:4,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:300}}>{text.slice(0,60)}{text.length>60?'…':''}</span>}
+        <span style={{marginLeft:'auto',fontSize:12,color:t.textMuted}}>{open?'▲':'▼'}</span>
+      </div>
+      {open&&<textarea
+        value={text}
+        onChange={e=>handleChange(e.target.value)}
+        placeholder="Appunti, riflessioni, citazioni, segnalibri mentali… salvato automaticamente."
+        rows={5}
+        style={{width:'100%',padding:'10px 13px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:15,lineHeight:1.7,resize:'vertical',fontFamily:"'Crimson Pro',serif"}}
+      />}
+    </div>
+  );
+}
+
+function Dashboard({t, book, onUpdate, collections, onCollections}) {
+  const d = book.data||{};
+  const sys = sysPrompt(book, true);
+  const p = {fontSize:16,lineHeight:1.78,color:t.text};
+  const sl = {fontSize:11,color:t.textMuted,letterSpacing:'.06em',textTransform:'uppercase',margin:'12px 0 7px'};
+  const mine = (collections||[]).filter(c=>(book.collectionIds||[]).includes(c.id));
+  const [bsMsg, setBsMsg] = useState('');
+  const [generating, setGenerating] = useState(false);
+  function handleExportBS() {
+    const result = exportToBookShelf(book);
+    setBsMsg(result.msg);
+    setTimeout(()=>setBsMsg(''), 3500);
+  }
+  async function generateCard(file) {
+    if (file && file.size > 3 * 1024 * 1024) { alert('File troppo grande (max 3 MB). Prova con un file più piccolo.'); return; }
+    setGenerating(true);
+    try {
+      let data;
+      if (file) {
+        // ── Call 1: with file ──
+        let messages1;
+        if (file.name.toLowerCase().endsWith('.epub')) {
+          const fileText = await extractEpub(file);
+          messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
+          const buf = await file.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let bin=''; for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+          messages1 = [{role:'user',content:[
+            {type:'document',source:{type:'base64',media_type:'application/pdf',data:btoa(bin)}},
+            {type:'text',text:initPrompt1()}
+          ]}];
+        }
+        const raw1 = await claude(messages1, sysPrompt(book), 4000);
+        const data1 = JSON.parse(fixJson(raw1));
+        // ── Call 2: no file ──
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4000);
+        const data2 = JSON.parse(fixJson(raw2));
+        data = {...data1, ...data2};
+      } else {
+        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 6000);
+        data = JSON.parse(fixJson(raw));
+      }
+      onUpdate({...book, data, chat:[]});
+    } catch(e) { alert('Errore: '+e.message); }
+    setGenerating(false);
+  }
+  return (
+    <div>
+      <div className="fu" style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:14,padding:'18px 24px',marginBottom:16,boxShadow:`0 2px 12px ${t.shadow}`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,flexWrap:'wrap'}}>
+          <div>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontStyle:'italic',color:t.text,marginBottom:2}}>{book.title}</h2>
+            <p style={{color:t.textSec,fontSize:16}}>{book.author}{book.edition&&<span style={{color:t.textMuted,fontSize:14}}> · {book.edition}</span>}</p>
+          </div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <button onClick={onCollections} style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>
+              ◈ Collezioni{mine.length>0?' ('+mine.length+')':''}
+            </button>
+            <button onClick={handleExportBS} style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>
+              📚 → BookShelf
+            </button>
+            {book.data&&<button onClick={()=>exportCardToPdf(book)} style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>
+              📄 Esporta PDF
+            </button>}
+          </div>
+        </div>
+        {mine.length>0&&<div style={{marginTop:8}}>{mine.map(c=><Tag key={c.id} label={'◈ '+c.name} t={t}/>)}</div>}
+        {bsMsg&&<div style={{marginTop:10,padding:'7px 12px',borderRadius:7,fontSize:13,
+          background:bsMsg.includes('già')?'#fdf0ee':'#edfaf3',color:bsMsg.includes('già')?t.danger:'#2d7a4f',
+          border:`1px solid ${bsMsg.includes('già')?'#f5c6c0':'#b7e4c7'}`}}>{bsMsg}</div>}
+      </div>
+      {!book.data&&<GenerateCard t={t} book={book} onGenerate={generateCard} generating={generating}/>}
+      {book.data&&<>
+        <Card icon="◈" title="Overview & Contesto" t={t} delay={.05}>
+          <p style={p}>{d.overview}</p>
+          {d.context&&<p style={{...p,color:t.textSec,marginTop:10}}>{d.context}</p>}
+          {d.keyChapters?.length>0&&<><p style={sl}>Capitoli chiave</p><div>{d.keyChapters.map((c,i)=><Tag key={i} label={c} t={t}/>)}</div></>}
+          {d.keyConcepts?.length>0&&<><p style={sl}>Concetti chiave</p><div>{d.keyConcepts.map((c,i)=><Tag key={i} label={c} t={t}/>)}</div></>}
+        </Card>
+        <Card icon="◎" title="Guida di Lettura" t={t} delay={.1}><p style={p}>{d.readingGuide}</p></Card>
+        <Card icon="◇" title="Domande di Riflessione" t={t} delay={.15}>
+          <ol style={{paddingLeft:20}}>{d.focusQuestions?.map((q,i)=><li key={i} style={{...p,marginBottom:9,paddingLeft:3}}>{q}</li>)}</ol>
+        </Card>
+        {d.controversies&&<Card icon="⚡" title="Controversie & Dibattiti" t={t} delay={.18}>
+          <p style={p}>{d.controversies}</p>
+        </Card>}
+        {d.readingJournal?.length>0&&<Card icon="✎" title="Diario di Lettura" t={t} delay={.19}>
+          <p style={{...p,fontSize:13,color:'inherit',fontStyle:'italic',marginBottom:10}}>Domande da tenerti in mente mentre leggi:</p>
+          <ol style={{paddingLeft:20}}>{d.readingJournal.map((q,i)=><li key={i} style={{...p,marginBottom:9,paddingLeft:3}}>{q}</li>)}</ol>
+        </Card>}
+        <Card icon="◉" title="Letture & Risorse Correlate" t={t} delay={.2}>
+          <RelatedBooks books={d.related?.books||[]} sourceBook={book} t={t} sl={sl}/>
+          {d.related?.films?.length>0&&<div style={{marginBottom:12}}>
+            <p style={sl}>🎬 Film & Documentari</p>
+            <ul style={{paddingLeft:18}}>{d.related.films.map((x,i)=><li key={i} style={{fontSize:15,color:t.text,lineHeight:1.6,marginBottom:3}}>{x}</li>)}</ul>
+          </div>}
+          {d.related?.podcasts?.length>0&&<RelatedPodcasts podcasts={d.related.podcasts} sourceBook={book} t={t} sl={sl}/>}
+        </Card>
+        <BookNotes t={t} book={book} onUpdate={onUpdate}/>
+        <Chat t={t} sys={sys} sessions={book.sessions||(book.chat?.length?[{id:LS.id(),title:'Sessione 1',createdAt:book.addedAt||new Date().toISOString(),messages:book.chat}]:[])} onSaveSessions={sessions=>onUpdate({...book,sessions,chat:undefined})}/>
+      </>}
+    </div>
+  );
+}
+
+function CollectionsPanel({t, collections, books, currentBookId, onSave, onClose}) {
+  const [name, setName] = useState('');
+  const [loadingId, setLoadingId] = useState(null);
+  function addColl() {
+    if (!name.trim()) return;
+    onSave([...collections,{id:LS.id(),name:name.trim(),bookIds:[],crossAnalysis:null}]);
+    setName('');
+  }
+  function toggle(collId, bookId) {
+    onSave(collections.map(c=>c.id!==collId?c:{...c,bookIds:c.bookIds.includes(bookId)?c.bookIds.filter(b=>b!==bookId):[...c.bookIds,bookId]}));
+  }
+  async function analyze(coll) {
+    const cb = books.filter(b=>coll.bookIds.includes(b.id));
+    if (cb.length<2) { alert('Servono almeno 2 libri.'); return; }
+    setLoadingId(coll.id);
+    const sum = cb.map(b=>`"${b.title}" di ${b.author}: ${b.data?.overview||''} | Concetti: ${(b.data?.keyConcepts||[]).join(', ')}`).join('\n---\n');
+    const sys = `Sei un critico letterario. Rispondi in ${cb[0].language||'italiano'}.`;
+    const prompt = `Analizza questi libri della collezione "${coll.name}":\n${sum}\n\nRispondi SOLO con questo JSON:\n{"commonThemes":["t1","t2","t3"],"comparativeQuestions":["q1","q2","q3","q4"],"synthesis":"2-3 paragrafi sulle connessioni e tensioni intellettuali"}`;
+    try {
+      const raw = await claude([{role:'user',content:prompt}], sys, 2000);
+      const data = JSON.parse(fixJson(raw));
+      onSave(collections.map(c=>c.id===coll.id?{...c,crossAnalysis:data}:c));
+    } catch(e) { alert('Errore analisi: '+e.message); }
+    setLoadingId(null);
+  }
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:500,display:'flex',alignItems:'flex-start',justifyContent:'center',overflowY:'auto',padding:'36px 14px'}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,width:'100%',maxWidth:620,boxShadow:`0 8px 48px ${t.shadow}`}}>
+        <div style={{padding:'16px 22px',borderBottom:`1px solid ${t.borderLight}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:600,color:t.text}}>◈ Collezioni</span>
+          <button onClick={onClose} style={{background:'none',border:'none',fontSize:22,color:t.textMuted,cursor:'pointer'}}>×</button>
+        </div>
+        <div style={{padding:'18px 22px'}}>
+          <div style={{display:'flex',gap:8,marginBottom:20}}>
+            <input value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addColl()}
+              placeholder="Nome nuova collezione…"
+              style={{flex:1,padding:'9px 13px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:15}}/>
+            <button onClick={addColl} style={{padding:'9px 16px',background:t.accent,border:'none',borderRadius:8,color:'#fff',fontSize:14,cursor:'pointer',fontFamily:"'Playfair Display',serif"}}>Crea</button>
+          </div>
+          {collections.length===0&&<p style={{color:t.textMuted,fontStyle:'italic',textAlign:'center',fontSize:15}}>Nessuna collezione ancora.</p>}
+          {collections.map(coll=>{
+            const cb = books.filter(b=>coll.bookIds.includes(b.id));
+            const isIn = currentBookId&&coll.bookIds.includes(currentBookId);
+            return (
+              <div key={coll.id} style={{border:`1px solid ${t.borderLight}`,borderRadius:12,padding:'14px 16px',marginBottom:12,background:t.bg}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:t.text,fontWeight:600}}>{coll.name}</span>
+                  <div style={{display:'flex',gap:7}}>
+                    {currentBookId&&<button onClick={()=>toggle(coll.id,currentBookId)}
+                      style={{padding:'3px 10px',background:isIn?t.accentBg:'none',border:`1px solid ${t.border}`,borderRadius:6,color:isIn?t.accent:t.textSec,fontSize:12,cursor:'pointer'}}>{isIn?'✓ Aggiunto':'+ Aggiungi'}</button>}
+                    <button onClick={()=>onSave(collections.filter(c=>c.id!==coll.id))} style={{background:'none',border:'none',color:t.textMuted,fontSize:15,cursor:'pointer'}}>🗑</button>
+                  </div>
+                </div>
+                <p style={{color:t.textMuted,fontSize:12,marginBottom:8}}>{cb.length} {cb.length===1?'libro':'libri'}{cb.length>0&&': '+cb.map(b=>b.title).join(', ')}</p>
+                {cb.length>=2&&<button onClick={()=>analyze(coll)} disabled={!!loadingId}
+                  style={{padding:'5px 13px',background:t.accentBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.accent,fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif"}}>
+                  {loadingId===coll.id?'Analisi…':'✦ Analizza collezione'}</button>}
+                {coll.crossAnalysis&&<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${t.borderLight}`}}>
+                  <p style={{fontSize:11,color:t.textMuted,letterSpacing:'.06em',textTransform:'uppercase',marginBottom:6}}>Temi comuni</p>
+                  {coll.crossAnalysis.commonThemes?.map((x,i)=><Tag key={i} label={x} t={t}/>)}
+                  <p style={{fontSize:11,color:t.textMuted,letterSpacing:'.06em',textTransform:'uppercase',margin:'10px 0 6px'}}>Domande comparative</p>
+                  <ol style={{paddingLeft:18}}>{coll.crossAnalysis.comparativeQuestions?.map((q,i)=><li key={i} style={{fontSize:14,color:t.text,lineHeight:1.6,marginBottom:5}}>{q}</li>)}</ol>
+                  {coll.crossAnalysis.synthesis&&<p style={{fontSize:15,lineHeight:1.7,color:t.textSec,marginTop:10}}>{coll.crossAnalysis.synthesis}</p>}
+                </div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BS_STATUS_COLORS = {
+  'letto':       {dot:'#2d7a4f', bg:'#edfaf3', text:'#2d7a4f', label:'letto'},
+  'Letto':       {dot:'#2d7a4f', bg:'#edfaf3', text:'#2d7a4f', label:'letto'},
+  'in-lettura':  {dot:'#b85c00', bg:'#fff4e6', text:'#b85c00', label:'in lettura'},
+  'In corso':    {dot:'#b85c00', bg:'#fff4e6', text:'#b85c00', label:'in lettura'},
+  'in corso':    {dot:'#b85c00', bg:'#fff4e6', text:'#b85c00', label:'in lettura'},
+  'da leggere':  {dot:'#5a7fa8', bg:'#eaf1fb', text:'#5a7fa8', label:'da leggere'},
+  'Da leggere':  {dot:'#5a7fa8', bg:'#eaf1fb', text:'#5a7fa8', label:'da leggere'},
+  'wishlist':    {dot:'#7a5ea8', bg:'#f3eefb', text:'#7a5ea8', label:'wishlist'},
+  'Wishlist':    {dot:'#7a5ea8', bg:'#f3eefb', text:'#7a5ea8', label:'wishlist'},
+  'abbandonato': {dot:'#9e8e7e', bg:'#f5f0eb', text:'#9e8e7e', label:'abbandonato'},
+  'Abbandonato': {dot:'#9e8e7e', bg:'#f5f0eb', text:'#9e8e7e', label:'abbandonato'},
+};
+
+function getBsStatus(book) {
+  // Se il libro è stato importato da BookShelf, lo stato è già salvato in _bsStatus
+  if (book._bsStatus) return book._bsStatus;
+  try {
+    const bsBooks = JSON.parse(localStorage.getItem('libreria-personale-v1')||'[]');
+    const match = bsBooks.find(b =>
+      b.title.toLowerCase() === book.title.toLowerCase() &&
+      b.author.toLowerCase() === book.author.toLowerCase()
+    );
+    return match?.status || null;
+  } catch { return null; }
+}
+
+function Library({t, books, collections, onSelect, onNew, onDelete, onImportBS}) {
+  const [bsCount] = useState(()=>{ try { return JSON.parse(localStorage.getItem('libreria-personale-v1')||'[]').length; } catch { return 0; } });
+  const [query, setQuery] = useState('');
+  const filtered = query.trim()
+    ? books.filter(b => b.title.toLowerCase().includes(query.toLowerCase()) || b.author.toLowerCase().includes(query.toLowerCase()))
+    : books;
+  return (
+    <div className="fu">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,flexWrap:'wrap',gap:10}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontStyle:'italic',color:t.text}}>La mia Biblioteca</h2>
+        <div style={{display:'flex',gap:8}}>
+          {bsCount>0&&<button onClick={onImportBS} style={{padding:'7px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>📚 Importa da BookShelf</button>}
+          <button onClick={onNew} style={{padding:'8px 16px',background:t.accent,border:'none',borderRadius:9,color:'#fff',fontSize:14,cursor:'pointer',fontFamily:"'Playfair Display',serif",fontWeight:600}}>+ Nuovo libro</button>
+        </div>
+      </div>
+      {books.length>0&&<div style={{marginBottom:16,position:'relative'}}>
+        <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:t.textMuted,fontSize:14,pointerEvents:'none'}}>🔍</span>
+        <input value={query} onChange={e=>setQuery(e.target.value)}
+          placeholder="Cerca per titolo o autore…"
+          style={{width:'100%',padding:'9px 12px 9px 34px',background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:9,color:t.text,fontSize:14}}/>
+        {query&&<button onClick={()=>setQuery('')} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:t.textMuted,fontSize:16,cursor:'pointer',lineHeight:1}}>×</button>}
+      </div>}
+      {books.length===0
+        ?<div style={{textAlign:'center',paddingTop:60}}>
+          <p style={{fontSize:40,marginBottom:10}}>❧</p>
+          <p style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontStyle:'italic',color:t.textSec}}>La tua biblioteca è vuota</p>
+          <p style={{color:t.textMuted,fontSize:15,marginTop:5}}>Aggiungi il tuo primo libro per iniziare</p>
+        </div>
+        : filtered.length===0
+          ?<p style={{textAlign:'center',color:t.textMuted,fontStyle:'italic',paddingTop:40}}>Nessun risultato per "{query}"</p>
+          :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:14}}>
+            {filtered.map(b=>{
+              const bsStatus = getBsStatus(b);
+              const bsStyle = bsStatus ? BS_STATUS_COLORS[bsStatus] : null;
+              const bookColls = (collections||[]).filter(c=>(b.collectionIds||[]).includes(c.id));
+              return (
+                <div key={b.id} onClick={()=>onSelect(b)}
+                  style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,padding:'16px 18px',cursor:'pointer',boxShadow:`0 2px 8px ${t.shadow}`,transition:'transform .15s,box-shadow .15s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 6px 18px ${t.shadow}`;}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 2px 8px ${t.shadow}`;}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,fontStyle:'italic',color:t.text,marginBottom:3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{b.title}</h3>
+                      <p style={{color:t.textSec,fontSize:14}}>{b.author}</p>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:5,marginLeft:6,flexShrink:0}}>
+                      {b.data&&<span title="Scheda generata" style={{fontSize:12,color:t.accent,fontWeight:700}}>✦</span>}
+                      <button onClick={e=>{e.stopPropagation();if(confirm('Eliminare?'))onDelete(b.id);}} style={{background:'none',border:'none',color:t.textMuted,fontSize:15,cursor:'pointer'}}>🗑</button>
+                    </div>
+                  </div>
+                  {b.edition&&<p style={{color:t.textMuted,fontSize:12,marginTop:4}}>{b.edition}</p>}
+                  {bookColls.length>0&&<div style={{marginTop:7,display:'flex',flexWrap:'wrap',gap:4}}>
+                    {bookColls.map(c=><span key={c.id} style={{fontSize:10,padding:'2px 7px',borderRadius:10,background:t.accentBg,color:t.accent,border:`1px solid ${t.borderLight}`}}>◈ {c.name}</span>)}
+                  </div>}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8}}>
+                    {bsStyle
+                      ? <span style={{fontSize:11,padding:'2px 8px',borderRadius:10,background:bsStyle.bg,color:bsStyle.text,border:`1px solid ${bsStyle.dot}22`}}>
+                          <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:bsStyle.dot,marginRight:4,verticalAlign:'middle'}}/>
+                          {bsStyle.label}
+                        </span>
+                      : <span style={{fontSize:11,color:t.textMuted}}>{new Date(b.addedAt).toLocaleDateString('it-IT')}</span>
+                    }
+                    {(() => { const tot = b.sessions ? b.sessions.reduce((s,sess)=>s+Math.floor((sess.messages?.length||0)/2),0) : Math.floor((b.chat?.length||0)/2); return tot>0 ? <span style={{fontSize:11,color:t.accentLight}}>{tot} chat</span> : null; })()}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+      }
+    </div>
+  );
+}
+
+function App() {
+  const [dark, setDark] = useState(LS.raw('rb_dark')==='1');
+  const t = dark ? DARK : LIGHT;
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [books, setBooks] = useState([]);
+  const [colls, setColls] = useState(()=>LS.get('rb_colls',[]));
+  const [view, setView] = useState('lib');
+  const [active, setActive] = useState(null);
+  useEffect(()=>{ if(view==='dash') window.scrollTo({top:0, behavior:'instant'}); },[view, active?.id]);
+
+  // ── Auth ──────────────────────────────────────────────────────────
+  useEffect(()=>{
+    sb.auth.getSession().then(({data:{session}})=>{ setUser(session?.user??null); setAuthLoading(false); });
+    const {data:{subscription}} = sb.auth.onAuthStateChange((_e,session)=>{ setUser(session?.user??null); });
+    return ()=>subscription.unsubscribe();
+  },[]);
+
+  // ── Load books from Supabase when user logs in ─────────────────
+  useEffect(()=>{
+    if(!user){ setBooks([]); return; }
+    sb.from('fn_books').select('*').eq('user_id',user.id).is('deleted_at',null)
+      .then(({data,error})=>{
+        if(error){ console.error(error); setBooks(LS.get('rb_books',[])); return; }
+        if(data){
+          const mapped = data.map(rowToBook);
+          setBooks(mapped); LS.set('rb_books',mapped);
+          // First-time migration
+          if(mapped.length===0){
+            const local=LS.get('rb_books',[]);
+            if(local.length>0&&window.confirm(`Trovati ${local.length} libri locali. Importarli nel tuo account?`)){
+              const rows=local.map(b=>bookToRow(b,user.id));
+              sb.from('fn_books').upsert(rows,{onConflict:'id'}).then(()=>{
+                setBooks(local); LS.set('rb_books',local);
+              });
+            }
+          }
+          // Restore deep-link
+          const _params=new URLSearchParams(window.location.search);
+          const id=_params.get('book');
+          const _title=_params.get('title')||'';
+          const _author=_params.get('author')||'';
+          if(id){
+            const b=mapped.find(x=>x.id===id||x.bsBookId===id);
+            if(b){ setActive(b); setView('dash'); }
+            else if(_title){
+              const stub={id:'bs_'+id,title:_title,author:_author,edition:'',language:'italiano',
+                hasFile:false,notes:'',sessions:[],collectionIds:[],
+                addedAt:new Date().toISOString(),_fromBookShelf:true};
+              sb.from('fn_books').upsert([bookToRow(stub,user.id)],{onConflict:'id'}).then(({error})=>{
+                if(!error){const nb={...stub,bsBookId:id};setBooks(p=>p.find(b=>b.id===nb.id||b.bsBookId===id)?p:[...p,nb]);setActive(nb);setView('dash');}
+              });
+            }
+          }
+        }
+      });
+  },[user?.id]); // user?.id evita doppio fire da getSession+onAuthStateChange
+
+  const [showColls, setShowColls] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [apiKey, setApiKey] = useState(true); // proxy server-side, nessuna chiave necessaria
+  useEffect(()=>{ document.body.style.background=t.bg; document.body.style.color=t.text; },[t]);
+  function saveBooks(b, syncBook) {
+    setBooks(b); LS.set('rb_books',b);
+    if(user && syncBook) sb.from('fn_books').upsert(bookToRow(syncBook,user.id),{onConflict:'id'}).then(({error})=>{if(error)console.error('fn_books upsert:',error);});
+  }
+  function deleteBook(id) {
+    saveBooks(books.filter(b=>b.id!==id));
+    if(user) sb.from('fn_books').update({deleted_at:new Date().toISOString()}).eq('id',id).eq('user_id',user.id).then(()=>{});
+  }
+  function saveColls(c) {
+    setColls(c); LS.set('rb_colls',c);
+    const updated = books.map(b=>({...b, collectionIds:c.filter(x=>x.bookIds.includes(b.id)).map(x=>x.id)}));
+    setBooks(updated); LS.set('rb_books',updated);
+    if (active) { const fresh=updated.find(b=>b.id===active.id); if(fresh) setActive(fresh); }
+  }
+  function handleBookDone(book) {
+    const exists = books.find(b=>b.id===book.id);
+    const next = exists ? books.map(b=>b.id===book.id?book:b) : [...books,book];
+    saveBooks(next, book);
+    setActive(book); setView('dash');
+  }
+  function handleUpdate(book) {
+    saveBooks(books.map(b=>b.id===book.id?book:b), book);
+    setActive(book);
+  }
+  if(authLoading) return <div style={{minHeight:'100vh',background:t.bg,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:t.textMuted,fontStyle:'italic',fontSize:15}}>Caricamento...</span></div>;
+  if(!user) return <AuthScreen t={t}/>;
+
+  return (
+    <div style={{minHeight:'100vh',background:t.bg,color:t.text}}>
+      <header style={{background:t.bgCard,borderBottom:`1px solid ${t.border}`,padding:'12px 16px',display:'flex',alignItems:'center',gap:8,position:'sticky',top:0,zIndex:200,overflowX:'auto',WebkitOverflowScrolling:'touch',boxShadow:`0 2px 14px ${t.shadow}`}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',flexShrink:0}} onClick={()=>{setView('lib');setActive(null);}}>
+          <span style={{fontSize:22,color:t.accent}}>❧</span>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:t.text}}>Footnote</div>
+            {view==='dash'&&active&&<div style={{fontSize:11,color:t.textMuted,fontStyle:'italic'}}>{active.title}</div>}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0,marginLeft:'auto'}}>
+          {view==='dash'&&<button onClick={()=>{setView('lib');setActive(null);}} style={{padding:'6px 12px',background:'none',border:`1px solid ${t.border}`,borderRadius:7,color:t.textSec,fontSize:13,cursor:'pointer'}}>← Biblioteca</button>}
+          <button onClick={()=>setShowPrefs(true)} title="Profilo lettore" style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>👤</button>
+          <button onClick={()=>setShowKey(true)} style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>🔑</button>
+          <button onClick={()=>{const v=!dark;setDark(v);LS.setRaw('rb_dark',v?'1':'0');}} style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{dark?'☀':'☾'}</button>
+          <button onClick={()=>{if(confirm('Disconnettersi?'))sb.auth.signOut();}} title={user?.email} style={{padding:'0 12px',height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:12,cursor:'pointer',color:t.textMuted}}>{user?.email?.split('@')[0]} ↩</button>
+        </div>
+      </header>
+      {false}
+      <main style={{maxWidth:800,margin:'0 auto',padding:'22px 14px'}}>
+        {view==='lib'&&<Library t={t} books={books} collections={colls}
+          onSelect={b=>{setActive(b);setView('dash');}}
+          onNew={()=>setView('form')}
+          onDelete={id=>deleteBook(id)}
+          onImportBS={async ()=>{
+            if (!user) { alert('Devi effettuare il login per importare da BookShelf.'); return; }
+            const {data, error} = await sb.from('bs_books').select('*').eq('user_id', user.id).is('deleted_at', null);
+            if (error) { alert('Errore nel leggere BookShelf: '+error.message); return; }
+            if (!data || !data.length) { alert('Nessun libro trovato in BookShelf.'); return; }
+            const bsBooks = data.map(b=>({
+              id: LS.id(), title: b.title||'', author: b.author||'', edition: b.publisher||'',
+              language: 'italiano', addedAt: new Date().toISOString(),
+              hasFile: false, bsBookId: b.id, _fromBookShelf: true, _bsStatus: b.status,
+              data: null, sessions: [], collectionIds: [],
+            }));
+            const newOnes = bsBooks.filter(i=>!books.find(b=>b.title.toLowerCase()===i.title.toLowerCase()&&b.author.toLowerCase()===i.author.toLowerCase()));
+            if (!newOnes.length) { alert('Tutti i libri di BookShelf sono già presenti.'); return; }
+            saveBooks([...books,...newOnes]);
+            alert(`Importati ${newOnes.length} libri da BookShelf!`);
+          }}/>}
+        {view==='form'&&<BookForm t={t} onDone={handleBookDone} onCancel={()=>setView('lib')}/>}
+        {view==='dash'&&active&&<Dashboard t={t} book={active} onUpdate={handleUpdate} collections={colls} onCollections={()=>setShowColls(true)}/>}
+      </main>
+      {showColls&&<CollectionsPanel t={t} collections={colls} books={books} currentBookId={active?.id} onSave={saveColls} onClose={()=>setShowColls(false)}/>}
+      {showKey&&<ApiKeyModal t={t} onDone={k=>{if(k)setApiKey(k);setShowKey(false);}}/>}
+      {showPrefs&&<ReaderPrefsModal t={t} onClose={()=>setShowPrefs(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
