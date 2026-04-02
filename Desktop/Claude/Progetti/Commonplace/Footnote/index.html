@@ -485,13 +485,13 @@ function BookForm({t, onDone, onCancel}) {
         const data1 = JSON.parse(fixJson(raw1));
         // ── Call 2: no file — reading guide, questions, resources ──
         setMsg('Genero la guida di lettura…');
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4500);
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 8000);
         const data2 = JSON.parse(fixJson(raw2));
         data = {...data1, ...data2};
       } else {
         // No file: single call is fine
         setMsg('Genero la scheda…');
-        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 6000);
+        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 8000);
         data = JSON.parse(fixJson(raw));
       }
       onDone({...book, data, chat:[], collectionIds:[]});
@@ -989,11 +989,11 @@ function Dashboard({t, book, onUpdate, collections, onCollections}) {
         const raw1 = await claude(messages1, sysPrompt(book), 4500);
         const data1 = JSON.parse(fixJson(raw1));
         // ── Call 2: no file ──
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4500);
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 8000);
         const data2 = JSON.parse(fixJson(raw2));
         data = {...data1, ...data2};
       } else {
-        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 6000);
+        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 8000);
         data = JSON.parse(fixJson(raw));
       }
       onUpdate({...book, data, chat:[]});
