@@ -481,11 +481,11 @@ function BookForm({t, onDone, onCancel}) {
         } else {
           messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
         }
-        const raw1 = await claude(messages1, sysPrompt(book), 4000);
+        const raw1 = await claude(messages1, sysPrompt(book), 4500);
         const data1 = JSON.parse(fixJson(raw1));
         // ── Call 2: no file — reading guide, questions, resources ──
         setMsg('Genero la guida di lettura…');
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4000);
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4500);
         const data2 = JSON.parse(fixJson(raw2));
         data = {...data1, ...data2};
       } else {
@@ -986,10 +986,10 @@ function Dashboard({t, book, onUpdate, collections, onCollections}) {
             {type:'text',text:initPrompt1()}
           ]}];
         }
-        const raw1 = await claude(messages1, sysPrompt(book), 4000);
+        const raw1 = await claude(messages1, sysPrompt(book), 4500);
         const data1 = JSON.parse(fixJson(raw1));
         // ── Call 2: no file ──
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4000);
+        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 4500);
         const data2 = JSON.parse(fixJson(raw2));
         data = {...data1, ...data2};
       } else {
