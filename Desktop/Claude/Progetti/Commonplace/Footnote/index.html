@@ -379,8 +379,8 @@ Personality: erudite but warm. For structured generation respond ONLY with valid
 }
 function initPrompt() {
   // Full single-call prompt (used when no file is attached)
-  return `Generate a reading companion. IMPORTANT: the "podcasts" array must always contain exactly 2 real podcast recommendations with show name, specific episode or topic, and why it connects to this book. Return ONLY this JSON:
-{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"],"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"]}}`;
+  return `Generate a reading companion. Return ONLY this JSON:
+{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"],"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"]}}`;
 }
 function initPrompt1() {
   // Call 1 (with file): overview, context, chapters, concepts only
@@ -390,8 +390,8 @@ function initPrompt1() {
 function initPrompt2(d) {
   // Call 2 (no file): reading guide, questions, resources — uses data from call 1 as context
   const ctx = `Overview: "${(d.overview||'').slice(0,300)}" | Key concepts: ${(d.keyConcepts||[]).slice(0,5).join(', ')}`;
-  return `${ctx}\n\nGenerate a reading companion (part 2). IMPORTANT: the "podcasts" array must always contain exactly 2 real podcast recommendations with show name, specific episode or topic, and why it connects to this book. Return ONLY this JSON:
-{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"],"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"]}}`;
+  return `${ctx}\n\nGenerate a reading companion (part 2). Return ONLY this JSON:
+{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"],"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"]}}`;
 }
 
 function Dots({color}) {
@@ -649,7 +649,7 @@ function Chat({t, sys, sessions, onSaveSessions}) {
     const next = [...msgs,{role:'user',content:input.trim()}];
     setMsgs(next); setInput(''); setBusy(true);
     try {
-      const r = await claude(next, sys, 1000);
+      const r = await claude(next, sys, 2000);
       setMsgs(m=>[...m,{role:'assistant',content:r}]);
     } catch(e) { setMsgs(m=>[...m,{role:'assistant',content:'Errore: '+e.message}]); }
     setBusy(false);
@@ -667,7 +667,7 @@ function Chat({t, sys, sessions, onSaveSessions}) {
     const next = [...msgs,{role:'user',content:prompt}];
     setMsgs(next); setSuggCtx(''); setBusy(true);
     try {
-      const r = await claude(next, sys, 1200);
+      const r = await claude(next, sys, 2000);
       setMsgs(m=>[...m,{role:'assistant',content:r}]);
     } catch(e) { setMsgs(m=>[...m,{role:'assistant',content:'Errore: '+e.message}]); }
     setBusy(false);
