@@ -247,47 +247,47 @@ async function extractEpub(file) {
 
 const BS_KEY = 'libreria-personale-v1';
 
-function exportToBookShelf(book) {
+async function exportToBookShelf(book, user) {
+  if (!user) return {ok:false, msg:'Devi fare login per aggiungere a BookShelf.'};
   try {
-    const existing = JSON.parse(localStorage.getItem(BS_KEY)||'[]');
-    const alreadyThere = existing.find(b=>
-      b.title.toLowerCase()===book.title.toLowerCase() &&
-      b.author.toLowerCase()===book.author.toLowerCase()
-    );
-    if (alreadyThere) return {ok:false, msg:'Questo libro è già presente in BookShelf.'};
+    const {data:existing} = await sb.from('bs_books').select('id,title,author').eq('user_id',user.id).is('deleted_at',null);
+    if (existing?.find(b=>b.title.toLowerCase()===book.title.toLowerCase()&&b.author.toLowerCase()===book.author.toLowerCase()))
+      return {ok:false, msg:'Questo libro è già presente in BookShelf.'};
     const bsBook = {
-      id: 'rb_'+book.id, title: book.title, originalTitle: '',
-      author: book.author, publisher: book.edition||'',
-      year: '', pages: '', currentPage: '', readMonth: '', readYear: '',
-      rating: 0, tags: book.data?.keyConcepts?.slice(0,3)||[],
+      id: 'rb_'+book.id, user_id: user.id,
+      title: book.title, original_title: '', author: book.author, publisher: book.edition||'',
+      year:'', pages:'', current_page:'', read_month:'', read_year:'',
+      rating:0, tags: book.data?.keyConcepts?.slice(0,3)||[],
       notes: book.data?.overview ? book.data.overview.slice(0,300)+'…' : '',
-      cover: '', isbn: '', status: 'da leggere', _readingBuddyId: book.id,
+      cover:'', isbn:'', status:'da leggere',
     };
-    localStorage.setItem(BS_KEY, JSON.stringify([bsBook, ...existing]));
+    const {error} = await sb.from('bs_books').insert(bsBook);
+    if (error) return {ok:false, msg:'Errore: '+error.message};
     return {ok:true, msg:'Libro aggiunto a BookShelf come "da leggere"!'};
   } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
 }
 
-function addSuggestionToWishlist(suggestion, sourceBook) {
+async function addSuggestionToWishlist(suggestion, sourceBook, user) {
+  if (!user) return {ok:false, msg:'Devi fare login per aggiungere a BookShelf.'};
   try {
-    const existing = JSON.parse(localStorage.getItem(BS_KEY)||'[]');
     const parts = suggestion.split(':');
     const titleAuthorPart = parts[0].trim();
     const reason = parts.slice(1).join(':').trim();
     const dashIdx = titleAuthorPart.indexOf(' - ');
-    const author = dashIdx>0 ? titleAuthorPart.slice(0, dashIdx).trim() : '';
+    const author = dashIdx>0 ? titleAuthorPart.slice(0,dashIdx).trim() : '';
     const title  = dashIdx>0 ? titleAuthorPart.slice(dashIdx+3).trim() : titleAuthorPart;
-    const alreadyThere = existing.find(b=>b.title.toLowerCase()===title.toLowerCase());
-    if (alreadyThere) return {ok:false, msg:`"${title}" è già in BookShelf.`};
+    const {data:existing} = await sb.from('bs_books').select('id,title').eq('user_id',user.id).is('deleted_at',null);
+    if (existing?.find(b=>b.title.toLowerCase()===title.toLowerCase()))
+      return {ok:false, msg:`"${title}" è già in BookShelf.`};
     const bsBook = {
-      id: 'wish_'+LS.id(), title, author,
-      originalTitle:'', publisher:'', year:'', pages:'',
-      currentPage:'', readMonth:'', readYear:'',
-      rating:0, tags:[], notes:'', cover:'', isbn:'',
-      status: 'wishlist',
-      source: { type:'buddy', bookTitle:sourceBook.title, bookId:sourceBook.id, reason:reason||null },
+      id: 'wish_'+LS.id(), user_id: user.id,
+      title, author, original_title:'', publisher:'', year:'', pages:'',
+      current_page:'', read_month:'', read_year:'',
+      rating:0, tags:[], notes: reason ? `Suggerito perché: ${reason}` : '', cover:'', isbn:'',
+      status:'wishlist',
     };
-    localStorage.setItem(BS_KEY, JSON.stringify([bsBook, ...existing]));
+    const {error} = await sb.from('bs_books').insert(bsBook);
+    if (error) return {ok:false, msg:'Errore: '+error.message};
     return {ok:true, msg:`"${title}" aggiunto alla wishlist!`};
   } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
 }
@@ -762,11 +762,12 @@ function Chat({t, sys, sessions, onSaveSessions}) {
   );
 }
 
-function RelatedBooks({books, sourceBook, t, sl}) {
+function RelatedBooks({books, sourceBook, t, sl, user}) {
   const [msgs, setMsgs] = useState({});
   if(!books.length) return null;
-  function addToWishlist(item) {
-    const result = addSuggestionToWishlist(item, sourceBook);
+  async function addToWishlist(item) {
+    setMsgs(m=>({...m,[item]:'…'}));
+    const result = await addSuggestionToWishlist(item, sourceBook, user);
     setMsgs(m=>({...m,[item]:result.msg}));
     setTimeout(()=>setMsgs(m=>({...m,[item]:''})), 3000);
   }
@@ -963,8 +964,9 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
   const mine = (collections||[]).filter(c=>(book.collectionIds||[]).includes(c.id));
   const [bsMsg, setBsMsg] = useState('');
   const [generating, setGenerating] = useState(false);
-  function handleExportBS() {
-    const result = exportToBookShelf(book);
+  async function handleExportBS() {
+    setBsMsg('…');
+    const result = await exportToBookShelf(book, user);
     setBsMsg(result.msg);
     setTimeout(()=>setBsMsg(''), 3500);
   }
@@ -1051,7 +1053,7 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
           <ol style={{paddingLeft:20}}>{d.readingJournal.map((q,i)=><li key={i} style={{...p,marginBottom:9,paddingLeft:3}}>{q}</li>)}</ol>
         </Card>}
         <Card icon="◉" title="Letture & Risorse Correlate" t={t} delay={.2}>
-          <RelatedBooks books={d.related?.books||[]} sourceBook={book} t={t} sl={sl}/>
+          <RelatedBooks books={d.related?.books||[]} sourceBook={book} t={t} sl={sl} user={user}/>
           {d.related?.films?.length>0&&<div style={{marginBottom:12}}>
             <p style={sl}>🎬 Film & Documentari</p>
             <ul style={{paddingLeft:18}}>{d.related.films.map((x,i)=><li key={i} style={{fontSize:15,color:t.text,lineHeight:1.6,marginBottom:3}}>{x}</li>)}</ul>
