@@ -363,7 +363,7 @@ function sysPrompt(book, includeData=false) {
   const readerProfile = getReaderProfile();
   let prompt = `You are a sophisticated literary companion. Book: "${book.title}" by ${book.author}${book.edition?', '+book.edition:''}.
 Respond in: ${book.language||'italiano'}.
-Personality: erudite but warm. For structured generation respond ONLY with valid JSON, no markdown. For chat use natural prose.`;
+Personality: erudite but warm. For structured generation respond ONLY with valid JSON, no markdown. For chat use natural prose — be focused and concise, 2-3 paragraphs per reply unless the user explicitly asks for more detail.`;
   if (readerProfile) prompt += readerProfile;
   if (includeData && book.data) {
     const d = book.data;
@@ -379,8 +379,8 @@ Personality: erudite but warm. For structured generation respond ONLY with valid
 }
 function initPrompt() {
   // Full single-call prompt (used when no file is attached)
-  return `Generate a reading companion. Return ONLY this JSON:
-{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"],"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"]}}`;
+  return `Generate a reading companion. The "related" object must always contain exactly: 2 podcasts, 3 books, 2 films or documentaries — never empty arrays. Return ONLY this JSON:
+{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"podcasts":["Show Name — episode or topic: reason","Show Name — episode or topic: reason"],"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"]}}`;
 }
 function initPrompt1() {
   // Call 1 (with file): overview, context, chapters, concepts only
@@ -390,8 +390,8 @@ function initPrompt1() {
 function initPrompt2(d) {
   // Call 2 (no file): reading guide, questions, resources — uses data from call 1 as context
   const ctx = `Overview: "${(d.overview||'').slice(0,300)}" | Key concepts: ${(d.keyConcepts||[]).slice(0,5).join(', ')}`;
-  return `${ctx}\n\nGenerate a reading companion (part 2). Return ONLY this JSON:
-{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"podcasts":["Show Name — episode title or topic: one-line reason it connects to this book","Show Name — episode title or topic: one-line reason it connects to this book"],"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"]}}`;
+  return `${ctx}\n\nGenerate a reading companion (part 2). The "related" object must always contain exactly: 2 podcasts, 3 books, 2 films or documentaries — never empty arrays. Return ONLY this JSON:
+{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"podcasts":["Show Name — episode or topic: reason","Show Name — episode or topic: reason"],"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"]}}`;
 }
 
 function Dots({color}) {
@@ -788,11 +788,12 @@ function RelatedBooks({books, sourceBook, t, sl}) {
   </div>;
 }
 
-function RelatedPodcasts({podcasts, sourceBook, t, sl}) {
+function RelatedPodcasts({podcasts, sourceBook, t, sl, user}) {
   const [msgs, setMsgs] = useState({});
   if(!podcasts?.length) return null;
-  function addToListenS(item) {
-    const result = addPodcastToListenS(item, sourceBook);
+  async function addToListenS(item) {
+    setMsgs(m=>({...m,[item]:'…'}));
+    const result = await addPodcastToListenS(item, sourceBook, user);
     setMsgs(m=>({...m,[item]:result.msg}));
     setTimeout(()=>setMsgs(m=>({...m,[item]:''})), 3000);
   }
@@ -815,26 +816,27 @@ function RelatedPodcasts({podcasts, sourceBook, t, sl}) {
 }
 
 // ── LISTENS BRIDGE ─────────────────────────────────────────────────────────
-const LISTENS_KEY = 'listens_buddy_suggestions';
-
-function addPodcastToListenS(suggestion, sourceBook) {
+async function addPodcastToListenS(suggestion, sourceBook, user) {
+  if (!user) return {ok:false, msg:'Devi fare login per aggiungere a ListenS.'};
   try {
-    const existing = JSON.parse(localStorage.getItem(LISTENS_KEY)||'[]');
     const colonIdx = suggestion.indexOf(':');
     const beforeColon = colonIdx>0 ? suggestion.slice(0,colonIdx).trim() : suggestion.trim();
     const reason = colonIdx>0 ? suggestion.slice(colonIdx+1).trim() : '';
-    const dashIdx = beforeColon.indexOf(' - ');
+    // handle both em-dash (—) and regular dash ( - ) separators
+    const dashIdx = beforeColon.search(/ [—\-] /);
     const podcastName = dashIdx>0 ? beforeColon.slice(0,dashIdx).trim() : beforeColon;
-    if(!podcastName) return {ok:false, msg:'Suggerimento non valido.'};
-    const already = existing.find(p=>p.title.toLowerCase()===podcastName.toLowerCase());
-    if(already) return {ok:false, msg:`"${podcastName}" è già in ListenS.`};
+    if (!podcastName) return {ok:false, msg:'Suggerimento non valido.'};
+    // check if already in Supabase
+    const {data:existing} = await sb.from('ls_podcasts').select('id,title').eq('user_id',user.id);
+    if (existing?.find(p=>p.title.toLowerCase()===podcastName.toLowerCase()))
+      return {ok:false, msg:`"${podcastName}" è già in ListenS.`};
     const podcast = {
-      id:'rb_'+LS.id(), title:podcastName, author:'', description:reason||'',
-      feed_url:'', cover_url:'',
-      source:{type:'buddy', book_title:sourceBook.title, book_id:sourceBook.id},
-      status:'wishlist', addedAt:new Date().toISOString(),
+      id: 'rb_'+LS.id(), user_id: user.id,
+      title: podcastName, author: '', description: reason||'',
+      cover: '', feed_url: '', website: '', genre: '', episode_count: 0,
     };
-    localStorage.setItem(LISTENS_KEY, JSON.stringify([podcast,...existing]));
+    const {error} = await sb.from('ls_podcasts').insert(podcast);
+    if (error) return {ok:false, msg:'Errore: '+error.message};
     return {ok:true, msg:`"${podcastName}" aggiunto a ListenS!`};
   } catch(e) { return {ok:false, msg:'Errore: '+e.message}; }
 }
@@ -953,7 +955,7 @@ function BookNotes({t, book, onUpdate}) {
   );
 }
 
-function Dashboard({t, book, onUpdate, collections, onCollections}) {
+function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
   const d = book.data||{};
   const sys = sysPrompt(book, true);
   const p = {fontSize:16,lineHeight:1.78,color:t.text};
@@ -1050,7 +1052,7 @@ function Dashboard({t, book, onUpdate, collections, onCollections}) {
             <p style={sl}>🎬 Film & Documentari</p>
             <ul style={{paddingLeft:18}}>{d.related.films.map((x,i)=><li key={i} style={{fontSize:15,color:t.text,lineHeight:1.6,marginBottom:3}}>{x}</li>)}</ul>
           </div>}
-          {d.related?.podcasts?.length>0&&<RelatedPodcasts podcasts={d.related.podcasts} sourceBook={book} t={t} sl={sl}/>}
+          {d.related?.podcasts?.length>0&&<RelatedPodcasts podcasts={d.related.podcasts} sourceBook={book} t={t} sl={sl} user={user}/>}
         </Card>
         <BookNotes t={t} book={book} onUpdate={onUpdate}/>
         <Chat t={t} sys={sys} sessions={book.sessions||(book.chat?.length?[{id:LS.id(),title:'Sessione 1',createdAt:book.addedAt||new Date().toISOString(),messages:book.chat}]:[])} onSaveSessions={sessions=>onUpdate({...book,sessions,chat:undefined})}/>
@@ -1367,7 +1369,7 @@ function App() {
             alert(`Importati ${newOnes.length} libri da BookShelf!`);
           }}/>}
         {view==='form'&&<BookForm t={t} onDone={handleBookDone} onCancel={()=>setView('lib')}/>}
-        {view==='dash'&&active&&<Dashboard t={t} book={active} onUpdate={handleUpdate} collections={colls} onCollections={()=>setShowColls(true)}/>}
+        {view==='dash'&&active&&<Dashboard t={t} book={active} onUpdate={handleUpdate} collections={colls} onCollections={()=>setShowColls(true)} user={user}/>}
       </main>
       {showColls&&<CollectionsPanel t={t} collections={colls} books={books} currentBookId={active?.id} onSave={saveColls} onClose={()=>setShowColls(false)}/>}
       {showKey&&<ApiKeyModal t={t} onDone={k=>{if(k)setApiKey(k);setShowKey(false);}}/>}
