@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ListenS</title>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#141018"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="ListenS"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
+<!-- v4 -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Crimson Pro',serif;font-size:17px}
+input,textarea,select,button{font-family:'Crimson Pro',serif;outline:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+.fu{animation:fadeUp .4s ease both}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{border-radius:3px}
+.nav-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav-tabs::-webkit-scrollbar{display:none}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;cursor:pointer;border:none}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// Debug: force SW unregister + show errors on screen
+window.onerror = function(msg, src, line, col, err) {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:#0f0e0b;color:#e8e0d4;font-family:monospace;padding:2rem;overflow:auto;z-index:9999';
+  d.innerHTML = '<h2 style="color:#c8903a">ListenS — Errore JS</h2>' +
+    '<p><b>' + msg + '</b></p>' +
+    '<p>Riga: ' + line + ', Col: ' + col + '</p>' +
+    '<pre style="font-size:12px;white-space:pre-wrap;color:#9a8a7a">' + (err && err.stack ? err.stack : 'nessuno stack') + '</pre>';
+  document.body.appendChild(d);
+};
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) { r.unregister(); });
+  });
+}
+</script>
+<script type="text/babel">
+    function safeLsSet(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch(e) {
+        console.error('[localStorage] quota exceeded for key:', key, e);
+        if (!document.getElementById('__ls-toast')) {
+          var t = document.createElement('div');
+          t.id = '__ls-toast';
+          t.textContent = '\u26a0\ufe0f Spazio locale esaurito \u2014 alcuni dati potrebbero non essere salvati.';
+          t.style.cssText = 'position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:#c8903a;color:#0f0e0b;padding:.6rem 1.4rem;border-radius:6px;font-size:.85rem;z-index:99999;font-family:Georgia,serif;box-shadow:0 2px 8px rgba(0,0,0,.5);pointer-events:none';
+          document.body.appendChild(t);
+          setTimeout(function(){ t.remove(); }, 7000);
+        }
+      }
+    }
+
+const {useState,useEffect,useRef} = React;
+
+const LIGHT={bg:"#F4F1EC",bgCard:"#FDFAF6",bgAlt:"#EDE8DF",border:"#D6CFC2",borderLight:"#E8E2D8",text:"#221E16",textSec:"#6B6158",textMuted:"#9E9285",accent:"#6B4E9B",accentBg:"#F0EAF8",accent2:"#2D6A4F",accent2Bg:"#E8F5EE",inputBg:"#FDFAF6",shadow:"rgba(34,30,22,.08)",danger:"#c0392b",playerBg:"#1A1520",playerText:"#F0EAF8"};
+const DARK={bg:"#141018",bgCard:"#1E1828",bgAlt:"#180F22",border:"#332845",borderLight:"#2A1F38",text:"#EDE8F8",textSec:"#B8AECF",textMuted:"#7A6E8E",accent:"#9B7EC8",accentBg:"#221830",accent2:"#52B788",accent2Bg:"#1A2E22",inputBg:"#1E1828",shadow:"rgba(0,0,0,.4)",danger:"#e74c3c",playerBg:"#0E0A18",playerText:"#EDE8F8"};
+const LS={
+  get:(k,fb)=>{try{return JSON.parse(localStorage.getItem(k))||fb;}catch{return fb;}},
+  set:(k,v)=>safeLsSet(k,JSON.stringify(v)),
+  raw:(k)=>localStorage.getItem(k)||'',
+  setRaw:(k,v)=>safeLsSet(k,v),
+  id:()=>Math.random().toString(36).slice(2)+Date.now().toString(36),
+};
+const CATEGORIES=[
+  {id:'1301',label:'Cultura'},{id:'1318',label:'Scienza'},
+  {id:'1304',label:'Educazione'},{id:'1314',label:'Storia'},
+  {id:'1523',label:'Filosofia'},{id:'1533',label:'News'},
+  {id:'1324',label:'Tecnologia'},{id:'1310',label:'Musica'},
+];
+const BUDDY_KEY='listens_buddy_suggestions';
+const COLLECTION_COLORS=['#6B4E9B','#2D6A4F','#C8421A','#2E6FA3','#8B6914','#5A3A6B','#2A6B5A','#A0522D'];
+function sanitizePodcast(p){
+  if(!p||typeof p!=='object')return null;
+  return{id:p.id||LS.id(),title:String(p.title||'Senza titolo'),author:String(p.author||''),
+    description:String(p.description||''),cover_url:String(p.cover_url||''),
+    feed_url:String(p.feed_url||''),source:p.source||{type:'buddy'},
+    status:p.status||'wishlist',addedAt:p.addedAt||new Date().toISOString(),
+    itunes_id:String(p.itunes_id||''),genre:String(p.genre||''),
+    track_count:p.track_count||null,release_date:String(p.release_date||''),
+    apple_url:String(p.apple_url||''),
+  };
+}
+
+async function fetchFeed(feedUrl){
+  async function viaRss2json(u){
+    const r=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(u)}`);
+    const d=await r.json();
+    if(d.status!=='ok')throw new Error('rss2json: '+d.message);
+    const items=(d.items||[]).filter(i=>i.enclosure?.link||i.link).map(i=>({
+      id:i.guid||LS.id(),title:i.title||'',
+      description:stripHtml(i.description||i.content||''),
+      audio_url:i.enclosure?.link||'',
+      duration_sec:parseDuration(i.itunes_duration||''),
+      published_at:i.pubDate||'',played:false,position_sec:0
+    })).filter(e=>e.audio_url);
+    return{title:d.feed?.title||'',description:stripHtml(d.feed?.description||''),cover_url:d.feed?.image||'',episodes:items,_source:'rss2json'};
+  }
+  const proxies=[
+    // Proxy server-side su stesso dominio — nessun CORS, affidabilissimo
+    async(u)=>{const r=await fetch('/api/feed?url='+encodeURIComponent(u));if(!r.ok)throw new Error('api/feed '+r.status);const txt=await r.text();if(txt.length<200)throw new Error('empty');return txt;},
+    // Fallback CORS proxy di terze parti
+    async(u)=>{const r=await fetch('https://corsproxy.io/?url='+encodeURIComponent(u));if(!r.ok)throw new Error('http '+r.status);const txt=await r.text();if(txt.length<200)throw new Error('empty');return txt;},
+    async(u)=>{const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(u));const j=await r.json();if(!j.contents||j.contents.length<200)throw new Error('empty');return j.contents;},
+    async(u)=>{const r=await fetch('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u));if(!r.ok)throw new Error('http '+r.status);const txt=await r.text();if(txt.length<200)throw new Error('empty');return txt;},
+  ];
+  const wt=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),ms))]);
+  function parseXmlFeed(txt){
+    if(!txt.includes('<rss')&&!txt.includes('<feed')&&!txt.includes('<channel'))throw new Error('not rss');
+    const parsed=new DOMParser().parseFromString(txt,'text/xml');
+    const channel=parsed.querySelector('channel');
+    if(!channel&&!parsed.querySelector('feed'))throw new Error('no channel');
+    const items=[...parsed.querySelectorAll('item')].map(item=>{
+      const enc=item.querySelector('enclosure');
+      return{id:item.querySelector('guid')?.textContent||LS.id(),
+        title:item.querySelector('title')?.textContent?.trim()||'',
+        description:stripHtml(item.querySelector('description')?.textContent||''),
+        audio_url:enc?.getAttribute('url')||'',
+        duration_sec:parseDuration(item.querySelector('duration')?.textContent||''),
+        published_at:item.querySelector('pubDate')?.textContent||'',
+        played:false,position_sec:0};
+    }).filter(e=>e.audio_url);
+    return{title:channel?.querySelector('title')?.textContent?.trim()||'',
+      description:stripHtml(channel?.querySelector('description')?.textContent||''),
+      cover_url:channel?.querySelector('image url')?.textContent||parsed.querySelector('image')?.getAttribute('href')||'',
+      episodes:items};
+  }
+  // Lancia rss2json e tutti i proxy in parallelo — restituisce il risultato con più episodi
+  const attempts=await Promise.allSettled([
+    wt(viaRss2json(feedUrl),9000),
+    ...proxies.map(p=>wt((async()=>parseXmlFeed(await p(feedUrl)))(),9000))
+  ]);
+  let best=null;
+  for(const r of attempts){
+    if(r.status==='fulfilled'&&r.value?.episodes?.length>0){
+      if(!best||r.value.episodes.length>best.episodes.length)best=r.value;
+    }
+  }
+  if(best)return best;
+  throw new Error('Impossibile caricare il feed');
+}
+
+async function findFeedUrl(itunesId,title){
+  // 1) iTunes lookup diretto per id
+  try{const r=await fetch(`https://itunes.apple.com/lookup?id=${itunesId}&entity=podcast`);const d=await r.json();if(d.results?.[0]?.feedUrl)return d.results[0].feedUrl;}catch(e){}
+  // 2) iTunes search per titolo — restituisce feedUrl anche per Acast
+  if(title){try{const q=encodeURIComponent(title);const r=await fetch(`https://itunes.apple.com/search?term=${q}&media=podcast&limit=5`);const d=await r.json();const match=d.results?.find(x=>x.feedUrl&&(String(x.collectionId)===String(itunesId)||x.collectionName?.toLowerCase()===title.toLowerCase()));if(match?.feedUrl)return match.feedUrl;if(d.results?.[0]?.feedUrl)return d.results[0].feedUrl;}catch(e){}}
+  // 3) rss2json come resolver — cerca feed tramite titolo
+  if(title){try{const q=encodeURIComponent(title);const r=await fetch(`https://api.rss2json.com/v1/api.json?rss_url=https://feeds.acast.com/${q}&api_key=`);const d=await r.json();if(d.feed?.url)return d.feed.url;}catch(e){}}
+  return '';
+}
+async function fetchItunesFeedUrl(id,title){return findFeedUrl(id,title||'');}
+function parseDuration(str){if(!str)return null;const p=str.split(':').map(Number);if(p.length===3)return p[0]*3600+p[1]*60+p[2];if(p.length===2)return p[0]*60+p[1];return parseInt(str)||null;}
+function stripHtml(html){const d=document.createElement('div');d.innerHTML=html;return d.textContent?.replace(/\s+/g,' ').trim()||'';}
+function formatDuration(sec){if(!sec)return '';const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?`${h}h ${m}m`:`${m}m ${String(s).padStart(2,'0')}s`;}
+function formatDate(str){if(!str)return '';try{return new Date(str).toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'});}catch{return '';}}
+async function fetchItunesTop(genreId,country='us'){
+  const res=await fetch(`https://itunes.apple.com/${country}/rss/toppodcasts/limit=20/genre=${genreId}/json`);
+  const data=await res.json();
+  return(data.feed?.entry||[]).map(e=>({itunes_id:e.id?.attributes?.['im:id']||'',title:e['im:name']?.label||'',author:e['im:artist']?.label||'',cover_url:e['im:image']?.[2]?.label||e['im:image']?.[0]?.label||'',feed_url:'',genre:'',track_count:null,release_date:'',description:'',apple_url:'',source:{type:'discovery'}}));
+}
+async function fetchItunesSearch(query,country='us'){
+  const res=await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=podcast&limit=15&country=${country}`);
+  const data=await res.json();
+  return(data.results||[]).map(e=>({itunes_id:String(e.collectionId||''),title:e.collectionName||e.trackName||'',author:e.artistName||'',cover_url:e.artworkUrl600||e.artworkUrl100||'',feed_url:e.feedUrl||'',genre:e.primaryGenreName||'',track_count:e.trackCount||null,release_date:e.releaseDate||'',description:e.shortDescription||e.description||'',apple_url:e.collectionViewUrl||'',source:{type:'search'}}));
+}
+
+function Dots({color}){return <span style={{display:'inline-flex',gap:4,alignItems:'center'}}>{[0,1,2].map(i=><span key={i} style={{width:5,height:5,borderRadius:'50%',background:color,animation:`dot 1.2s ease-in-out ${i*.2}s infinite`}}/>)}</span>;}
+function CoverArt({src,size=56,t}){const[err,setErr]=useState(false);return err||!src?<div style={{width:size,height:size,flexShrink:0,background:t.accentBg,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.4}}>🎙</div>:<img src={src} alt="" onError={()=>setErr(true)} style={{width:size,height:size,flexShrink:0,borderRadius:8,objectFit:'cover'}}/>;}
+function Badge({label,color,bg}){return <span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:11,background:bg,color:color}}>{label}</span>;}
+function ProgressBar({pct,color,height=3}){return <div style={{width:'100%',height,background:'rgba(0,0,0,.15)',borderRadius:height/2}}><div style={{height:'100%',width:`${Math.min(100,pct||0)}%`,background:color,borderRadius:height/2,transition:'width .3s'}}/></div>;}
+
+// ── Commonplace data layer ────────────────────────────────────────────────
+function syncCpListen(episode, podcast, status, eventType, meta={}) {
+  try {
+    const cpId = 'ls_' + episode.id;
+    const now  = new Date().toISOString();
+    const cpGet = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
+    const items = cpGet('cp_items');
+    const idx   = items.findIndex(i => i.id === cpId);
+    const cpItem = {
+      id: cpId, type: 'podcast_episode', title: episode.title || '',
+      creator: podcast?.title || '', status,
+      source_app: 'listens', source_id: episode.id,
+      cover_url: podcast?.cover_url || null,
+      created_at: idx >= 0 ? items[idx].created_at : now, updated_at: now,
+    };
+    if (idx >= 0) items[idx] = cpItem; else items.unshift(cpItem);
+    safeLsSet('cp_items', JSON.stringify(items));
+    if (eventType) {
+      const log   = cpGet('cp_log');
+      const evId  = 'ls_ev_' + episode.id + '_' + eventType;
+      if (!log.find(e => e.id === evId)) {
+        log.push({ id: evId, item_id: cpId, event_type: eventType,
+          date: now, meta, source_app: 'listens' });
+        safeLsSet('cp_log', JSON.stringify(log));
+      }
+    }
+  } catch(e) { console.warn('[cp] listens sync error', e); }
+}
+// ─────────────────────────────────────────────────────────────────────────
+
+function usePlayer(){
+  const audioRef=useRef(null);const saveTimer=useRef(null);
+  const onEndedRef=useRef(null);
+  const currentRef=useRef({episode:null,podcast:null});
+  const sleepTimerRef=useRef(null);
+  const playFnRef=useRef(null); // always-current play reference for autoplay
+  const stallTimerRef=useRef(null);
+  const[state,setState]=useState(()=>{
+    try{
+      const last=JSON.parse(localStorage.getItem('ls_last_played')||'null');
+      if(last?.episode&&last?.podcast){
+        const pos=JSON.parse(localStorage.getItem('ls_positions')||'{}')[last.episode.id]||0;
+        return{episode:last.episode,podcast:last.podcast,playing:false,position:pos,duration:last.episode.duration_sec||0,speed:1,sleepMinsLeft:0};
+      }
+    }catch(e){}
+    return{episode:null,podcast:null,playing:false,position:0,duration:0,speed:1,sleepMinsLeft:0};
+  });
+  function savePosition(id,pos){if(!id||pos<3)return;try{const s=JSON.parse(localStorage.getItem('ls_positions')||'{}');s[id]=Math.floor(pos);safeLsSet('ls_positions',JSON.stringify(s));}catch(e){}}
+  function getSavedPosition(id){try{return JSON.parse(localStorage.getItem('ls_positions')||'{}')[id]||0;}catch(e){return 0;}}
+  useEffect(()=>{
+    const audio=new Audio();audio.preload='auto';audioRef.current=audio;
+    audio.addEventListener('timeupdate',()=>{
+      setState(s=>({...s,position:audio.currentTime,duration:audio.duration||0}));
+      if('mediaSession' in navigator&&audio.duration>0){
+        try{navigator.mediaSession.setPositionState({duration:audio.duration,playbackRate:audio.playbackRate,position:audio.currentTime});}catch(e){}
+      }
+    });
+    audio.addEventListener('ended',()=>{
+      const ep=currentRef.current.episode;
+      if(ep)savePosition(ep.id,0);
+      setState(s=>({...s,playing:false,position:0}));
+      if('mediaSession' in navigator)navigator.mediaSession.playbackState='none';
+      if(onEndedRef.current)onEndedRef.current(currentRef.current.episode,currentRef.current.podcast);
+    });
+    audio.addEventListener('stalled',()=>{
+      stallTimerRef.current=setTimeout(()=>{
+        if(!audio.paused&&audio.readyState<3){
+          const t=audio.currentTime;
+          audio.src=audio.src;
+          audio.currentTime=t;
+          audio.play().catch(()=>{});
+        }
+      },2000);
+    });
+    audio.addEventListener('playing',()=>{
+      if(stallTimerRef.current){clearTimeout(stallTimerRef.current);stallTimerRef.current=null;}
+    });
+    audio.addEventListener('error',()=>{
+      if(stallTimerRef.current){clearTimeout(stallTimerRef.current);stallTimerRef.current=null;}
+      setState(s=>({...s,playing:false}));
+    });
+    if('mediaSession' in navigator){
+      navigator.mediaSession.setActionHandler('play',()=>{audio.play().catch(e=>{if(e.name!=='AbortError')setState(s=>({...s,playing:false}));});setState(s=>({...s,playing:true}));navigator.mediaSession.playbackState='playing';});
+      navigator.mediaSession.setActionHandler('pause',()=>{audio.pause();setState(s=>({...s,playing:false}));navigator.mediaSession.playbackState='paused';});
+      navigator.mediaSession.setActionHandler('seekbackward',({seekOffset})=>{const t=Math.max(0,audio.currentTime-(seekOffset||30));audio.currentTime=t;setState(s=>({...s,position:t}));});
+      navigator.mediaSession.setActionHandler('seekforward',({seekOffset})=>{const t=Math.min(audio.duration||0,audio.currentTime+(seekOffset||30));audio.currentTime=t;setState(s=>({...s,position:t}));});
+      navigator.mediaSession.setActionHandler('stop',()=>{audio.pause();audio.currentTime=0;setState(s=>({...s,playing:false,position:0}));navigator.mediaSession.playbackState='none';});
+      navigator.mediaSession.setActionHandler('seekto',({seekTime})=>{if(seekTime!=null){audio.currentTime=seekTime;setState(s=>({...s,position:seekTime}));}});
+    }
+    return()=>{audio.pause();clearInterval(saveTimer.current);clearInterval(sleepTimerRef.current);if(stallTimerRef.current)clearTimeout(stallTimerRef.current);};
+  },[]);
+  function play(episode,podcast){
+    const audio=audioRef.current;
+    if(currentRef.current.episode?.id===episode.id){
+      if(audio.paused){audio.play().catch(e=>{if(e.name!=='AbortError')setState(s=>({...s,playing:false}));});setState(s=>({...s,playing:true}));if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';}
+      else{audio.pause();setState(s=>({...s,playing:false}));if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';}
+      return;
+    }
+    const pos=episode.position_sec>0?episode.position_sec:getSavedPosition(episode.id);
+    audio.src=episode.audio_url;audio.playbackRate=state.speed;
+    if(pos>0)audio.currentTime=pos;
+    audio.play().catch(e=>{if(e.name!=='AbortError')setState(s=>({...s,playing:false}));});
+    currentRef.current={episode,podcast};
+    safeLsSet('ls_last_played',JSON.stringify({episode,podcast}));
+    setState(s=>({...s,episode,podcast,playing:true,position:pos}));
+    syncCpListen(episode, podcast, 'in_progress', 'started');
+    if('mediaSession' in navigator){
+      navigator.mediaSession.metadata=new MediaMetadata({title:episode.title||'',artist:podcast?.title||'',album:podcast?.title||'',artwork:podcast?.cover_url?[{src:podcast.cover_url,sizes:'96x96',type:'image/jpeg'},{src:podcast.cover_url,sizes:'256x256',type:'image/jpeg'},{src:podcast.cover_url,sizes:'512x512',type:'image/jpeg'}]:[]});
+      navigator.mediaSession.playbackState='playing';
+    }
+    clearInterval(saveTimer.current);
+    saveTimer.current=setInterval(()=>{if(audio.currentTime>3)savePosition(episode.id,audio.currentTime);},5000);
+  }
+  function seek(t){audioRef.current.currentTime=t;setState(s=>({...s,position:t}));}
+  function setSpeed(spd){audioRef.current.playbackRate=spd;setState(s=>({...s,speed:spd}));}
+  function skip(sec){const t=Math.max(0,Math.min(audioRef.current.duration||0,audioRef.current.currentTime+sec));seek(t);}
+  function setSleepTimer(mins){
+    clearInterval(sleepTimerRef.current);
+    if(!mins){setState(s=>({...s,sleepMinsLeft:0}));return;}
+    setState(s=>({...s,sleepMinsLeft:mins}));
+    sleepTimerRef.current=setInterval(()=>{
+      setState(s=>{
+        const left=s.sleepMinsLeft-1;
+        if(left<=0){clearInterval(sleepTimerRef.current);audioRef.current.pause();return{...s,playing:false,sleepMinsLeft:0};}
+        return{...s,sleepMinsLeft:left};
+      });
+    },60000);
+  }
+  playFnRef.current=play; // keep always-current for autoplay
+  return{...state,play,seek,setSpeed,skip,setSleepTimer,getSavedPosition,onEndedRef,playFnRef,currentRef};
+}
+
+function FullPlayerSheet({player,t,onClose}){
+  const{episode,podcast,playing,position,duration,speed,sleepMinsLeft,play,seek,setSpeed,skip,setSleepTimer}=player;
+  if(!episode)return null;
+  const accentStyle={background:t.accent};
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:500,background:t.playerBg,display:'flex',flexDirection:'column',overflowY:'auto',WebkitOverflowScrolling:'touch'}}>
+      {/* handle / close */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 20px 6px'}}>
+        <button onClick={onClose} style={{background:'none',border:'none',color:t.textMuted,fontSize:28,cursor:'pointer',lineHeight:1,padding:'4px 10px'}}>▾</button>
+        <span style={{fontFamily:"'Playfair Display',serif",fontSize:14,color:t.textMuted,fontStyle:'italic'}}>In ascolto</span>
+        <div style={{width:44}}/>
+      </div>
+      {/* cover art */}
+      <div style={{display:'flex',justifyContent:'center',padding:'16px 40px 24px'}}>
+        <CoverArt src={podcast?.cover_url} size={200} t={t}/>
+      </div>
+      {/* title + podcast */}
+      <div style={{padding:'0 26px 18px'}}>
+        <p style={{fontSize:19,fontFamily:"'Playfair Display',serif",color:t.playerText,fontWeight:600,lineHeight:1.35,marginBottom:6}}>{episode.title}</p>
+        <p style={{fontSize:14,color:t.textMuted}}>{podcast?.title}</p>
+      </div>
+      {/* slider */}
+      <div style={{padding:'0 22px 4px'}}>
+        <input type="range" min={0} max={Math.floor(duration)||1} value={Math.floor(position)}
+          onChange={e=>seek(Number(e.target.value))}
+          style={{width:'100%',accentColor:t.accent,background:`linear-gradient(to right,${t.accent} ${duration>0?(position/duration)*100:0}%,rgba(255,255,255,0.15) 0)`}}
+        />
+        <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+          <span style={{fontSize:13,color:t.textMuted}}>{formatDuration(Math.floor(position))}</span>
+          <span style={{fontSize:13,color:t.textMuted}}>−{formatDuration(Math.max(0,Math.floor(duration-position)))}</span>
+        </div>
+      </div>
+      {/* main controls */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:36,padding:'18px 24px 10px'}}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+          <button onClick={()=>skip(-15)} style={{background:'none',border:'none',color:t.playerText,fontSize:32,cursor:'pointer',padding:'6px 10px',lineHeight:1}}>↺</button>
+          <span style={{fontSize:11,color:t.textMuted}}>15s</span>
+        </div>
+        <button onClick={()=>play(episode,podcast)} style={{width:74,height:74,borderRadius:'50%',background:t.accent,border:'none',color:'#fff',fontSize:30,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 4px 24px ${t.accent}66`,flexShrink:0}}>
+          {playing?'⏸':'▶'}
+        </button>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+          <button onClick={()=>skip(15)} style={{background:'none',border:'none',color:t.playerText,fontSize:32,cursor:'pointer',padding:'6px 10px',lineHeight:1}}>↻</button>
+          <span style={{fontSize:11,color:t.textMuted}}>15s</span>
+        </div>
+      </div>
+      {/* secondary controls */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,padding:'10px 24px 20px',flexWrap:'wrap'}}>
+        <select value={speed} onChange={e=>setSpeed(parseFloat(e.target.value))}
+          style={{background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.playerText,fontSize:14,padding:'7px 12px',cursor:'pointer'}}>
+          {[0.75,1,1.25,1.5,1.75,2].map(s=><option key={s} value={s}>{s}x</option>)}
+        </select>
+        <button onClick={()=>{const opts=[0,15,30,45,60];const cur=sleepMinsLeft||0;const next=opts[opts.indexOf(opts.find(o=>o>=cur&&(o>cur||cur===0))||0)+1]||0;setSleepTimer(next);}}
+          style={{background:'none',border:`1px solid ${sleepMinsLeft?t.accent:t.border}`,borderRadius:8,color:sleepMinsLeft?t.accent:t.playerText,fontSize:14,padding:'7px 16px',cursor:'pointer'}}>
+          {sleepMinsLeft?`⏾ ${sleepMinsLeft}m`:'⏾ Timer'}
+        </button>
+      </div>
+      {/* episode description */}
+      {episode.description&&(
+        <div style={{margin:'0 20px 48px',padding:'16px',background:'rgba(255,255,255,0.05)',borderRadius:12,border:`1px solid ${t.border}`}}>
+          <p style={{fontSize:14,color:t.textSec,lineHeight:1.75}}>{episode.description}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayerBar({player,t,onExpand}){
+  const{episode,podcast,playing,position,duration,speed,sleepMinsLeft,play,seek,setSpeed,skip,setSleepTimer}=player;
+  if(!episode)return null;
+  const pct=duration>0?(position/duration)*100:0;
+  return(
+    <div style={{position:'fixed',bottom:0,left:0,right:0,zIndex:300,background:t.playerBg,borderTop:`1px solid ${t.border}`,boxShadow:'0 -4px 24px rgba(0,0,0,.4)',paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
+      {/* clickable progress strip */}
+      <div style={{height:3,background:'rgba(255,255,255,.1)',cursor:'pointer'}}
+        onClick={e=>{const r=e.currentTarget.getBoundingClientRect();seek(((e.clientX-r.left)/r.width)*duration);}}>
+        <div style={{height:'100%',width:`${pct}%`,background:t.accent,transition:'width .3s'}}/>
+      </div>
+      {/* row 1: cover + info (tap→full player) + play */}
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px 4px'}}>
+        <div style={{cursor:'pointer',flexShrink:0}} onClick={onExpand}>
+          <CoverArt src={podcast?.cover_url} size={42} t={t}/>
+        </div>
+        <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={onExpand}>
+          <p style={{fontSize:14,color:t.playerText,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.3}}>{episode.title}</p>
+          <p style={{fontSize:12,color:t.textMuted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{podcast?.title}</p>
+        </div>
+        <button onClick={()=>play(episode,podcast)} style={{width:46,height:46,borderRadius:'50%',background:t.accent,border:'none',color:'#fff',fontSize:20,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {playing?'⏸':'▶'}
+        </button>
+      </div>
+      {/* row 2: skip + speed + sleep + time */}
+      <div style={{display:'flex',alignItems:'center',gap:6,padding:'2px 12px 10px'}}>
+        <button onClick={()=>skip(-15)} style={{background:'none',border:`1px solid ${t.border}`,color:t.textMuted,fontSize:12,cursor:'pointer',padding:'5px 10px',borderRadius:6,whiteSpace:'nowrap'}}>−15s</button>
+        <button onClick={()=>skip(15)} style={{background:'none',border:`1px solid ${t.border}`,color:t.textMuted,fontSize:12,cursor:'pointer',padding:'5px 10px',borderRadius:6,whiteSpace:'nowrap'}}>+15s</button>
+        <select value={speed} onChange={e=>setSpeed(parseFloat(e.target.value))}
+          style={{background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textMuted,fontSize:12,padding:'4px 7px',cursor:'pointer'}}>
+          {[0.75,1,1.25,1.5,1.75,2].map(s=><option key={s} value={s}>{s}x</option>)}
+        </select>
+        {setSleepTimer&&<button onClick={()=>{const opts=[0,15,30,45,60];const cur=sleepMinsLeft||0;const next=opts[opts.indexOf(opts.find(o=>o>=cur&&(o>cur||cur===0))||0)+1]||0;setSleepTimer(next);}}
+          style={{background:'none',border:`1px solid ${sleepMinsLeft?t.accent:t.border}`,borderRadius:6,color:sleepMinsLeft?t.accent:t.textMuted,fontSize:12,padding:'4px 8px',cursor:'pointer',whiteSpace:'nowrap'}}>
+          {sleepMinsLeft?`⏾${sleepMinsLeft}m`:'⏾'}
+        </button>}
+        <span style={{fontSize:11,color:t.textMuted,whiteSpace:'nowrap',marginLeft:'auto'}}>{formatDuration(Math.floor(position))}</span>
+      </div>
+    </div>
+  );
+}
+
+function PodcastRow({podcast,t,onAdd,addState,onClick}){
+  return(
+    <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,boxShadow:`0 1px 8px ${t.shadow}`,overflow:'hidden'}}>
+      <div style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px',cursor:'pointer'}}
+        onClick={()=>onClick&&onClick()}
+        onMouseEnter={e=>e.currentTarget.style.background=t.bgAlt}
+        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+        <CoverArt src={podcast.cover_url} size={52} t={t}/>
+        <div style={{flex:1,minWidth:0}}>
+          <p style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{podcast.title}</p>
+          <p style={{fontSize:13,color:t.textSec,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{podcast.author}{podcast.genre?` · ${podcast.genre}`:''}</p>
+          {podcast.description&&<p style={{fontSize:12,color:t.textMuted,marginTop:4,overflow:'hidden',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',lineHeight:1.5}}>{podcast.description}</p>}
+        </div>
+        <div style={{flexShrink:0}} onClick={e=>e.stopPropagation()}>
+          {addState==='done'?<span style={{fontSize:12,color:t.accent2,fontStyle:'italic'}}>✓</span>
+           :addState==='loading'?<Dots color={t.accent}/>
+           :addState==='error'?<span style={{fontSize:12,color:t.danger}}>!</span>
+           :<button onClick={()=>onAdd&&onAdd()} style={{padding:'5px 12px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textSec,fontSize:12,cursor:'pointer'}}>+ Aggiungi</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EpisodeRow({ep,t,isCurrent,isPlaying,savedPos,player,onPlay,onQueue,onLater,laterAdded,onAddToCollection,collections,isPlayed,onMarkPlayed}){
+  const played=isPlayed||ep.played;
+  const[expanded,setExpanded]=useState(false);
+  const[queued,setQueued]=useState(false);
+  const[laterDone,setLaterDone]=useState(laterAdded||false);
+  const[showCollPicker,setShowCollPicker]=useState(false);
+  return(
+    <div style={{background:isCurrent?t.accentBg:t.bgCard,border:`1px solid ${isCurrent?t.accent:t.borderLight}`,borderRadius:10,boxShadow:`0 1px 6px ${t.shadow}`,overflow:'hidden',transition:'all .15s'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,padding:'12px 14px',cursor:'pointer'}} onClick={()=>setExpanded(e=>!e)}>
+        <div style={{flex:1,minWidth:0}}>
+          <p style={{fontSize:15,color:played&&!isCurrent?t.textMuted:t.text,fontWeight:500,marginBottom:3,lineHeight:1.4,opacity:played&&!isCurrent?.8:1}}>{ep.title}</p>
+          <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+            <span style={{fontSize:11,color:t.textMuted}}>{formatDate(ep.published_at)}</span>
+            {ep.duration_sec&&<span style={{fontSize:11,color:t.textMuted}}>{formatDuration(ep.duration_sec)}</span>}
+            {played&&!isCurrent&&<span style={{fontSize:10,color:t.accent2,fontWeight:600}}>✓ Ascoltato</span>}
+            {!isCurrent&&!played&&savedPos>10&&<span style={{fontSize:11,color:t.accent,fontStyle:'italic'}}>▶ Riprendi da {formatDuration(Math.floor(savedPos))}</span>}
+            <span style={{fontSize:10,color:t.textMuted,marginLeft:'auto',display:'inline-block',transform:expanded?'rotate(180deg)':'none',transition:'transform .2s'}}>▾</span>
+          </div>
+          {isCurrent&&<div style={{marginTop:6}}><ProgressBar pct={player.duration>0?(player.position/player.duration)*100:0} color={t.accent} height={3}/></div>}
+        </div>
+        <button onClick={e=>{e.stopPropagation();onPlay();}} style={{width:34,height:34,borderRadius:'50%',flexShrink:0,marginLeft:4,background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,color:isCurrent?'#fff':t.textSec,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {isPlaying?'⏸':'▶'}
+        </button>
+      </div>
+      {expanded&&<div style={{borderTop:`1px solid ${t.borderLight}`,padding:'10px 14px 12px',background:t.bgAlt}}>
+        {ep.description?<p style={{fontSize:13,color:t.textSec,lineHeight:1.65,marginBottom:10,display:'-webkit-box',WebkitLineClamp:5,WebkitBoxOrient:'vertical',overflow:'hidden'}}>{ep.description}</p>:<p style={{fontSize:13,color:t.textMuted,fontStyle:'italic',marginBottom:10}}>Nessuna descrizione disponibile.</p>}
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button onClick={e=>{e.stopPropagation();if(!queued){onQueue();setQueued(true);}}}
+            style={{padding:'4px 12px',background:queued?t.accent2Bg:'none',border:`1px solid ${queued?t.accent2:t.border}`,borderRadius:6,color:queued?t.accent2:t.textSec,fontSize:12,cursor:queued?'default':'pointer'}}>
+            {queued?'✓ In coda':'+ Coda'}
+          </button>
+          {onLater&&<button onClick={e=>{e.stopPropagation();if(!laterDone){onLater();setLaterDone(true);}}}
+            style={{padding:'4px 12px',background:laterDone?t.accentBg:'none',border:`1px solid ${laterDone?t.accent:t.border}`,borderRadius:6,color:laterDone?t.accent:t.textSec,fontSize:12,cursor:laterDone?'default':'pointer'}}>
+            {laterDone?'🕐 Salvato':'🕐 Dopo'}
+          </button>}
+
+          {onMarkPlayed&&<button onClick={e=>{e.stopPropagation();onMarkPlayed(ep.id,!played);}}
+            style={{padding:'4px 12px',background:played?t.accent2Bg:'none',border:`1px solid ${played?t.accent2:t.border}`,borderRadius:6,color:played?t.accent2:t.textSec,fontSize:12,cursor:'pointer'}}>
+            {played?'✓ Ascoltato':'○ Segna ascoltato'}
+          </button>}
+          {onAddToCollection&&collections?.length>0&&<button onClick={e=>{e.stopPropagation();setShowCollPicker(s=>!s);}}
+            style={{padding:'4px 12px',background:showCollPicker?t.accentBg:'none',border:`1px solid ${showCollPicker?t.accent:t.border}`,borderRadius:6,color:showCollPicker?t.accent:t.textSec,fontSize:12,cursor:'pointer'}}>
+            ◈ Collezione
+          </button>}
+        </div>
+        {showCollPicker&&collections?.length>0&&<div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+          <span style={{fontSize:11,color:t.textMuted}}>Aggiungi a:</span>
+          {collections.map(c=><button key={c.id} onClick={e=>{e.stopPropagation();onAddToCollection(c.id,ep);setShowCollPicker(false);}}
+            style={{fontSize:11,padding:'3px 10px',borderRadius:10,border:`1px solid ${c.color}`,background:'none',color:c.color,cursor:'pointer'}}>
+            {c.name}
+          </button>)}
+        </div>}
+      </div>}
+    </div>
+  );
+}
+
+function BuddySuggestionRow({podcast,t,onAddPodcast}){
+  const[resolved,setResolved]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const[added,setAdded]=useState(false);
+  const[searched,setSearched]=useState(false);
+  async function findOnItunes(){setLoading(true);setSearched(true);try{const r=await fetchItunesSearch(podcast.title);if(r.length>0)setResolved(r[0]);}catch(e){}setLoading(false);}
+  async function handleAdd(){
+    const target=resolved||podcast;
+    let feedUrl=target.feed_url;
+    if(!feedUrl&&target.itunes_id)feedUrl=await fetchItunesFeedUrl(target.itunes_id,target.title);
+    onAddPodcast({...target,feed_url:feedUrl,id:LS.id(),source:{type:'buddy',book_title:podcast.source?.book_title,book_id:podcast.source?.book_id},status:'wishlist',addedAt:new Date().toISOString()});
+    setAdded(true);
+  }
+  const display=resolved||podcast;
+  return(
+    <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,boxShadow:`0 1px 8px ${t.shadow}`,overflow:'hidden'}}>
+      <div style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px'}}>
+        <CoverArt src={display.cover_url} size={52} t={t}/>
+        <div style={{flex:1,minWidth:0}}>
+          <p style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{display.title}</p>
+          <p style={{fontSize:13,color:t.textSec,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{display.author||(podcast.source?.book_title?`❧ da "${podcast.source.book_title}"`:'')}</p>
+          {podcast.description&&!resolved&&<p style={{fontSize:12,color:t.textMuted,marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{podcast.description}</p>}
+        </div>
+        <div style={{flexShrink:0,display:'flex',gap:8,alignItems:'center'}}>
+          {added?<span style={{fontSize:12,color:t.accent2,fontStyle:'italic'}}>✓ Aggiunto</span>
+           :loading?<Dots color={t.accent}/>
+           :resolved?<button onClick={handleAdd} style={{padding:'5px 12px',background:t.accent,border:'none',borderRadius:6,color:'#fff',fontSize:12,cursor:'pointer'}}>+ Aggiungi</button>
+           :searched?<button onClick={handleAdd} style={{padding:'5px 12px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textSec,fontSize:12,cursor:'pointer'}}>+ Aggiungi</button>
+           :<button onClick={findOnItunes} style={{padding:'5px 12px',background:t.accentBg,border:`1px solid ${t.accent}`,borderRadius:6,color:t.accent,fontSize:12,cursor:'pointer'}}>Cerca su iTunes</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeView({t,podcasts,player,onPlay,onQueue,onLater,laterIds,collections,onAddToCollection,onMarkPlayed,onOpenPodcast}){
+  const following=podcasts.filter(p=>p.status==='following'&&p.episodes?.length);
+  // Collect latest unplayed episode per podcast, sort by date
+  const feedItems=[];
+  following.forEach(pod=>{
+    const ep=(pod.episodes||[]).find(e=>!e.played);
+    if(ep)feedItems.push({ep,pod});
+  });
+  feedItems.sort((a,b)=>{
+    const da=a.ep.published_at?new Date(a.ep.published_at):new Date(0);
+    const db=b.ep.published_at?new Date(b.ep.published_at):new Date(0);
+    return db-da;
+  });
+  const{episode:curEp,podcast:curPod,playing,position,duration}=player;
+  const hasCurrent=!!curEp;
+  return(
+    <div>
+      {hasCurrent&&<div style={{marginBottom:24}}>
+        <p style={{fontSize:11,letterSpacing:2,textTransform:'uppercase',color:t.textMuted,marginBottom:12}}>Continua ad ascoltare</p>
+        <div style={{background:t.accentBg,border:`1px solid ${t.accent}`,borderRadius:12,padding:'14px 16px',display:'flex',gap:14,alignItems:'center'}}>
+          <CoverArt src={curPod?.cover_url} size={52} t={t}/>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{fontSize:14,color:t.text,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{curEp.title}</p>
+            <p style={{fontSize:12,color:t.textMuted,marginBottom:6,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{curPod?.title}</p>
+            <ProgressBar pct={duration>0?(position/duration)*100:0} color={t.accent} height={3}/>
+            <span style={{fontSize:11,color:t.textMuted}}>{formatDuration(Math.floor(position))} / {formatDuration(Math.floor(duration||curEp.duration_sec||0))}</span>
+          </div>
+          <button onClick={()=>player.play(curEp,curPod)} style={{width:40,height:40,borderRadius:'50%',background:t.accent,border:'none',color:'#fff',fontSize:18,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            {playing?'⏸':'▶'}
+          </button>
+        </div>
+      </div>}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <p style={{fontSize:11,letterSpacing:2,textTransform:'uppercase',color:t.textMuted}}>Nuovi episodi</p>
+        <span style={{fontSize:11,color:t.textMuted}}>{feedItems.length} episodi</span>
+      </div>
+      {feedItems.length===0&&<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'40px 0'}}>
+        {following.length===0?'Aggiungi podcast da seguire per vedere i nuovi episodi qui.':'Caricamento episodi... Apri un podcast per aggiornarlo.'}
+      </p>}
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {feedItems.map(({ep,pod})=>{
+          const isCurrent=player.episode?.id===ep.id;
+          const isPlaying=isCurrent&&player.playing;
+          const savedPos=player.getSavedPosition?.(ep.id)||0;
+          return(
+            <div key={ep.id} style={{background:isCurrent?t.accentBg:t.bgCard,border:`1px solid ${isCurrent?t.accent:t.borderLight}`,borderRadius:10,padding:'10px 14px',display:'flex',gap:12,alignItems:'center',boxShadow:`0 1px 4px ${t.shadow}`}}>
+              <div style={{cursor:'pointer'}} onClick={()=>onOpenPodcast&&onOpenPodcast(pod)}>
+                <CoverArt src={pod.cover_url} size={40} t={t}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:13,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{ep.title}</p>
+                <p style={{fontSize:11,color:t.textMuted,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pod.title}{ep.published_at?` · ${formatDate(ep.published_at)}`:''}{ep.duration_sec?` · ${formatDuration(ep.duration_sec)}`:''}</p>
+                {savedPos>10&&!isCurrent&&<span style={{fontSize:11,color:t.accent,fontStyle:'italic'}}>▶ Riprendi da {formatDuration(Math.floor(savedPos))}</span>}
+              </div>
+              <button onClick={()=>onPlay(ep,pod)} style={{width:34,height:34,borderRadius:'50%',flexShrink:0,background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,color:isCurrent?'#fff':t.textSec,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {isPlaying?'⏸':'▶'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DiscoveryView({t,onAddPodcast,onOpenPodcast}){
+  const[category,setCategory]=useState(CATEGORIES[0]);
+  const[results,setResults]=useState([]);
+  const[loading,setLoading]=useState(false);
+  const[added,setAdded]=useState({});
+  const[search,setSearch]=useState('');
+  const[searchMode,setSearchMode]=useState(false);
+  const[country,setCountry]=useState(()=>LS.raw('ls_country')||'us');
+  const searchTimer=useRef(null);
+  const[buddySuggestions]=useState(()=>{try{return(LS.get(BUDDY_KEY,[])||[]).map(sanitizePodcast).filter(Boolean);}catch(e){return[];}});
+  useEffect(()=>{if(!searchMode)loadCategory(category);},[category,searchMode,country]);
+  async function loadCategory(cat){setLoading(true);setResults([]);try{setResults(await fetchItunesTop(cat.id,country));}catch(e){}setLoading(false);}
+  function handleSearchInput(val){setSearch(val);clearTimeout(searchTimer.current);if(!val.trim()){setSearchMode(false);return;}setSearchMode(true);searchTimer.current=setTimeout(()=>doSearch(val),500);}
+  async function doSearch(q){if(!q.trim())return;setLoading(true);setResults([]);try{setResults(await fetchItunesSearch(q,country));}catch(e){}setLoading(false);}
+  function changeCountry(c){setCountry(c);LS.setRaw('ls_country',c);setResults([]);}
+  async function handleAdd(podcast){
+    const key=podcast.itunes_id||podcast.id||podcast.title;
+    setAdded(a=>({...a,[key]:'loading'}));
+    try{let feedUrl=podcast.feed_url;if(!feedUrl&&podcast.itunes_id)feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);onAddPodcast({...podcast,feed_url:feedUrl,id:LS.id(),status:'wishlist',addedAt:new Date().toISOString()});setAdded(a=>({...a,[key]:'done'}));}
+    catch(e){setAdded(a=>({...a,[key]:'error'}));}
+  }
+  return(
+    <div className="fu">
+      <div style={{display:'flex',gap:10,marginBottom:20,alignItems:'center'}}>
+        <div style={{flex:1,position:'relative'}}>
+          <input value={search} onChange={e=>handleSearchInput(e.target.value)} placeholder="Cerca un podcast per nome..." style={{width:'100%',padding:'10px 40px 10px 14px',background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:10,color:t.text,fontSize:15,boxShadow:`0 1px 8px ${t.shadow}`}}/>
+          {search&&<button onClick={()=>{setSearch('');setSearchMode(false);}} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:t.textMuted,fontSize:18,cursor:'pointer',lineHeight:1}}>&#215;</button>}
+        </div>
+        <div style={{display:'flex',gap:0,flexShrink:0}}>
+          {[['us','🇺🇸'],['gb','🇬🇧'],['it','🇮🇹']].map(([c,flag])=>(
+            <button key={c} onClick={()=>changeCountry(c)} title={c==='us'?'USA':c==='gb'?'UK':'Italia'}
+              style={{padding:'8px 10px',background:country===c?t.accent:'none',border:`1px solid ${t.border}`,borderRadius:c==='us'?'8px 0 0 8px':c==='it'?'0 8px 8px 0':'0',borderRight:c!=='it'?'none':`1px solid ${t.border}`,cursor:'pointer',fontSize:16,transition:'background .15s',lineHeight:1}}>
+              {flag}
+            </button>
+          ))}
+        </div>
+      </div>
+      {!searchMode&&buddySuggestions.length>0&&<div style={{marginBottom:28}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:t.text,marginBottom:14,fontStyle:'italic'}}>❧ Suggeriti da Reading Buddy</h3>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {buddySuggestions.map(p=><BuddySuggestionRow key={p.id||p.title} podcast={p} t={t} onAddPodcast={onAddPodcast}/>)}</div>
+      </div>}
+      {!searchMode&&<div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:20}}>
+        {CATEGORIES.map(c=><button key={c.id} onClick={()=>setCategory(c)} style={{padding:'5px 13px',borderRadius:20,border:`1px solid ${t.border}`,fontSize:13,cursor:'pointer',background:category.id===c.id?t.accent:'none',color:category.id===c.id?'#fff':t.textSec}}>{c.label}</button>)}
+      </div>}
+      {searchMode&&<p style={{fontSize:13,color:t.textMuted,marginBottom:14,fontStyle:'italic'}}>{loading?'Cerco...':`Risultati per "${search}"`}</p>}
+      {loading&&<div style={{textAlign:'center',padding:'40px 0'}}><div style={{fontSize:22,color:t.accent,animation:'spin 2s linear infinite',display:'inline-block'}}>✦</div></div>}
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {results.map(p=>{const key=p.itunes_id||p.title;return <PodcastRow key={key} podcast={p} t={t} onAdd={()=>handleAdd(p)} addState={added[key]||''} onClick={()=>onOpenPodcast&&onOpenPodcast(p)}/>;})}</div>
+    </div>
+  );
+}
+
+function MyPodcastsView({t,podcasts,collections,onSelect,onRemove,onFollow,onToggleCollection}){
+  const[showCollPicker,setShowCollPicker]=useState(null);
+  const wishlist=podcasts.filter(p=>p.status==='wishlist');
+  const following=podcasts.filter(p=>p.status==='following');
+  function CollBadges({p}){
+    const colls=(collections||[]).filter(c=>c.podcastIds?.includes(p.id));
+    if(!colls.length)return null;
+    return <div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:3}}>
+      {colls.map(c=><span key={c.id} style={{fontSize:10,padding:'1px 7px',borderRadius:10,background:c.color+'22',color:c.color,border:`1px solid ${c.color}66`}}>◈ {c.name}</span>)}
+    </div>;
+  }
+  function Section({title,items,emptyMsg}){
+    return <div style={{marginBottom:28}}>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:t.text,marginBottom:14,fontStyle:'italic'}}>{title}</h3>
+      {items.length===0?<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic'}}>{emptyMsg}</p>
+        :<div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {items.map(p=>(
+            <div key={p.id} style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,boxShadow:`0 1px 8px ${t.shadow}`,overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',gap:14,padding:'12px 16px'}}>
+                <div onClick={()=>onSelect(p)} style={{display:'flex',alignItems:'center',gap:14,flex:1,minWidth:0,cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.opacity='.8'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                  <CoverArt src={p.cover_url} size={52} t={t}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <p style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</p>
+                    <p style={{fontSize:13,color:t.textSec,fontStyle:'italic'}}>{p.author||''}</p>
+                    <CollBadges p={p}/>
+                    {p.source?.type==='buddy'&&<div style={{marginTop:3}}><Badge label={`❧ ${p.source.book_title}`} color={t.accent} bg={t.accentBg}/></div>}
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  {collections?.length>0&&<button onClick={()=>setShowCollPicker(showCollPicker===p.id?null:p.id)} title="Collezioni"
+                    style={{padding:'4px 8px',background:showCollPicker===p.id?t.accentBg:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.accent,fontSize:12,cursor:'pointer'}}>◈</button>}
+                  {p.status==='wishlist'&&<button onClick={()=>onFollow(p)} style={{padding:'4px 11px',background:t.accent2Bg,border:`1px solid ${t.accent2}`,borderRadius:6,color:t.accent2,fontSize:12,cursor:'pointer'}}>Segui</button>}
+                  <button onClick={()=>onRemove(p.id)} style={{background:'none',border:'none',color:t.textMuted,fontSize:16,cursor:'pointer'}}>🗑</button>
+                </div>
+              </div>
+              {showCollPicker===p.id&&collections?.length>0&&<div style={{borderTop:`1px solid ${t.borderLight}`,padding:'10px 16px',background:t.bgAlt,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                <span style={{fontSize:11,color:t.textMuted,marginRight:4}}>Collezioni:</span>
+                {collections.map(c=>{const inColl=c.podcastIds?.includes(p.id);return <button key={c.id} onClick={()=>onToggleCollection(c.id,p.id)}
+                  style={{fontSize:11,padding:'3px 10px',borderRadius:10,border:`1px solid ${c.color}`,background:inColl?c.color+'33':'none',color:inColl?c.color:t.textMuted,cursor:'pointer'}}>
+                  {inColl?'✓ ':''}{c.name}</button>;})}
+              </div>}
+            </div>
+          ))}
+        </div>}
+    </div>;
+  }
+  return <div className="fu">
+    <Section title="✦ Wishlist" items={wishlist} emptyMsg="Nessun podcast in wishlist."/>
+    <Section title="● In ascolto" items={following} emptyMsg="Non stai ancora seguendo nessun podcast."/>
+  </div>;
+}
+
+function CollectionsView({t,collections,podcasts,onAdd,onRemove,onRename,onOpenPodcast,onToggle,onRemoveEpisode,player}){
+  const[newName,setNewName]=useState('');
+  const[newColor,setNewColor]=useState(COLLECTION_COLORS[0]);
+  const[activeId,setActiveId]=useState(null);
+  const[editingId,setEditingId]=useState(null);
+  const[editName,setEditName]=useState('');
+  function handleAdd(){if(!newName.trim())return;onAdd(newName.trim(),newColor);setNewName('');setNewColor(COLLECTION_COLORS[0]);}
+  const active=collections.find(c=>c.id===activeId);
+  const activePodcasts=active?podcasts.filter(p=>active.podcastIds?.includes(p.id)):[];
+  if(activeId&&active)return(
+    <div className="fu">
+      <button onClick={()=>setActiveId(null)} style={{background:'none',border:'none',color:t.textSec,cursor:'pointer',fontSize:13,marginBottom:16,display:'flex',alignItems:'center',gap:6,padding:0}}>← Tutte le collezioni</button>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,padding:'16px 20px',background:t.bgCard,borderRadius:12,border:`2px solid ${active.color}`}}>
+        <div style={{width:36,height:36,borderRadius:'50%',background:active.color,flexShrink:0}}/>
+        <div style={{flex:1}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:'italic',color:t.text,marginBottom:2}}>{active.name}</h2>
+          <p style={{fontSize:12,color:t.textMuted}}>{activePodcasts.length} podcast · {(active.episodes||[]).length} episodi</p>
+        </div>
+      </div>
+      {activePodcasts.length>0&&<div style={{marginBottom:24}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontStyle:'italic',color:t.textSec,marginBottom:12}}>Podcast</h3>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {activePodcasts.map(p=>(
+            <div key={p.id} style={{display:'flex',alignItems:'center',gap:14,padding:'11px 16px',background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,boxShadow:`0 1px 8px ${t.shadow}`}}>
+              <div onClick={()=>onOpenPodcast(p)} style={{display:'flex',alignItems:'center',gap:14,flex:1,minWidth:0,cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.opacity='.8'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                <CoverArt src={p.cover_url} size={44} t={t}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:14,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</p>
+                  <p style={{fontSize:12,color:t.textSec,fontStyle:'italic'}}>{p.author||''}</p>
+                </div>
+              </div>
+              <button onClick={()=>onToggle(active.id,p.id)} style={{background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.danger,fontSize:11,padding:'3px 8px',cursor:'pointer'}}>Rimuovi</button>
+            </div>
+          ))}
+        </div>
+      </div>}
+      {(active.episodes||[]).length>0&&<div style={{marginBottom:24}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontStyle:'italic',color:t.textSec,marginBottom:12}}>Episodi salvati</h3>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {active.episodes.map(ep=>{
+            const isCurrent=player?.episode?.id===ep.id;const isPlaying=isCurrent&&player?.playing;
+            return(
+              <div key={ep.id} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',background:isCurrent?t.accentBg:t.bgCard,border:`1px solid ${isCurrent?t.accent:t.borderLight}`,borderRadius:10,boxShadow:`0 1px 6px ${t.shadow}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:14,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{ep.title}</p>
+                  <p style={{fontSize:12,color:t.textSec,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ep.podcastTitle}{ep.duration_sec?` · ${formatDuration(ep.duration_sec)}`:''}</p>
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  <button onClick={()=>player?.play(ep,{title:ep.podcastTitle,cover_url:''})} style={{width:30,height:30,borderRadius:'50%',background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,color:isCurrent?'#fff':t.textSec,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{isPlaying?'⏸':'▶'}</button>
+                  <button onClick={()=>onRemoveEpisode&&onRemoveEpisode(active.id,ep.id)} style={{width:30,height:30,borderRadius:'50%',background:'none',border:`1px solid ${t.border}`,color:t.textMuted,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>}
+      {activePodcasts.length===0&&(active.episodes||[]).length===0&&
+        <p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'30px 0'}}>Collezione vuota.</p>}
+    </div>
+  );
+  return(
+    <div className="fu">
+      <div style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,padding:'16px 18px',marginBottom:24,boxShadow:`0 1px 8px ${t.shadow}`}}>
+        <p style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontStyle:'italic',color:t.textSec,marginBottom:10}}>Nuova collezione</p>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleAdd()}
+            placeholder="Nome collezione..." style={{flex:1,minWidth:140,padding:'8px 12px',background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:14}}/>
+          <div style={{display:'flex',gap:4}}>
+            {COLLECTION_COLORS.map(c=>(
+              <button key={c} onClick={()=>setNewColor(c)} style={{width:20,height:20,borderRadius:'50%',background:c,border:newColor===c?`2px solid ${t.text}`:'2px solid transparent',cursor:'pointer',padding:0}}/>
+            ))}
+          </div>
+          <button onClick={handleAdd} disabled={!newName.trim()} style={{padding:'8px 16px',background:newName.trim()?t.accent:t.border,border:'none',borderRadius:8,color:'#fff',fontSize:13,cursor:newName.trim()?'pointer':'default',fontFamily:"'Playfair Display',serif",fontWeight:600}}>Crea</button>
+        </div>
+      </div>
+      {collections.length===0
+        ?<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'40px 0'}}>Nessuna collezione ancora. Creane una!</p>
+        :<div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {collections.map(coll=>{
+            const count=(coll.podcastIds||[]).length;
+            const previews=podcasts.filter(p=>coll.podcastIds?.includes(p.id)).slice(0,4);
+            return(
+              <div key={coll.id} style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:12,boxShadow:`0 1px 8px ${t.shadow}`,overflow:'hidden',borderLeft:`4px solid ${coll.color}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',cursor:'pointer'}} onClick={()=>setActiveId(coll.id)}>
+                  <div style={{width:10,height:10,borderRadius:'50%',background:coll.color,flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    {editingId===coll.id
+                      ?<input value={editName} onChange={e=>setEditName(e.target.value)} onClick={e=>e.stopPropagation()}
+                          onKeyDown={e=>{if(e.key==='Enter'){onRename(coll.id,editName);setEditingId(null);}if(e.key==='Escape')setEditingId(null);}}
+                          onBlur={()=>{onRename(coll.id,editName);setEditingId(null);}} autoFocus
+                          style={{background:'none',border:'none',borderBottom:`1px solid ${t.accent}`,color:t.text,fontSize:15,fontWeight:500,outline:'none',width:'100%'}}/>
+                      :<p style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2}}>{coll.name}</p>}
+                    <p style={{fontSize:12,color:t.textMuted}}>{count} podcast</p>
+                  </div>
+                  <div style={{display:'flex',gap:-6}}>
+                    {previews.map((p,i)=><div key={p.id} style={{marginLeft:i>0?-10:0,zIndex:previews.length-i}}><CoverArt src={p.cover_url} size={32} t={t}/></div>)}
+                  </div>
+                  <div style={{display:'flex',gap:6,flexShrink:0}} onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>{setEditingId(coll.id);setEditName(coll.name);}} style={{background:'none',border:'none',color:t.textMuted,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>✎</button>
+                    <button onClick={()=>{if(confirm(`Eliminare "${coll.name}"?`))onRemove(coll.id);}} style={{background:'none',border:'none',color:t.textMuted,fontSize:14,cursor:'pointer',padding:'2px 6px'}}>🗑</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>}
+    </div>
+  );
+}
+
+function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,laterIds,onMarkPlayed,podcasts,onAddPodcast,onFollowPodcast,collections,onAddEpisodeToCollection}){
+  const[episodes,setEpisodes]=useState(podcast.episodes||[]);
+  const[loading,setLoading]=useState(true);
+  const[err,setErr]=useState('');
+  const[showAll,setShowAll]=useState(false);
+  const[showFullDesc,setShowFullDesc]=useState(false);
+  const EPISODE_LIMIT=30;
+  const saved=podcasts?.find(p=>(p.feed_url&&p.feed_url===podcast.feed_url)||p.title.toLowerCase()===podcast.title.toLowerCase());
+  const[addDone,setAddDone]=useState(false);
+  useEffect(()=>{
+    async function load(){
+      let feedUrl=podcast.feed_url;
+      if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}
+      if(!feedUrl){setLoading(false);setErr('Feed RSS non trovato. Usa "+ RSS" e incolla l\'URL manualmente (podcastindex.org).');return;}
+      fetchFeed(feedUrl).then(data=>{setEpisodes(data.episodes);setLoading(false);}).catch(()=>{
+        const cached=podcast.episodes||[];
+        if(cached.length>0){setEpisodes(cached);setLoading(false);}
+        else{setErr('Impossibile caricare gli episodi.');setLoading(false);}
+      });
+    }
+    load();
+  },[podcast.id]);
+  async function handleAddToLibrary(){let feedUrl=podcast.feed_url;if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}onAddPodcast({...podcast,feed_url:feedUrl||'',id:LS.id(),status:'wishlist',addedAt:new Date().toISOString()});setAddDone(true);}
+  async function handleFollow(){let feedUrl=podcast.feed_url;if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}onAddPodcast({...podcast,feed_url:feedUrl||'',id:LS.id(),status:'following',addedAt:new Date().toISOString()});setAddDone(true);}
+  function handlePlay(ep){player.play(ep,podcast);onUpdateEpisode&&onUpdateEpisode(podcast.id,episodes.map(e=>e.id===ep.id?{...e,position_sec:player.position}:e));}
+  return(
+    <div className="fu">
+      <div style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:20,padding:'14px 18px',background:t.bgCard,borderRadius:14,border:`1px solid ${t.borderLight}`,boxShadow:`0 2px 12px ${t.shadow}`}}>
+        <CoverArt src={podcast.cover_url} size={72} t={t}/>
+        <div style={{flex:1,minWidth:0}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:'italic',color:t.text,marginBottom:3}}>{podcast.title}</h2>
+          <p style={{fontSize:13,color:t.textSec,marginBottom:4}}>{podcast.author}</p>
+          {podcast.genre&&<div style={{marginBottom:6}}><Badge label={podcast.genre} color={t.accent} bg={t.accentBg}/>{podcast.track_count?<span style={{fontSize:11,color:t.textMuted,marginLeft:8}}>{podcast.track_count} episodi</span>:null}</div>}
+          {podcast.description&&<div style={{marginBottom:10}}>
+            <p style={{fontSize:13,color:t.textSec,lineHeight:1.6,...(!showFullDesc?{display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}:{})}}>{podcast.description}</p>
+            {podcast.description.length>120&&<button onClick={()=>setShowFullDesc(s=>!s)} style={{background:'none',border:'none',color:t.accent,fontSize:12,cursor:'pointer',padding:'2px 0',fontStyle:'italic'}}>{showFullDesc?'▴ Meno':'▾ Leggi tutto'}</button>}
+          </div>}
+          {!saved&&!addDone&&onAddPodcast&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <button onClick={handleFollow} style={{padding:'7px 18px',background:t.accent,border:'none',borderRadius:8,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif",fontWeight:600}}>● Segui</button>
+            <button onClick={handleAddToLibrary} style={{padding:'7px 18px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>+ Wishlist</button>
+            {podcast.apple_url&&<a href={podcast.apple_url} target="_blank" style={{padding:'7px 14px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textMuted,fontSize:13,textDecoration:'none',display:'inline-flex',alignItems:'center'}}>Apple ↗</a>}
+          </div>}
+          {(saved||addDone)&&<div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <Badge label={saved?.status==='following'||addDone?'● In ascolto':'✦ In wishlist'} color={t.accent2} bg={t.accent2Bg}/>
+            {saved?.status==='wishlist'&&onFollowPodcast&&<button onClick={()=>onFollowPodcast(saved)} style={{padding:'4px 12px',background:t.accent2Bg,border:`1px solid ${t.accent2}`,borderRadius:6,color:t.accent2,fontSize:12,cursor:'pointer'}}>Inizia a seguire</button>}
+          </div>}
+          {podcast.source?.type==='buddy'&&<div style={{marginTop:8}}><Badge label={`❧ da "${podcast.source.book_title}"`} color={t.accent} bg={t.accentBg}/></div>}
+        </div>
+      </div>
+      {loading&&<div style={{textAlign:'center',padding:'40px 0'}}><div style={{fontSize:22,color:t.accent,animation:'spin 2s linear infinite',display:'inline-block'}}>✦</div><p style={{color:t.textMuted,fontSize:14,marginTop:8}}>Carico gli episodi...</p></div>}
+      {err&&<p style={{color:t.danger,fontSize:14,textAlign:'center',padding:'20px 0'}}>{err}</p>}
+      {!loading&&!err&&episodes.length===0&&<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'20px 0'}}>Nessun episodio trovato.</p>}
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {(showAll?episodes:episodes.slice(0,EPISODE_LIMIT)).map(ep=>{
+          const isPlaying=player.episode?.id===ep.id&&player.playing;
+          const isCurrent=player.episode?.id===ep.id;
+          const savedPos=player.getSavedPosition?.(ep.id)||ep.position_sec||0;
+          const savedPodcast=podcasts?.find(p=>(p.feed_url&&p.feed_url===podcast.feed_url)||p.title.toLowerCase()===podcast.title.toLowerCase());
+          const isEpPlayed=savedPodcast?.episodes?.find(e=>e.id===ep.id)?.played||ep.played||false;
+          return <EpisodeRow key={ep.id} ep={ep} t={t} isCurrent={isCurrent} isPlaying={isPlaying} savedPos={savedPos} onMarkPlayed={onMarkPlayed?(id,played)=>onMarkPlayed(podcast,id,played):null} player={player} onPlay={()=>handlePlay(ep)} onQueue={()=>onQueue&&onQueue(ep,podcast)} onLater={()=>onLater&&onLater(ep,podcast)} laterAdded={laterIds?.has(ep.id)} collections={collections} onAddToCollection={onAddEpisodeToCollection} isPlayed={isEpPlayed}/>;
+        })}
+        {episodes.length>EPISODE_LIMIT&&<button onClick={()=>setShowAll(s=>!s)} style={{marginTop:8,padding:'10px 0',background:'none',border:`1px solid`,borderColor:'inherit',borderRadius:10,color:'inherit',fontSize:13,cursor:'pointer',opacity:0.7,fontFamily:"'Lora',serif",fontStyle:'italic'}}>{showAll?'Mostra meno':'Mostra tutti gli episodi ('+episodes.length+')'}</button>}
+      </div>
+    </div>
+  );
+}
+
+function QueueView({t,queue,player,onRemove,onReorder}){
+  const dragIdx=useRef(null);
+  const[dragOver,setDragOver]=useState(null);
+  if(queue.length===0)return(
+    <div className="fu" style={{textAlign:'center',padding:'60px 20px'}}>
+      <p style={{fontSize:32,marginBottom:12}}>☰</p>
+      <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:'italic',color:t.textSec,marginBottom:6}}>La coda è vuota</p>
+      <p style={{color:t.textMuted,fontSize:14}}>Apri un podcast, espandi un episodio e clicca "+ Coda"</p>
+    </div>
+  );
+  return(
+    <div className="fu">
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:t.text,fontStyle:'italic',marginBottom:16}}>{queue.length} {queue.length===1?'episodio':'episodi'} in coda</h3>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {queue.map((item,idx)=>{
+          const isCurrent=player.episode?.id===item.episode.id;
+          return(
+            <div key={item.qid} draggable onDragStart={()=>{dragIdx.current=idx;}} onDragOver={e=>{e.preventDefault();setDragOver(idx);}} onDragLeave={()=>setDragOver(null)}
+              onDrop={()=>{if(dragIdx.current!==null&&dragIdx.current!==idx)onReorder(dragIdx.current,idx);setDragOver(null);dragIdx.current=null;}} onDragEnd={()=>{setDragOver(null);dragIdx.current=null;}}
+              style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',background:isCurrent?t.accentBg:t.bgCard,border:`2px solid ${dragOver===idx?t.accent:isCurrent?t.accent:t.borderLight}`,borderRadius:10,cursor:'grab'}}>
+              <span style={{color:t.textMuted,fontSize:16,userSelect:'none',flexShrink:0}}>⠿</span>
+              <span style={{fontSize:11,color:t.textMuted,flexShrink:0,width:18,textAlign:'center'}}>{idx+1}</span>
+              <CoverArt src={item.podcast.cover_url} size={40} t={t}/>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:14,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{item.episode.title}</p>
+                <p style={{fontSize:12,color:t.textSec,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.podcast.title}{item.episode.duration_sec?` · ${formatDuration(item.episode.duration_sec)}`:''}</p>
+              </div>
+              <div style={{display:'flex',gap:6,flexShrink:0}}>
+                <button onClick={()=>player.play(item.episode,item.podcast)} style={{width:32,height:32,borderRadius:'50%',background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,color:isCurrent?'#fff':t.textSec,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{isCurrent&&player.playing?'⏸':'▶'}</button>
+                <button onClick={()=>onRemove(item.qid)} style={{width:32,height:32,borderRadius:'50%',background:'none',border:`1px solid ${t.border}`,color:t.textMuted,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AddPodcastModal({t,onAdd,onClose}){
+  const[feedUrl,setFeedUrl]=useState('');
+  const[loading,setLoading]=useState(false);
+  const[err,setErr]=useState('');
+  async function handleAdd(){
+    if(!feedUrl.trim())return;setLoading(true);setErr('');
+    try{const data=await fetchFeed(feedUrl.trim());onAdd({id:LS.id(),title:data.title,author:'',description:data.description,feed_url:feedUrl.trim(),cover_url:data.cover_url,source:{type:'manual'},status:'following',addedAt:new Date().toISOString(),episodes:data.episodes});onClose();}
+    catch(e){setErr('Feed non valido o non raggiungibile.');}
+    setLoading(false);
+  }
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,padding:28,width:'100%',maxWidth:480,boxShadow:`0 8px 40px ${t.shadow}`}}>
+        <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:t.text,marginBottom:6}}>Aggiungi podcast da RSS</h3>
+        <p style={{color:t.textMuted,fontSize:14,marginBottom:18,lineHeight:1.6}}>Incolla l'URL del feed RSS. Trovalo su <a href="https://podcastindex.org" target="_blank" style={{color:t.accent}}>podcastindex.org</a>.</p>
+        <input value={feedUrl} onChange={e=>setFeedUrl(e.target.value)} placeholder="https://feeds.example.com/podcast.rss" onKeyDown={e=>e.key==='Enter'&&handleAdd()} style={{width:'100%',padding:'10px 14px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:15,marginBottom:12}}/>
+        {err&&<p style={{color:t.danger,fontSize:13,marginBottom:10}}>{err}</p>}
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:10,background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,cursor:'pointer',fontSize:14}}>Annulla</button>
+          <button onClick={handleAdd} disabled={loading||!feedUrl.trim()} style={{flex:2,padding:10,background:loading?t.border:t.accent,border:'none',borderRadius:8,color:'#fff',cursor:'pointer',fontSize:14,fontFamily:"'Playfair Display',serif",fontWeight:600}}>{loading?'Carico...':'Aggiungi podcast'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LaterView({t,later,player,onPlay,onQueue,onRemove}){
+  if(!later.length) return(
+    <div style={{textAlign:'center',paddingTop:60}}>
+      <p style={{fontSize:32,marginBottom:10,color:t.textMuted}}>🕐</p>
+      <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:'italic',color:t.textSec}}>Nessun episodio salvato</p>
+      <p style={{fontSize:14,color:t.textMuted,marginTop:6}}>Usa "🕐 Dopo" su qualsiasi episodio per salvarlo qui</p>
+    </div>
+  );
+  return(
+    <div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontStyle:'italic',color:t.text}}>Da ascoltare dopo</h2>
+        <span style={{fontSize:13,color:t.textMuted}}>{later.length} episodi</span>
+      </div>
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {later.map(item=>{
+          const ep=item.episode; const pod=item.podcast;
+          const isCurrent=player.episode?.id===ep.id;
+          const isPlaying=isCurrent&&player.playing;
+          return(
+            <div key={item.lid} style={{background:t.bgCard,border:`1px solid ${isCurrent?t.accent:t.borderLight}`,borderRadius:10,padding:'12px 14px',boxShadow:`0 1px 6px ${t.shadow}`}}>
+              <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                <CoverArt src={pod.cover_url} size={40} t={t}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:2,lineHeight:1.4}}>{ep.title}</p>
+                  <p style={{fontSize:12,color:t.textMuted,marginBottom:8}}>{pod.title}{ep.duration_sec&&' · '+formatDuration(ep.duration_sec)}</p>
+                  <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+                    <button onClick={()=>onPlay(ep,pod)}
+                      style={{padding:'4px 12px',background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,borderRadius:6,color:isCurrent?'#fff':t.textSec,fontSize:12,cursor:'pointer'}}>
+                      {isPlaying?'⏸ In ascolto':'▶ Ascolta'}
+                    </button>
+                    <button onClick={()=>onQueue(ep,pod)}
+                      style={{padding:'4px 12px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textSec,fontSize:12,cursor:'pointer'}}>
+                      + Coda
+                    </button>
+                    <button onClick={()=>onRemove(item.lid)}
+                      style={{padding:'4px 12px',background:'none',border:`1px solid ${t.border}`,borderRadius:6,color:t.textMuted,fontSize:12,cursor:'pointer'}}>
+                      ✕ Rimuovi
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const[dark,setDark]=useState(LS.raw('ls_dark')==='1');
+  const t=dark?DARK:LIGHT;
+  const[podcasts,setPodcasts]=useState(()=>LS.get('ls_podcasts',[]));
+  const[queue,setQueue]=useState(()=>LS.get('ls_queue',[]));
+  const[later,setLater]=useState(()=>LS.get('ls_later',[]));
+  const[collections,setCollections]=useState(()=>LS.get('ls_collections',[]));
+  const[view,setView]=useState('home');
+  const[activePodcast,setActivePodcast]=useState(null);
+  const[previousView,setPreviousView]=useState('discovery');
+  const[showAdd,setShowAdd]=useState(false);
+  const[showFullPlayer,setShowFullPlayer]=useState(false);
+  const player=usePlayer();
+  const queueRef=useRef(queue);
+  useEffect(()=>{queueRef.current=queue;},[queue]);
+  useEffect(()=>{document.body.style.background=t.bg;},[t]);
+  useEffect(()=>{const s=document.getElementById('lsScroll')||document.createElement('style');s.id='lsScroll';s.textContent=`::-webkit-scrollbar-thumb{background:${t.border}!important}`;document.head.appendChild(s);},[t]);
+  function savePodcasts(p){setPodcasts(p);LS.set('ls_podcasts',p);}
+  function saveQueue(q){setQueue(q);LS.set('ls_queue',q);}
+  function saveLater(l){setLater(l);LS.set('ls_later',l);}
+  function saveCollections(c){setCollections(c);LS.set('ls_collections',c);}
+  function addPodcast(podcast){const exists=podcasts.find(p=>p.title.toLowerCase()===podcast.title.toLowerCase()||(p.feed_url&&p.feed_url===podcast.feed_url));if(exists)return;savePodcasts([podcast,...podcasts]);}
+  function removePodcast(id){savePodcasts(podcasts.filter(p=>p.id!==id));}
+  function followPodcast(podcast){savePodcasts(podcasts.map(p=>p.id===podcast.id?{...p,status:'following'}:p));}
+  function updateEpisodes(podcastId,episodes){savePodcasts(podcasts.map(p=>p.id===podcastId?{...p,episodes}:p));}
+  function addToQueue(episode,podcast){if(queue.find(q=>q.episode.id===episode.id))return;saveQueue([...queue,{episode,podcast,qid:LS.id()}]);}
+  function removeFromQueue(qid){saveQueue(queue.filter(q=>q.qid!==qid));}
+  function reorderQueue(from,to){const q=[...queue];const[item]=q.splice(from,1);q.splice(to,0,item);saveQueue(q);}
+  function addToLater(episode,podcast){if(later.find(l=>l.episode.id===episode.id))return;saveLater([{episode,podcast,lid:LS.id(),addedAt:new Date().toISOString()},...later]);}
+  function removeFromLater(lid){saveLater(later.filter(l=>l.lid!==lid));}
+  const laterIds=new Set(later.map(l=>l.episode.id));
+  // Auto-play + badge Ascoltato
+  useEffect(()=>{
+    player.onEndedRef.current=(finishedEp, finishedPodcast)=>{
+      if(!finishedEp)return;
+      syncCpListen(finishedEp, finishedPodcast,
+        'done', 'listened',
+        { duration_min: finishedEp.duration_sec ? Math.round(finishedEp.duration_sec/60) : null, progress_pct: 100 }
+      );
+      setPodcasts(prev=>{
+        const updated=prev.map(p=>({...p,episodes:(p.episodes||[]).map(e=>e.id===finishedEp.id?{...e,played:true}:e)}));
+        LS.set('ls_podcasts',updated);
+        return updated;
+      });
+      setQueue(prevQueue=>{
+        const idx=prevQueue.findIndex(q=>q.episode.id===finishedEp.id);
+        if(idx>=0){
+          const newQueue=prevQueue.filter((_,i)=>i!==idx);
+          LS.set('ls_queue',newQueue);
+          const next=prevQueue[idx+1];
+          // use playFnRef so the reference is always current even in stale closure
+          if(next)setTimeout(()=>player.playFnRef.current(next.episode,next.podcast),100);
+          return newQueue;
+        }
+        return prevQueue;
+      });
+    };
+    // Android Auto / Media Session: nexttrack plays next in queue
+    if('mediaSession' in navigator){
+      navigator.mediaSession.setActionHandler('nexttrack',()=>{
+        const q=queueRef.current;
+        if(!q.length)return;
+        const curId=player.currentRef.current?.episode?.id; // always-current ref
+        const idx=q.findIndex(i=>i.episode.id===curId);
+        const next=idx>=0?q[idx+1]:q[0];
+        if(next)player.playFnRef.current(next.episode,next.podcast);
+      });
+      navigator.mediaSession.setActionHandler('previoustrack',()=>{
+        player.seek(0);
+      });
+    }
+  },[]);// eslint-disable-line
+  function addCollection(name,color){saveCollections([...collections,{id:LS.id(),name,color:color||'#6B4E9B',podcastIds:[],createdAt:new Date().toISOString()}]);}
+  function removeCollection(id){saveCollections(collections.filter(c=>c.id!==id));}
+  function renameCollection(id,name){saveCollections(collections.map(c=>c.id===id?{...c,name}:c));}
+  function togglePodcastInCollection(collId,podId){
+    saveCollections(collections.map(c=>{
+      if(c.id!==collId)return c;
+      const ids=c.podcastIds||[];
+      return{...c,podcastIds:ids.includes(podId)?ids.filter(i=>i!==podId):[...ids,podId]};
+    }));
+  }
+  function addEpisodeToCollection(collId,ep,podcastTitle){
+    saveCollections(collections.map(c=>{
+      if(c.id!==collId)return c;
+      const eps=c.episodes||[];
+      if(eps.find(e=>e.id===ep.id))return c;
+      return{...c,episodes:[...eps,{...ep,podcastTitle:podcastTitle||''}]};
+    }));
+  }
+  function removeEpisodeFromCollection(collId,epId){
+    saveCollections(collections.map(c=>c.id!==collId?c:{...c,episodes:(c.episodes||[]).filter(e=>e.id!==epId)}));
+  }
+  function markEpisodePlayed(podcast,episodeId,played){
+    savePodcasts(podcasts.map(p=>{
+      if((p.feed_url&&p.feed_url===podcast.feed_url)||p.id===podcast.id){
+        return{...p,episodes:(p.episodes||[]).map(e=>e.id===episodeId?{...e,played}:e)};
+      }
+      return p;
+    }));
+    // auto-remove from queue when marked as played
+    if(played){
+      const newQueue=queue.filter(q=>q.episode.id!==episodeId);
+      if(newQueue.length!==queue.length) saveQueue(newQueue);
+    }
+  }
+  function openPodcast(podcast,from){setPreviousView(from||view);setActivePodcast(podcast);setView('detail');}
+  const navItems=[
+    {id:'home',label:'Home',icon:'◉'},
+    {id:'discovery',label:'Discovery',icon:'✦'},
+    {id:'mypodcasts',label:'I miei podcast',icon:'●'},
+    {id:'collections',label:'Collezioni',icon:'◈'},
+    {id:'queue',label:'Coda',icon:'☰',badge:queue.length||null},
+    {id:'later',label:'Dopo',icon:'🕐',badge:later.length||null},
+  ];
+  return(
+    <div style={{minHeight:'100vh',background:t.bg,color:t.text,paddingBottom:player.episode?130:0}}>
+      <header style={{background:t.bgCard,borderBottom:`1px solid ${t.border}`,padding:'12px 22px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200,boxShadow:`0 2px 14px ${t.shadow}`}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>{setView('discovery');setActivePodcast(null);}}>
+          <span style={{fontSize:22,color:t.accent}}>🎙</span>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:t.text}}>ListenS</div>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {view==='detail'&&<button onClick={()=>{setView(previousView);setActivePodcast(null);}}
+            title={previousView==='discovery'?'Discovery':previousView==='collections'?'Collezioni':'I miei podcast'}
+            style={{width:34,height:34,background:'none',border:`1px solid ${t.border}`,borderRadius:7,color:t.textSec,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            ←
+          </button>}
+          <button onClick={()=>setShowAdd(true)} style={{padding:'6px 14px',background:t.accent,border:'none',borderRadius:8,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif"}}>+ RSS</button>
+          <button onClick={()=>{const v=!dark;setDark(v);LS.setRaw('ls_dark',v?'1':'0');}} title={dark?'Modalità chiara':'Modalità scura'} style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:t.text}}>{dark?'\u2600\uFE0E':'\u263E\uFE0E'}</button>
+        </div>
+      </header>
+      {view!=='detail'&&<div className="nav-tabs" style={{background:t.bgCard,borderBottom:`1px solid ${t.border}`,padding:'0 8px',display:'flex'}}>
+        {navItems.map(n=>(
+          <button key={n.id} onClick={()=>{setView(n.id);setActivePodcast(null);}}
+            style={{padding:'12px 14px',background:'none',border:'none',position:'relative',borderBottom:`2px solid ${view===n.id?t.accent:'transparent'}`,color:view===n.id?t.accent:t.textSec,fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif",transition:'all .15s',whiteSpace:'nowrap'}}>
+            {n.icon} {n.label}
+            {n.badge?<span style={{position:'absolute',top:8,right:2,background:t.accent,color:'#fff',borderRadius:10,fontSize:9,padding:'1px 5px'}}>{n.badge}</span>:null}
+          </button>
+        ))}
+      </div>}
+      <main style={{maxWidth:780,margin:'0 auto',padding:'22px 16px'}}>
+        {view==='home'&&<HomeView t={t} podcasts={podcasts} player={player} onPlay={(ep,pod)=>player.play(ep,pod)} onQueue={addToQueue} onLater={addToLater} laterIds={laterIds} collections={collections} onAddToCollection={addEpisodeToCollection} onMarkPlayed={markEpisodePlayed} onOpenPodcast={p=>openPodcast(p,'home')}/>}
+        {view==='discovery'&&<DiscoveryView key="discovery" t={t} onAddPodcast={addPodcast} onOpenPodcast={p=>openPodcast(p,'discovery')}/>}
+        {view==='mypodcasts'&&<MyPodcastsView t={t} podcasts={podcasts} collections={collections} onSelect={p=>openPodcast(p,'mypodcasts')} onRemove={removePodcast} onFollow={followPodcast} onToggleCollection={togglePodcastInCollection}/>}
+        {view==='collections'&&<CollectionsView t={t} collections={collections} podcasts={podcasts} onAdd={addCollection} onRemove={removeCollection} onRename={renameCollection} onOpenPodcast={p=>openPodcast(p,'collections')} onToggle={togglePodcastInCollection} onRemoveEpisode={removeEpisodeFromCollection} player={player}/>}
+        {view==='detail'&&activePodcast&&<PodcastDetailView t={t} podcast={activePodcast} player={player} onUpdateEpisode={updateEpisodes} onQueue={addToQueue} onLater={addToLater} laterIds={laterIds} onMarkPlayed={markEpisodePlayed} podcasts={podcasts} onAddPodcast={addPodcast} onFollowPodcast={followPodcast} collections={collections} onAddEpisodeToCollection={(collId,ep)=>addEpisodeToCollection(collId,ep,activePodcast.title)}/>}
+        {view==='queue'&&<QueueView t={t} queue={queue} player={player} onRemove={removeFromQueue} onReorder={reorderQueue}/>}
+        {view==='later'&&<LaterView t={t} later={later} player={player} onPlay={(ep,pod)=>player.play(ep,pod)} onQueue={addToQueue} onRemove={removeFromLater}/>}
+      </main>
+      <PlayerBar player={player} t={t} onExpand={()=>setShowFullPlayer(true)}/>
+      {showFullPlayer&&<FullPlayerSheet player={player} t={t} onClose={()=>setShowFullPlayer(false)}/>}
+      {showAdd&&<AddPodcastModal t={t} onAdd={addPodcast} onClose={()=>setShowAdd(false)}/>}
+    </div>
+  );
+}
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {
+        style: {
+          minHeight:'100vh', display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+          background:'#0f0e0b', color:'#e8e0d4',
+          fontFamily:'Georgia,serif', padding:'2rem', textAlign:'center', gap:'1rem'
+        }
+      },
+        React.createElement('div', { style:{fontSize:'2.5rem'} }, '\u26a0\ufe0f'),
+        React.createElement('h2', { style:{color:'#c8903a',margin:0} }, 'Qualcosa \u00e8 andato storto'),
+        React.createElement('p', { style:{color:'#7a6e64',fontSize:'0.9rem',maxWidth:'480px'} },
+          this.state.error?.message || 'Errore sconosciuto'),
+        React.createElement('button', {
+          onClick: () => this.setState({ hasError: false, error: null }),
+          style: {
+            marginTop:'1rem', padding:'0.6rem 1.4rem',
+            background:'transparent', color:'#c8903a',
+            border:'1px solid #c8903a', borderRadius:'4px',
+            cursor:'pointer', fontFamily:'Georgia,serif', fontSize:'0.9rem'
+          }
+        }, 'Riprova')
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(ErrorBoundary, null, React.createElement(App, null)));
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
