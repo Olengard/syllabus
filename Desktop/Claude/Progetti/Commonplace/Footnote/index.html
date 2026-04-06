@@ -1020,6 +1020,10 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
             {book.data&&<button onClick={()=>exportCardToPdf(book)} style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>
               📄 Esporta PDF
             </button>}
+            {book.data&&<button onClick={()=>{ if(confirm('Rigenerare la scheda? Il contenuto attuale verrà sostituito.')) generateCard(null); }} disabled={generating}
+              style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:generating?'default':'pointer',opacity:generating?0.5:1}}>
+              {generating?'⏳ Generando…':'↺ Rigenera'}
+            </button>}
           </div>
         </div>
         {mine.length>0&&<div style={{marginTop:8}}>{mine.map(c=><Tag key={c.id} label={'◈ '+c.name} t={t}/>)}</div>}
