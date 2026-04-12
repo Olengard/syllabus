@@ -6,6 +6,7 @@ import Wizard from './pages/Wizard'
 import Curriculum from './pages/Curriculum'
 import AuthScreen from './pages/Auth'
 import { supabase, loadCurricula, saveCurriculum } from './lib/supabase'
+import { useMobile } from './hooks/useMobile'
 import './App.css'
 
 // ---------------------------------------------------------------------------
@@ -102,6 +103,7 @@ export default function App() {
   const [usingSupabase, setUsingSupabase] = useState(false)
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const isMobile = useMobile()
 
   // ── Auth: sessione corrente + listener ──────────────────────────────────
   useEffect(() => {
@@ -204,15 +206,20 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <Header onLogoClick={() => setScreen('home')} user={user} />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar
-          curricula={curricula}
-          activeCurriculumId={activeCurriculumId}
-          onSelect={openCurriculum}
-          onNew={openWizard}
-        />
-        <main style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+
+        {/* Sidebar: visibile solo su desktop */}
+        {!isMobile && (
+          <Sidebar
+            curricula={curricula}
+            activeCurriculumId={activeCurriculumId}
+            onSelect={openCurriculum}
+            onNew={openWizard}
+          />
+        )}
+
+        <main style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative' }}>
           {screen === 'home' && (
-            <Home curricula={curricula} onSelect={openCurriculum} onNew={openWizard} />
+            <Home curricula={curricula} onSelect={openCurriculum} onNew={openWizard} isMobile={isMobile} />
           )}
           {screen === 'wizard' && (
             <Wizard curricula={curricula} onComplete={onWizardComplete} onCancel={() => setScreen('home')} />
@@ -223,7 +230,28 @@ export default function App() {
               allCurricula={curricula}
               onNavigate={openCurriculum}
               onNewFromSuggestion={(title) => openWizard({ prefillTitle: title })}
+              onBack={() => setScreen('home')}
+              isMobile={isMobile}
             />
+          )}
+
+          {/* FAB mobile: + Nuovo percorso (solo su home/curriculum, non nel wizard) */}
+          {isMobile && screen !== 'wizard' && (
+            <button
+              onClick={openWizard}
+              style={{
+                position: 'fixed', bottom: '24px', right: '20px',
+                width: '52px', height: '52px', borderRadius: '50%',
+                background: 'var(--warm-accent)', color: 'var(--cream)',
+                border: 'none', fontSize: '1.6rem', cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0,0,0,.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 100,
+              }}
+              title="Nuovo percorso"
+            >
+              ＋
+            </button>
           )}
         </main>
       </div>

@@ -44,9 +44,11 @@ function progressLabel(p) {
   return `${p}%`
 }
 
-export default function Home({ curricula, onSelect, onNew }) {
-  const active = curricula.filter(c => c.progress < 100)
-  const done = curricula.filter(c => c.progress === 100)
+export default function Home({ curricula, onSelect, onNew, isMobile }) {
+  // Supporta sia il formato mock (progress) sia quello Supabase (progressPct)
+  const pct = c => c.progressPct ?? c.progress ?? 0
+  const active = curricula.filter(c => pct(c) < 100)
+  const done   = curricula.filter(c => pct(c) === 100)
 
   return (
     <div style={s.wrap}>
@@ -55,7 +57,7 @@ export default function Home({ curricula, onSelect, onNew }) {
         {active.length} {active.length === 1 ? 'percorso attivo' : 'percorsi attivi'}
         {done.length > 0 && ` · ${done.length} completat${done.length === 1 ? 'o' : 'i'}`}
       </div>
-      <div style={s.grid}>
+      <div style={{ ...s.grid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))' }}>
         {curricula.map(c => (
           <div
             key={c.id}
@@ -64,18 +66,20 @@ export default function Home({ curricula, onSelect, onNew }) {
             onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-hover)'}
             onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
           >
-            <div style={s.cardTag}>{c.emoji} {c.duration} · {c.level}</div>
+            <div style={s.cardTag}>
+              {c.emoji} {c.timeCommitment ?? c.duration} · {c.level}
+            </div>
             <div style={s.cardTitle}>{c.title}</div>
             <div style={s.progressTrack}>
               <div style={{
-                height: '100%', width: `${c.progress}%`,
+                height: '100%', width: `${pct(c)}%`,
                 background: 'var(--warm-accent)', borderRadius: '2px',
                 transition: 'width .3s',
               }} />
             </div>
             <div style={s.cardMeta}>
-              <span>{c.resourceCount} risorse</span>
-              <span>{progressLabel(c.progress)}</span>
+              <span>{(c.resources?.length ?? c.resourceCount ?? 0)} risorse</span>
+              <span>{progressLabel(pct(c))}</span>
             </div>
           </div>
         ))}

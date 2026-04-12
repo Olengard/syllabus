@@ -23,8 +23,11 @@ const s = {
 }
 
 import { supabase } from '../../lib/supabase'
+import { useMobile } from '../../hooks/useMobile'
 
 export default function Header({ onLogoClick, user }) {
+  const isMobile = useMobile()
+
   function handleSignOut() {
     if (confirm('Disconnettersi da Syllabus?')) supabase.auth.signOut()
   }
@@ -33,15 +36,19 @@ export default function Header({ onLogoClick, user }) {
     <header style={s.header}>
       <div style={s.logo} onClick={onLogoClick}>
         Syllabus
-        <span style={s.logoSub}>— Commonplace</span>
+        {!isMobile && <span style={s.logoSub}>— Commonplace</span>}
       </div>
       <nav style={s.nav}>
-        <a style={s.navLink} href="https://bookshelf.commonplaceapp.org"
-           target="_blank" rel="noreferrer">↗ BookShelf</a>
-        <a style={s.navLink} href="https://footnote.commonplaceapp.org"
-           target="_blank" rel="noreferrer">↗ Footnote</a>
-        <a style={s.navLink} href="https://listens.commonplaceapp.org"
-           target="_blank" rel="noreferrer">↗ ListenS</a>
+        {!isMobile && (
+          <>
+            <a style={s.navLink} href="https://bookshelf.commonplaceapp.org"
+               target="_blank" rel="noreferrer">↗ BookShelf</a>
+            <a style={s.navLink} href="https://footnote.commonplaceapp.org"
+               target="_blank" rel="noreferrer">↗ Footnote</a>
+            <a style={s.navLink} href="https://listens.commonplaceapp.org"
+               target="_blank" rel="noreferrer">↗ ListenS</a>
+          </>
+        )}
         {user && (
           <button onClick={handleSignOut} title={`Connesso come ${user.email}`} style={{
             background: 'transparent', border: '1px solid var(--warm-light)',
@@ -50,7 +57,7 @@ export default function Header({ onLogoClick, user }) {
             padding: '3px 8px', cursor: 'pointer', opacity: .7,
             letterSpacing: '.05em',
           }}>
-            {user.email?.split('@')[0]} ↩
+            {isMobile ? '↩' : `${user.email?.split('@')[0]} ↩`}
           </button>
         )}
       </nav>

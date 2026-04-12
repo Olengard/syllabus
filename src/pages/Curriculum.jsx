@@ -162,8 +162,7 @@ function ReferenceSections({ sections }) {
   return sections.map((s, i) => <ReferenceSection key={s.type ?? i} section={s} />)
 }
 
-export default function Curriculum({ curriculum, allCurricula, onNavigate, onNewFromSuggestion }) {
-  // Usa le risorse reali da Supabase se presenti, altrimenti il mock per sviluppo
+export default function Curriculum({ curriculum, allCurricula, onNavigate, onNewFromSuggestion, onBack, isMobile }) {
   const hasRealResources = curriculum.resources?.length > 0
   const resources = hasRealResources
     ? groupResources(curriculum.resources)
@@ -172,19 +171,31 @@ export default function Curriculum({ curriculum, allCurricula, onNavigate, onNew
   return (
     <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-      {/* Colonna sinistra: navigazione connessioni */}
-      <ConnectionsNav
-        curriculum={curriculum}
-        allCurricula={allCurricula}
-        onNavigate={onNavigate}
-        onNewFromSuggestion={onNewFromSuggestion}
-      />
+      {/* Colonna sinistra: navigazione connessioni — nascosta su mobile */}
+      {!isMobile && (
+        <ConnectionsNav
+          curriculum={curriculum}
+          allCurricula={allCurricula}
+          onNavigate={onNavigate}
+          onNewFromSuggestion={onNewFromSuggestion}
+        />
+      )}
 
       {/* Colonna centrale: contenuto */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px 80px' : '28px 32px' }}>
 
         {/* Header */}
         <div style={{ borderBottom: '2px solid var(--warm-border)', paddingBottom: '18px', marginBottom: '24px' }}>
+          {/* Pulsante back su mobile */}
+          {isMobile && onBack && (
+            <button onClick={onBack} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontFamily: 'var(--font-mono)', fontSize: '.72rem',
+              color: 'var(--warm-mid)', padding: '0 0 10px', display: 'block',
+            }}>
+              ← I tuoi percorsi
+            </button>
+          )}
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: '.65rem', letterSpacing: '.15em',
             textTransform: 'uppercase', color: 'var(--warm-mid)', marginBottom: '6px',
@@ -314,8 +325,8 @@ export default function Curriculum({ curriculum, allCurricula, onNavigate, onNew
         })()}
       </div>
 
-      {/* Colonna destra: chat */}
-      <ChatPanel curriculumTitle={curriculum.title} />
+      {/* Colonna destra: chat — nascosta su mobile */}
+      {!isMobile && <ChatPanel curriculumTitle={curriculum.title} />}
     </div>
   )
 }
