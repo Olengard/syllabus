@@ -100,7 +100,10 @@ export default function App() {
   const [activeCurriculumId, setActiveCurriculumId] = useState('mock-2')
   const [curricula, setCurricula] = useState(MOCK_CURRICULA)
   const [loading, setLoading] = useState(true)
-  const [usingSupabase, setUsingSupabase] = useState(false)
+  // usingSupabase = utente loggato E variabili Supabase presenti
+  // Non dipende dal successo di loadCurricula — così saveCurriculum
+  // viene sempre tentato anche se la prima load ha fallito.
+  const usingSupabase = !!user && !!import.meta.env.VITE_SUPABASE_URL
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const isMobile = useMobile()
@@ -124,10 +127,12 @@ export default function App() {
       try {
         const data = await loadCurricula()
         setCurricula(data)
-        setUsingSupabase(true)
         if (data.length > 0) setActiveCurriculumId(data[0].id)
-      } catch {
-        setCurricula(MOCK_CURRICULA)
+      } catch (e) {
+        console.error('[Syllabus] loadCurricula:', e.message)
+        // Non caricare i mock su errore — l'utente è loggato, i suoi dati
+        // semplicemente non sono ancora disponibili (es. migration non eseguita).
+        setCurricula([])
       } finally {
         setLoading(false)
       }
@@ -158,9 +163,12 @@ export default function App() {
         }
       } catch (e) {
         console.error('[Syllabus] onWizardComplete Supabase error:', e)
+        // Mostra errore visibile invece di perdere silenziosamente il percorso
+        alert(`Errore nel salvataggio: ${e.message}\n\nControlla che la migration SQL sia stata eseguita su Supabase e che le variabili d'ambiente siano configurate su Vercel.`)
+        return
       }
     }
-    // Fallback locale (mock mode o errore Supabase)
+    // Fallback solo se Supabase non è configurato (sviluppo locale senza .env)
     const id = `local-${Date.now()}`
     const newEntry = {
       ...wizardData,
