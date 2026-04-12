@@ -1,0 +1,38 @@
+/* ── Syllabus — Design system (allineato a Commonplace) ── */
+:root {
+  /* Colori */
+  --cream: #fffdf0;
+  --warm-dark: #2c2416;
+  --warm-mid: #6b5c3e;
+  --warm-light: #c4a97d;
+  --warm-accent: #8b4513;
+  --warm-soft: #f0ead6;
+  --warm-border: #e0d5b8;
+
+  /* Tipografia */
+  --font-serif: 'Lora', 'Georgia', 'Palatino Linotype', serif;
+  --font-display: 'Playfair Display', 'Georgia', serif;
+  --font-mono: 'DM Mono', 'Courier New', monospace;
+
+  /* Spaziatura */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 36px;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --connections-nav-width: 200px;
+  --chat-panel-width: 300px;
+  --header-height: 54px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Ombre */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 3px 14px rgba(0, 0, 0, 0.08);
+}
