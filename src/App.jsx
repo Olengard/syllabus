@@ -100,13 +100,11 @@ export default function App() {
   const [activeCurriculumId, setActiveCurriculumId] = useState('mock-2')
   const [curricula, setCurricula] = useState(MOCK_CURRICULA)
   const [loading, setLoading] = useState(true)
-  // usingSupabase = utente loggato E variabili Supabase presenti
-  // Non dipende dal successo di loadCurricula — così saveCurriculum
-  // viene sempre tentato anche se la prima load ha fallito.
-  const usingSupabase = !!user && !!import.meta.env.VITE_SUPABASE_URL
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const isMobile = useMobile()
+  // usingSupabase deve stare DOPO la dichiarazione di user
+  const usingSupabase = !!user && !!import.meta.env.VITE_SUPABASE_URL
 
   // ── Auth: sessione corrente + listener ──────────────────────────────────
   useEffect(() => {
