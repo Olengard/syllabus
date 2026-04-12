@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Syllabus — Mockup v4</title>
+<style>
+:root{
+  --cream:#fffdf0;--warm-dark:#2c2416;--warm-mid:#6b5c3e;
+  --warm-light:#c4a97d;--warm-accent:#8b4513;
+  --warm-soft:#f0ead6;--warm-border:#e0d5b8;
+  --font-serif:'Georgia','Palatino Linotype',serif;
+  --font-mono:'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--cream);color:var(--warm-dark);font-family:var(--font-serif);min-height:100vh;}
+header{background:var(--warm-dark);color:var(--cream);padding:14px 28px;display:flex;
+  align-items:center;justify-content:space-between;border-bottom:2px solid var(--warm-accent);}
+header .logo{font-size:1.4rem;letter-spacing:.08em;font-style:italic;}
+header .logo span{color:var(--warm-light);font-style:normal;font-size:.75rem;
+  margin-left:10px;letter-spacing:.15em;text-transform:uppercase;}
+header nav a{color:var(--warm-light);text-decoration:none;font-size:.8rem;
+  margin-left:18px;letter-spacing:.05em;font-family:var(--font-mono);}
+.app{display:flex;min-height:calc(100vh - 54px);}
+.sidebar{width:240px;min-width:240px;background:var(--warm-soft);
+  border-right:1px solid var(--warm-border);padding:20px 0;}
+.sidebar-section{padding:0 16px 16px;border-bottom:1px solid var(--warm-border);margin-bottom:8px;}
+.sidebar-label{font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--warm-mid);font-family:var(--font-mono);margin-bottom:10px;}
+.sidebar-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:6px;
+  cursor:pointer;font-size:.88rem;color:var(--warm-dark);transition:background .15s;margin-bottom:2px;}
+.sidebar-item:hover{background:var(--warm-border);}
+.sidebar-item.active{background:var(--warm-dark);color:var(--cream);}
+.sidebar-item.active .item-meta{color:var(--warm-light);}
+.sidebar-item .item-body{flex:1;}
+.sidebar-item .item-title{font-size:.85rem;line-height:1.3;}
+.sidebar-item .item-meta{font-size:.68rem;color:var(--warm-mid);font-family:var(--font-mono);margin-top:2px;}
+.new-btn{display:block;margin:0 16px 16px;padding:9px;background:var(--warm-accent);
+  color:var(--cream);border:none;border-radius:6px;font-family:var(--font-serif);
+  font-size:.85rem;cursor:pointer;text-align:center;}
+.main{flex:1;overflow:hidden;}
+.screen{display:none;height:100%;}
+.screen.active{display:flex;flex-direction:column;height:100%;}
+</style>
+<style>
+/* wizard */
+.wizard-wrap{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:40px 20px;overflow-y:auto;}
+.wizard-box{background:white;border:1px solid var(--warm-border);border-radius:12px;
+  padding:36px 40px;max-width:640px;width:100%;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.wizard-step-label{font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--warm-mid);margin-bottom:8px;}
+.wizard-question{font-size:1.3rem;font-style:italic;color:var(--warm-dark);
+  margin-bottom:6px;line-height:1.4;}
+.wizard-sub{font-size:.82rem;color:var(--warm-mid);margin-bottom:22px;line-height:1.6;}
+.wizard-input{width:100%;padding:11px 14px;border:1px solid var(--warm-border);
+  border-radius:8px;font-family:var(--font-serif);font-size:.95rem;background:var(--cream);
+  color:var(--warm-dark);outline:none;margin-bottom:16px;}
+.wizard-input:focus{border-color:var(--warm-accent);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;min-height:36px;}
+.chip{padding:6px 14px;border:1px solid var(--warm-border);border-radius:20px;font-size:.82rem;
+  cursor:pointer;background:var(--cream);color:var(--warm-dark);transition:all .15s;
+  font-family:var(--font-serif);user-select:none;}
+.chip:hover{border-color:var(--warm-accent);color:var(--warm-accent);}
+.chip.selected{background:var(--warm-accent);border-color:var(--warm-accent);color:white;}
+.chip.single.selected{background:var(--warm-dark);border-color:var(--warm-dark);color:white;}
+.chip.single:hover:not(.selected){border-color:var(--warm-dark);color:var(--warm-dark);}
+.chip-skeleton{height:33px;border-radius:20px;background:var(--warm-border);
+  animation:shimmer 1.2s infinite;}
+@keyframes shimmer{0%,100%{opacity:.45;}50%{opacity:.9;}}
+.chips-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.ai-badge{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--warm-mid);background:var(--warm-soft);
+  border:1px solid var(--warm-border);border-radius:4px;padding:2px 7px;}
+.wizard-nav{display:flex;justify-content:space-between;align-items:center;margin-top:24px;}
+.btn-back{background:none;border:1px solid var(--warm-border);border-radius:6px;padding:8px 18px;
+  font-family:var(--font-serif);font-size:.85rem;cursor:pointer;color:var(--warm-mid);}
+.btn-next{background:var(--warm-dark);color:var(--cream);border:none;border-radius:6px;
+  padding:9px 22px;font-family:var(--font-serif);font-size:.85rem;cursor:pointer;}
+.btn-next:disabled{opacity:.4;cursor:not-allowed;}
+.btn-skip{background:none;border:none;font-family:var(--font-mono);font-size:.72rem;
+  color:var(--warm-mid);cursor:pointer;letter-spacing:.05em;text-decoration:underline;padding:8px 0;}
+.wizard-progress{display:flex;gap:6px;justify-content:center;margin-top:20px;}
+.prog-dot{width:7px;height:7px;border-radius:50%;background:var(--warm-border);transition:all .2s;}
+.prog-dot.done{background:var(--warm-light);}
+.prog-dot.current{background:var(--warm-dark);width:22px;border-radius:4px;}
+.wz-step{display:none;} .wz-step.active{display:block;}
+.optional-badge{display:inline-block;background:var(--warm-soft);border:1px solid var(--warm-border);
+  border-radius:4px;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--warm-mid);padding:2px 8px;margin-bottom:10px;}
+.tag-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.tag-input-row input{flex:1;padding:9px 12px;border:1px solid var(--warm-border);
+  border-radius:8px;font-family:var(--font-serif);font-size:.88rem;background:var(--cream);outline:none;}
+.tag-input-row input:focus{border-color:var(--warm-accent);}
+.tag-input-row button{padding:9px 14px;background:var(--warm-soft);
+  border:1px solid var(--warm-border);border-radius:8px;cursor:pointer;font-size:.85rem;}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;min-height:32px;margin-bottom:8px;}
+.tag-item{background:var(--warm-dark);color:var(--cream);padding:4px 10px;
+  border-radius:20px;font-size:.78rem;display:flex;align-items:center;gap:6px;}
+.tag-item .remove{cursor:pointer;opacity:.6;font-size:.7rem;}
+</style>
+<style>
+/* curriculum layout */
+.curriculum-view{flex:1;display:flex;overflow:hidden;}
+.connections-nav{width:200px;min-width:200px;border-right:1px solid var(--warm-border);
+  background:var(--warm-soft);display:flex;flex-direction:column;overflow-y:auto;}
+.connections-nav-header{padding:14px 14px 10px;font-family:var(--font-mono);font-size:.62rem;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--warm-mid);
+  border-bottom:1px solid var(--warm-border);}
+.connections-nav-section{padding:10px 14px 6px;}
+.connections-nav-label{font-family:var(--font-mono);font-size:.58rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--warm-light);margin-bottom:6px;}
+.conn-nav-item{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border-radius:6px;
+  cursor:pointer;margin-bottom:2px;transition:background .15s;}
+.conn-nav-item:hover{background:var(--warm-border);}
+.conn-nav-item.current{background:var(--warm-dark);}
+.conn-nav-title{font-size:.78rem;line-height:1.3;color:var(--warm-dark);}
+.conn-nav-item.current .conn-nav-title{color:var(--cream);}
+.conn-nav-meta{font-size:.62rem;color:var(--warm-mid);font-family:var(--font-mono);margin-top:1px;}
+.conn-nav-item.current .conn-nav-meta{color:var(--warm-light);}
+.conn-nav-divider{height:1px;background:var(--warm-border);margin:8px 14px;}
+.curriculum-content{flex:1;overflow-y:auto;padding:28px 32px;}
+.curriculum-header{border-bottom:2px solid var(--warm-border);padding-bottom:18px;margin-bottom:24px;}
+.curriculum-tag{font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--warm-mid);margin-bottom:6px;}
+.curriculum-title{font-size:1.7rem;font-style:italic;margin-bottom:4px;}
+.curriculum-meta{font-size:.78rem;color:var(--warm-mid);font-family:var(--font-mono);
+  display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.curriculum-meta .badge{background:var(--warm-soft);border:1px solid var(--warm-border);
+  border-radius:4px;padding:2px 8px;}
+.section-title{font-size:.7rem;letter-spacing:.15em;text-transform:uppercase;color:var(--warm-mid);
+  font-family:var(--font-mono);margin-bottom:12px;padding-bottom:6px;
+  border-bottom:1px solid var(--warm-border);}
+.section{margin-bottom:26px;}
+.resource-card{display:flex;gap:14px;padding:10px 0;
+  border-bottom:1px solid var(--warm-soft);align-items:flex-start;}
+.resource-icon{width:34px;height:34px;border-radius:6px;background:var(--warm-soft);
+  display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;}
+.resource-body{flex:1;}
+.resource-title{font-size:.88rem;font-weight:bold;color:var(--warm-dark);margin-bottom:2px;}
+.resource-author{font-size:.75rem;color:var(--warm-mid);font-style:italic;margin-bottom:3px;}
+.resource-note{font-size:.75rem;color:var(--warm-mid);line-height:1.4;}
+.resource-actions{display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;
+  justify-content:flex-end;max-width:96px;}
+.res-btn{font-size:.65rem;padding:3px 8px;border:1px solid var(--warm-border);border-radius:4px;
+  cursor:pointer;background:var(--cream);color:var(--warm-mid);
+  font-family:var(--font-mono);white-space:nowrap;}
+.res-btn:hover{background:var(--warm-soft);}
+.res-btn.primary{background:var(--warm-dark);color:var(--cream);border-color:var(--warm-dark);}
+.project-box{background:var(--warm-soft);border:1px solid var(--warm-border);
+  border-left:3px solid var(--warm-accent);border-radius:8px;padding:14px 16px;}
+.project-box p{font-size:.85rem;line-height:1.6;}
+</style>
+<style>
+/* connessioni nel contenuto */
+.conn-block{margin-bottom:10px;}
+.conn-block-label{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--warm-mid);margin-bottom:8px;}
+.conn-existing{display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;
+  border:1px solid var(--warm-border);border-radius:8px;margin-bottom:6px;cursor:pointer;
+  transition:box-shadow .15s;}
+.conn-existing:hover{box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.conn-existing .ce-body{flex:1;}
+.conn-existing .ce-title{font-size:.85rem;color:var(--warm-dark);}
+.conn-existing .ce-meta{font-size:.68rem;color:var(--warm-mid);font-family:var(--font-mono);margin-top:2px;}
+.conn-existing .ce-rel{font-family:var(--font-mono);font-size:.6rem;padding:2px 7px;
+  border-radius:4px;border:1px solid var(--warm-border);color:var(--warm-mid);
+  background:var(--warm-soft);white-space:nowrap;}
+.conn-suggestion{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;
+  background:var(--cream);border:1.5px dashed var(--warm-border);border-radius:8px;
+  margin-bottom:6px;cursor:pointer;transition:border-color .15s;}
+.conn-suggestion:hover{border-color:var(--warm-accent);}
+.conn-suggestion .cs-body{flex:1;}
+.conn-suggestion .cs-title{font-size:.85rem;color:var(--warm-dark);font-style:italic;margin-bottom:3px;}
+.conn-suggestion .cs-sub{font-size:.72rem;color:var(--warm-mid);line-height:1.4;}
+.conn-suggestion .cs-cta{font-family:var(--font-mono);font-size:.6rem;
+  color:var(--warm-accent);margin-top:5px;letter-spacing:.05em;}
+/* chat */
+.chat-panel{width:290px;min-width:290px;border-left:1px solid var(--warm-border);
+  background:white;display:flex;flex-direction:column;}
+.chat-panel-header{padding:14px 16px;border-bottom:1px solid var(--warm-border);
+  font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--warm-mid);font-family:var(--font-mono);}
+.chat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;}
+.chat-bubble{max-width:100%;padding:9px 12px;border-radius:10px;font-size:.8rem;line-height:1.5;}
+.chat-bubble.ai{background:var(--warm-soft);border:1px solid var(--warm-border);
+  color:var(--warm-dark);border-bottom-left-radius:2px;}
+.chat-bubble.user{background:var(--warm-dark);color:var(--cream);
+  align-self:flex-end;border-bottom-right-radius:2px;}
+.chat-input-area{padding:12px;border-top:1px solid var(--warm-border);display:flex;gap:8px;}
+.chat-input{flex:1;padding:8px 12px;border:1px solid var(--warm-border);border-radius:6px;
+  font-family:var(--font-serif);font-size:.82rem;background:var(--cream);outline:none;}
+.chat-send{background:var(--warm-dark);color:var(--cream);border:none;border-radius:6px;
+  padding:8px 12px;cursor:pointer;font-size:.8rem;}
+/* home */
+.home-content{flex:1;overflow-y:auto;padding:32px 36px;}
+.home-title{font-size:1.6rem;font-style:italic;margin-bottom:6px;}
+.home-sub{font-size:.85rem;color:var(--warm-mid);margin-bottom:30px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+.curriculum-card{background:white;border:1px solid var(--warm-border);border-radius:10px;
+  padding:18px 20px;cursor:pointer;transition:box-shadow .15s;}
+.curriculum-card:hover{box-shadow:0 3px 14px rgba(0,0,0,.08);}
+.cc-tag{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--warm-mid);margin-bottom:6px;}
+.cc-title{font-size:1rem;font-style:italic;margin-bottom:8px;}
+.cc-meta{font-size:.72rem;color:var(--warm-mid);font-family:var(--font-mono);display:flex;gap:10px;}
+.cc-progress{height:3px;background:var(--warm-border);border-radius:2px;margin:12px 0 8px;}
+.cc-progress-fill{height:100%;background:var(--warm-accent);border-radius:2px;}
+.new-card{border:1.5px dashed var(--warm-border);background:var(--cream);display:flex;
+  align-items:center;justify-content:center;flex-direction:column;gap:8px;
+  color:var(--warm-mid);font-size:.88rem;min-height:140px;}
+.new-card:hover{border-color:var(--warm-accent);color:var(--warm-accent);}
+.new-card .plus{font-size:1.5rem;}
+.topic-link{color:var(--warm-accent);text-decoration:none;border-bottom:1px dotted var(--warm-accent);}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Syllabus <span>— Commonplace</span></div>
+  <nav>
+    <a href="#" onclick="showScreen('home');return false;">Percorsi</a>
+    <a href="#">&#8599; BookShelf</a>
+    <a href="#">&#8599; Footnote</a>
+  </nav>
+</header>
+<div class="app">
+  <div class="sidebar">
+    <button class="new-btn" onclick="showScreen('wizard')">+ Nuovo percorso</button>
+    <div class="sidebar-section">
+      <div class="sidebar-label">I tuoi percorsi</div>
+      <div class="sidebar-item" onclick="showScreen('curriculum')">
+        <div class="item-body"><div class="item-title">&#128218; Stoicismo romano</div>
+        <div class="item-meta">6 mesi &middot; avanzato</div></div>
+      </div>
+      <div class="sidebar-item active" onclick="showScreen('curriculum')">
+        <div class="item-body"><div class="item-title">&#127925; Jazz americano 1950&ndash;70</div>
+        <div class="item-meta">3 mesi &middot; intermedio</div></div>
+      </div>
+      <div class="sidebar-item" onclick="showScreen('curriculum')">
+        <div class="item-body"><div class="item-title">&#127963; Architettura brutalista</div>
+        <div class="item-meta">1 mese &middot; introduttivo</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen main">
+    <div class="home-content">
+      <div class="home-title">I tuoi percorsi</div>
+      <div class="home-sub">3 percorsi attivi &middot; 1 completato</div>
+      <div class="grid">
+        <div class="curriculum-card" onclick="showScreen('curriculum')">
+          <div class="cc-tag">&#128218; 6 mesi &middot; Avanzato</div>
+          <div class="cc-title">Stoicismo romano</div>
+          <div class="cc-progress"><div class="cc-progress-fill" style="width:40%"></div></div>
+          <div class="cc-meta"><span>8 risorse</span><span>40%</span></div>
+        </div>
+        <div class="curriculum-card" onclick="showScreen('curriculum')">
+          <div class="cc-tag">&#127925; 3 mesi &middot; Intermedio</div>
+          <div class="cc-title">Jazz americano 1950&ndash;70</div>
+          <div class="cc-progress"><div class="cc-progress-fill" style="width:15%"></div></div>
+          <div class="cc-meta"><span>6 risorse</span><span>15%</span></div>
+        </div>
+        <div class="curriculum-card" onclick="showScreen('curriculum')">
+          <div class="cc-tag">&#127963; 1 mese &middot; Introduttivo</div>
+          <div class="cc-title">Architettura brutalista</div>
+          <div class="cc-progress"><div class="cc-progress-fill" style="width:0%"></div></div>
+          <div class="cc-meta"><span>4 risorse</span><span>Appena iniziato</span></div>
+        </div>
+        <div class="curriculum-card new-card" onclick="showScreen('wizard')">
+          <div class="plus">&#65291;</div><div>Nuovo percorso</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIZARD -->
+  <div id="screen-wizard" class="screen main">
+    <div class="wizard-wrap">
+      <div class="wizard-box">
+        <div class="wz-step active" id="step1">
+          <div class="wizard-step-label">Passo 1 di 6 &mdash; Argomento</div>
+          <div class="wizard-question">Di cosa vuoi occuparti?</div>
+          <div class="wizard-sub">Scrivi liberamente &mdash; possiamo restringere insieme.<br>
+            <span style="font-size:.78rem;margin-top:4px;display:inline-block;">
+              Prova: <a class="topic-link" href="#" onclick="fillAndGo('jazz anni cinquanta');return false;">jazz anni cinquanta</a> &nbsp;&middot;&nbsp;
+              <a class="topic-link" href="#" onclick="fillAndGo('Shanghai e la sua storia');return false;">Shanghai e la sua storia</a> &nbsp;&middot;&nbsp;
+              <a class="topic-link" href="#" onclick="fillAndGo('letteratura gotica');return false;">letteratura gotica</a>
+            </span>
+          </div>
+          <input class="wizard-input" type="text" id="topic-input" placeholder="es. filosofia stoica, jazz anni '50, architettura&hellip;" />
+          <div class="wizard-nav"><span></span><button class="btn-next" onclick="startStep2()">Continua &rarr;</button></div>
+        </div>
+        <div class="wz-step" id="step2">
+          <div class="wizard-step-label">Passo 2 di 6 &mdash; Fuoco</div>
+          <div class="wizard-question">Quali aspetti ti interessano?</div>
+          <div class="wizard-sub">Seleziona tutto quello che ti sembra rilevante.</div>
+          <div class="chips-header">
+            <div class="ai-badge" id="ai-badge">&#10023; elaborazione&hellip;</div>
+            <div style="font-size:.75rem;color:var(--warm-mid);font-style:italic;" id="topic-echo"></div>
+          </div>
+          <div class="chips" id="dynamic-chips"></div>
+          <input class="wizard-input" type="text" placeholder="Aggiungi un aspetto specifico (opzionale)&hellip;" />
+          <div class="wizard-nav">
+            <button class="btn-back" onclick="goStep(1)">&#8592; Indietro</button>
+            <button class="btn-next" id="step2-next" onclick="goStep(3)" disabled>Continua &rarr;</button>
+          </div>
+        </div>
+        <div class="wz-step" id="step3">
+          <div class="wizard-step-label">Passo 3 di 6 &mdash; Tempo e livello</div>
+          <div class="wizard-question">Quanto tempo vuoi dedicarci?</div>
+          <div class="wizard-sub">Guida il numero e la densit&agrave; delle risorse consigliate.</div>
+          <div class="chips">
+            <div class="chip single" onclick="selSingle(this)">2&ndash;4 settimane</div>
+            <div class="chip single selected" onclick="selSingle(this)">2&ndash;3 mesi</div>
+            <div class="chip single" onclick="selSingle(this)">6 mesi</div>
+            <div class="chip single" onclick="selSingle(this)">1 anno o pi&ugrave;</div>
+            <div class="chip single" onclick="selSingle(this)">Progetto aperto</div>
+          </div>
+          <div class="wizard-question" style="margin-top:16px;font-size:1.05rem;">Da dove parti?</div>
+          <div style="margin-bottom:14px;margin-top:5px;font-size:.82rem;color:var(--warm-mid);line-height:1.5;">Orienta il tipo di risorse proposte.</div>
+          <div class="chips">
+            <div class="chip single" onclick="selSingle(this)">Principiante</div>
+            <div class="chip single selected" onclick="selSingle(this)">Ho gi&agrave; basi solide</div>
+            <div class="chip single" onclick="selSingle(this)">Gi&agrave; esperto</div>
+          </div>
+          <div class="wizard-nav">
+            <button class="btn-back" onclick="goStep(2)">&#8592; Indietro</button>
+            <button class="btn-next" onclick="goStep(4)">Continua &rarr;</button>
+          </div>
+        </div>
+        <div class="wz-step" id="step4">
+          <div class="wizard-step-label">Passo 4 di 6 &mdash; Punti fermi</div>
+          <div class="optional-badge">&#11041; Opzionale</div>
+          <div class="wizard-question">Ci sono autori o opere che non possono mancare?</div>
+          <div class="wizard-sub">Entrano nella generazione del percorso &mdash; diverso dall&rsquo;affinarlo dopo via chat.</div>
+          <div class="tag-input-row">
+            <input type="text" placeholder="es. Coltrane, A Love Supreme&hellip;" id="tag-input" />
+            <button onclick="addTag()">&#65291;</button>
+          </div>
+          <div class="tag-list" id="tag-list"></div>
+          <div class="wizard-nav">
+            <button class="btn-back" onclick="goStep(3)">&#8592; Indietro</button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <button class="btn-next" onclick="goStep(5)">Continua &rarr;</button>
+              <button class="btn-skip" onclick="goStep(5)">Salta questo passo</button>
+            </div>
+          </div>
+        </div>
+        <div class="wz-step" id="step5">
+          <div class="wizard-step-label">Passo 5 di 6 &mdash; Connessioni</div>
+          <div class="optional-badge">&#11041; Opzionale</div>
+          <div class="wizard-question">&Egrave; collegato a un percorso esistente?</div>
+          <div class="wizard-sub">Permette di segnalare sovrapposizioni e suggerire risorse condivise.</div>
+          <div class="chips">
+            <div class="chip single" onclick="selSingle(this)">Stoicismo romano</div>
+            <div class="chip single" onclick="selSingle(this)">Architettura brutalista</div>
+            <div class="chip single selected" onclick="selSingle(this)">Nessun collegamento</div>
+          </div>
+          <div class="wizard-nav">
+            <button class="btn-back" onclick="goStep(4)">&#8592; Indietro</button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              <button class="btn-next" onclick="goStep(6)">Genera percorso &rarr;</button>
+              <button class="btn-skip" onclick="goStep(6)">Salta questo passo</button>
+            </div>
+          </div>
+        </div>
+        <div class="wz-step" id="step6">
+          <div class="wizard-step-label">Passo 6 di 6 &mdash; In generazione&hellip;</div>
+          <div class="wizard-question">Sto costruendo il tuo percorso.</div>
+          <div class="wizard-sub" id="gen-summary">Elaborazione in corso&hellip;</div>
+          <div style="text-align:center;padding:28px 0;font-size:2rem;">
+            <span style="display:inline-block;animation:spin 3s linear infinite">&#10023;</span>
+          </div>
+          <div class="wizard-nav"><span></span>
+            <button class="btn-next" onclick="showScreen('curriculum')">Vedi il percorso &rarr;</button>
+          </div>
+        </div>
+        <div class="wizard-progress" id="wizard-progress"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CURRICULUM -->
+  <div id="screen-curriculum" class="screen main active">
+    <div class="curriculum-view">
+      <!-- Colonna sinistra: navigazione connessioni -->
+      <div class="connections-nav">
+        <div class="connections-nav-header">&#128279; Percorsi collegati</div>
+        <div class="connections-nav-section">
+          <div class="connections-nav-label">Corrente</div>
+          <div class="conn-nav-item current">
+            <div><div class="conn-nav-title" style="color:var(--cream);">&#127925; Jazz americano 1950&ndash;70</div>
+            <div class="conn-nav-meta">3 mesi</div></div>
+          </div>
+        </div>
+        <div class="conn-nav-divider"></div>
+        <div class="connections-nav-section">
+          <div class="connections-nav-label">&#8593; Fa parte di</div>
+          <div class="conn-nav-item" onclick="alert('Apre: Musica afroamericana del Novecento')">
+            <div><div class="conn-nav-title">&#127926; Musica afroamericana del Novecento</div>
+            <div class="conn-nav-meta">ombrello &middot; non ancora aperto</div></div>
+          </div>
+        </div>
+        <div class="conn-nav-divider"></div>
+        <div class="connections-nav-section">
+          <div class="connections-nav-label">&#8596; Connesso a</div>
+          <div class="conn-nav-item" onclick="alert('Apre: Stoicismo romano')">
+            <div><div class="conn-nav-title">&#128218; Stoicismo romano</div>
+            <div class="conn-nav-meta">6 mesi &middot; connessione tematica</div></div>
+          </div>
+        </div>
+        <div class="conn-nav-divider"></div>
+        <div class="connections-nav-section">
+          <div class="connections-nav-label">&#9685; Suggeriti</div>
+          <div class="conn-nav-item" onclick="showScreen('wizard')" style="opacity:.75;">
+            <div><div class="conn-nav-title">&#43; Blues del Delta</div>
+            <div class="conn-nav-meta">&#8594; nuovo percorso</div></div>
+          </div>
+          <div class="conn-nav-item" onclick="showScreen('wizard')" style="opacity:.75;">
+            <div><div class="conn-nav-title">&#43; Harlem Renaissance</div>
+            <div class="conn-nav-meta">&#8594; nuovo percorso</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colonna centrale: contenuto -->
+      <div class="curriculum-content">
+        <div class="curriculum-header">
+          <div class="curriculum-tag">&#127925; Percorso &middot; in corso</div>
+          <div class="curriculum-title">Jazz americano, 1950&ndash;1970</div>
+          <div class="curriculum-meta">
+            <span><div class="badge">3 mesi</div></span>
+            <span><div class="badge">Intermedio</div></span>
+            <span><div class="badge">Storia &middot; Figure &middot; Estetica</div></span>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Risorse primarie</div>
+          <div class="resource-card">
+            <div class="resource-icon">&#128218;</div>
+            <div class="resource-body">
+              <div class="resource-title">Kind of Blue</div>
+              <div class="resource-author">Ashley Kahn, 2000</div>
+              <div class="resource-note">La genesi del disco pi&ugrave; influente del jazz modale.</div>
+            </div>
+            <div class="resource-actions">
+              <button class="res-btn primary">+ BookShelf</button>
+              <button class="res-btn">&dagger; FN</button>
+            </div>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon">&#128218;</div>
+            <div class="resource-body">
+              <div class="resource-title">Miles: The Autobiography</div>
+              <div class="resource-author">Miles Davis &amp; Quincy Troupe, 1989</div>
+              <div class="resource-note">Voce diretta: personalit&agrave;, conflitti, evoluzione stilistica.</div>
+            </div>
+            <div class="resource-actions">
+              <button class="res-btn primary">+ BookShelf</button>
+              <button class="res-btn">&dagger; FN</button>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Risorse secondarie</div>
+          <div class="resource-card">
+            <div class="resource-icon">&#128196;</div>
+            <div class="resource-body">
+              <div class="resource-title">The Jazz Tradition</div>
+              <div class="resource-author">Martin Williams, 1970</div>
+              <div class="resource-note">Mappa le personalit&agrave; fondamentali: Monk, Coltrane, Coleman.</div>
+            </div>
+            <div class="resource-actions"><button class="res-btn primary">+ BookShelf</button></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Risorse non testuali</div>
+          <div class="resource-card">
+            <div class="resource-icon">&#127902;</div>
+            <div class="resource-body">
+              <div class="resource-title">Jazz (documentario)</div>
+              <div class="resource-author">Ken Burns, PBS &middot; 2001</div>
+              <div class="resource-note">19 ore di storia orale e musica d&rsquo;archivio.</div>
+            </div>
+            <div class="resource-actions"><button class="res-btn">+ Platea</button></div>
+          </div>
+          <div class="resource-card">
+            <div class="resource-icon">&#127911;</div>
+            <div class="resource-body">
+              <div class="resource-title">Switched on Pop</div>
+              <div class="resource-author">Podcast &middot; ep. &ldquo;What Makes Jazz Jazz?&rdquo;</div>
+              <div class="resource-note">Analisi musicologica accessibile.</div>
+            </div>
+            <div class="resource-actions"><button class="res-btn">+ ListenS</button></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Progetto finale</div>
+          <div class="project-box"><p>Scegli tre dischi fondamentali (bebop, modale, free) e scrivi 1&ndash;2 pagine confrontando le scelte compositive ed esecutive. Usa NoteS per raccogliere appunti durante l&rsquo;ascolto.</p></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Connessioni</div>
+          <div class="conn-block">
+            <div class="conn-block-label">Percorsi esistenti</div>
+            <div class="conn-existing">
+              <span>&#127926;</span>
+              <div class="ce-body"><div class="ce-title">Musica afroamericana del Novecento</div>
+              <div class="ce-meta">ombrello &middot; non ancora aperto</div></div>
+              <div class="ce-rel">fa parte di</div>
+            </div>
+          </div>
+          <div class="conn-block" style="margin-top:14px;">
+            <div class="conn-block-label">&#9685; Suggeriti dall&rsquo;AI</div>
+            <div class="conn-suggestion" onclick="showScreen('wizard')">
+              <span style="font-size:1rem;flex-shrink:0;">&#43;</span>
+              <div class="cs-body">
+                <div class="cs-title">Blues del Delta e origini del jazz</div>
+                <div class="cs-sub">Le radici che questo percorso presuppone: Bessie Smith, Robert Johnson, la Grande Migrazione.</div>
+                <div class="cs-cta">&#8594; Apri come nuovo percorso</div>
+              </div>
+            </div>
+            <div class="conn-suggestion" onclick="showScreen('wizard')">
+              <span style="font-size:1rem;flex-shrink:0;">&#43;</span>
+              <div class="cs-body">
+                <div class="cs-title">Harlem Renaissance (1920&ndash;1940)</div>
+                <div class="cs-sub">Il contesto culturale che precede e nutre il jazz moderno: letteratura, pittura, teatro afroamericano.</div>
+                <div class="cs-cta">&#8594; Apri come nuovo percorso</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colonna destra: chat -->
+      <div class="chat-panel">
+        <div class="chat-panel-header">&#128172; Affina il percorso</div>
+        <div class="chat-messages">
+          <div class="chat-bubble ai">Ho costruito il percorso su 3 mesi, livello intermedio. Vuoi espandere qualche area?</div>
+          <div class="chat-bubble user">Aggiungerei qualcosa su Monk.</div>
+          <div class="chat-bubble ai">Ti suggerisco <em>Thelonious Monk: The Life and Times of an American Original</em> di Robin D.G. Kelley (secondaria), e il documentario <em>Straight, No Chaser</em> (1988) tra le non testuali. Procedo?</div>
+        </div>
+        <div class="chat-input-area">
+          <input class="chat-input" type="text" placeholder="Chiedi modifiche o espansioni&hellip;" />
+          <button class="chat-send">&rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var CHIPS={
+  jazz:["Scene locali e club storici","Evoluzione degli stili (bebop\u2192modale\u2192free)","Figure e musicisti chiave","Rapporto con le lotte civili afroamericane","Linguaggio dell'improvvisazione","Strumenti e interazione ensemble","Influenza su rock e musica popolare","Discografia fondamentale"],
+  shanghai:["Urbanistica e trasformazione del paesaggio","Relazioni con le potenze occidentali","Cinema e arti visive","Economia, commercio e finanza internazionale","Vita quotidiana e cultura popolare","Letteratura e identit\u00e0 cinese moderna","Architettura coloniale e Art D\u00e9co","Politica e storia del Novecento"],
+  gotica:["Origini e contesto romantico","Atmosfera, spazio e architettura nel testo","Il soprannaturale come categoria estetica","Genere, corpo e sessualit\u00e0","Autori fondamentali e opere canoniche","Gothic revival e decadentismo","Influenza su horror e weird fiction contemporanea","Adattamenti cinematografici e televisivi"],
+  def:["Storia e contesto","Figure e autori chiave","Teoria e concetti fondamentali","Applicazioni pratiche","Estetica e stile","Confronto con altre tradizioni","Ricezione critica e influenza","Produzione contemporanea"]
+};
+function detect(s){
+  s=s.toLowerCase();
+  if(/jazz|blues|musica|coltrane|miles/.test(s))return'jazz';
+  if(/shanghai|cina|cinese|pechino/.test(s))return'shanghai';
+  if(/gotica|gotico|gothic|horror/.test(s))return'gotica';
+  return'def';
+}
+var step=1,topic='';
+function showScreen(n){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('screen-'+n).classList.add('active');
+  if(n==='wizard'){step=1;render();}
+}
+function goStep(n){step=n;render();if(n===6)buildSummary();}
+function render(){
+  document.querySelectorAll('.wz-step').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('step'+step).classList.add('active');
+  var dots=document.getElementById('wizard-progress');
+  dots.innerHTML='';
+  for(var i=1;i<=6;i++){
+    var d=document.createElement('div');
+    d.className='prog-dot'+(i<step?' done':'')+(i===step?' current':'');
+    dots.appendChild(d);
+  }
+}
+function fillAndGo(t){document.getElementById('topic-input').value=t;startStep2();}
+function startStep2(){
+  topic=document.getElementById('topic-input').value.trim()||'argomento';
+  step=2;render();loadChips(topic);
+}
+function loadChips(t){
+  var c=document.getElementById('dynamic-chips');
+  var b=document.getElementById('ai-badge');
+  var e=document.getElementById('topic-echo');
+  var nx=document.getElementById('step2-next');
+  nx.disabled=true;b.textContent='elaborazione\u2026';e.textContent='';c.innerHTML='';
+  [120,155,95,175,110,145,90,160].forEach(function(w){
+    var s=document.createElement('div');s.className='chip-skeleton';s.style.width=w+'px';c.appendChild(s);
+  });
+  setTimeout(function(){
+    var list=CHIPS[detect(t)];c.innerHTML='';
+    list.forEach(function(lbl,i){
+      var el=document.createElement('div');
+      el.className='chip'+(i<2?' selected':'');
+      el.textContent=lbl;
+      el.onclick=function(){el.classList.toggle('selected');};
+      c.appendChild(el);
+    });
+    b.textContent='\u2726 suggeriti per \u201c'+t+'\u201d';
+    e.textContent='Seleziona tutto ci\u00f2 che ti sembra rilevante.';
+    nx.disabled=false;
+  },1400);
+}
+function buildSummary(){
+  var tags=[];
+  document.querySelectorAll('#tag-list .tag-item').forEach(function(t){
+    var txt=t.textContent.replace('\u00d7','').trim();if(txt)tags.push(txt);
+  });
+  var s='Sto selezionando risorse per <em>'+topic+'</em>, livello intermedio, 2\u20133 mesi.';
+  if(tags.length)s+=' Punti fermi: <em>'+tags.join(', ')+'</em>.';
+  document.getElementById('gen-summary').innerHTML=s;
+}
+function selSingle(el){
+  el.closest('.chips').querySelectorAll('.chip').forEach(function(c){c.classList.remove('selected');});
+  el.classList.add('selected');
+}
+function addTag(){
+  var inp=document.getElementById('tag-input'),v=inp.value.trim();if(!v)return;
+  var list=document.getElementById('tag-list');
+  var t=document.createElement('div');t.className='tag-item';
+  t.innerHTML=v+' <span class="remove" onclick="this.closest(\'.tag-item\').remove()">\u00d7</span>';
+  list.appendChild(t);inp.value='';
+}
+document.getElementById('tag-input').addEventListener('keydown',function(e){if(e.key==='Enter')addTag();});
+render();
+</script>
+</body>
+</html>
