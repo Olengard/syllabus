@@ -6,10 +6,14 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('[Syllabus] Variabili Supabase mancanti — controlla .env')
+  console.warn('[Syllabus] Variabili Supabase mancanti — controlla .env o le env vars su Vercel')
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// Fallback su URL fittizio se le variabili mancano, per evitare crash al createClient
+export const supabase = createClient(
+  SUPABASE_URL  || 'https://placeholder.supabase.co',
+  SUPABASE_ANON_KEY || 'placeholder'
+)
 
 // ---------------------------------------------------------------------------
 // Auth

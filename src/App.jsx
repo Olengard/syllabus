@@ -110,10 +110,16 @@ export default function App() {
 
   // ── Auth: sessione corrente + listener ──────────────────────────────────
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setAuthLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+      })
+      .catch(e => {
+        console.error('[Syllabus] getSession error:', e)
+        setUser(null)
+      })
+      .finally(() => setAuthLoading(false))
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setUser(session?.user ?? null)
     })
