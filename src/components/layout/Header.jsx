@@ -22,7 +22,13 @@ const s = {
   },
 }
 
-export default function Header({ onLogoClick }) {
+import { supabase } from '../../lib/supabase'
+
+export default function Header({ onLogoClick, user }) {
+  function handleSignOut() {
+    if (confirm('Disconnettersi da Syllabus?')) supabase.auth.signOut()
+  }
+
   return (
     <header style={s.header}>
       <div style={s.logo} onClick={onLogoClick}>
@@ -36,6 +42,17 @@ export default function Header({ onLogoClick }) {
            target="_blank" rel="noreferrer">↗ Footnote</a>
         <a style={s.navLink} href="https://listens.commonplaceapp.org"
            target="_blank" rel="noreferrer">↗ ListenS</a>
+        {user && (
+          <button onClick={handleSignOut} title={`Connesso come ${user.email}`} style={{
+            background: 'transparent', border: '1px solid var(--warm-light)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--warm-light)',
+            fontFamily: 'var(--font-mono)', fontSize: '.65rem',
+            padding: '3px 8px', cursor: 'pointer', opacity: .7,
+            letterSpacing: '.05em',
+          }}>
+            {user.email?.split('@')[0]} ↩
+          </button>
+        )}
       </nav>
     </header>
   )

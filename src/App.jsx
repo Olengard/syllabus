@@ -4,7 +4,8 @@ import Sidebar from './components/layout/Sidebar'
 import Home from './pages/Home'
 import Wizard from './pages/Wizard'
 import Curriculum from './pages/Curriculum'
-import { loadCurricula, saveCurriculum } from './lib/supabase'
+import AuthScreen from './pages/Auth'
+import { supabase, loadCurricula, saveCurriculum } from './lib/supabase'
 import './App.css'
 
 // ---------------------------------------------------------------------------
@@ -99,33 +100,38 @@ export default function App() {
   const [curricula, setCurricula] = useState(MOCK_CURRICULA)
   const [loading, setLoading] = useState(true)
   const [usingSupabase, setUsingSupabase] = useState(false)
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
-  // Carica da Supabase al mount; fallback ai mock se non configurato
+  // ── Auth: sessione corrente + listener ──────────────────────────────────
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // ── Carica curricula quando l'utente è autenticato ──────────────────────
+  useEffect(() => {
+    if (!user) { setCurricula([]); setLoading(false); return }
     async function init() {
       try {
         const data = await loadCurricula()
-        if (data.length > 0) {
-          setCurricula(data)
-          setActiveCurriculumId(data[0].id)
-          setUsingSupabase(true)
-        }
-        // Se data è vuoto ma Supabase risponde, siamo loggati ma senza curricula ancora
-        // Teniamo i mock solo se Supabase non è configurato (env mancanti)
-        const hasEnv = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
-        if (hasEnv) {
-          setCurricula(data)   // anche array vuoto — l'utente parte da zero
-          setUsingSupabase(true)
-          if (data.length > 0) setActiveCurriculumId(data[0].id)
-        }
+        setCurricula(data)
+        setUsingSupabase(true)
+        if (data.length > 0) setActiveCurriculumId(data[0].id)
       } catch {
-        // Supabase non raggiungibile o env mancanti — usiamo i mock
+        setCurricula(MOCK_CURRICULA)
       } finally {
         setLoading(false)
       }
     }
     init()
-  }, [])
+  }, [user])
 
   const activeCurriculum = curricula.find(c => c.id === activeCurriculumId) ?? null
 
@@ -168,13 +174,26 @@ export default function App() {
     setScreen('curriculum')
   }
 
+  if (authLoading) {
+    return (
+      <div style={{
+        height: '100vh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', fontFamily: 'var(--font-serif)',
+        color: 'var(--warm-mid)', fontSize: '1rem', background: 'var(--bg-cream)',
+      }}>
+        …
+      </div>
+    )
+  }
+
+  if (!user) return <AuthScreen />
+
   if (loading) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center',
         justifyContent: 'center', fontFamily: 'var(--font-serif)',
-        color: 'var(--text-muted)', fontSize: '1rem',
-        background: 'var(--bg-cream)',
+        color: 'var(--warm-mid)', fontSize: '1rem', background: 'var(--bg-cream)',
       }}>
         Caricamento percorsi…
       </div>
@@ -183,7 +202,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Header onLogoClick={() => setScreen('home')} />
+      <Header onLogoClick={() => setScreen('home')} user={user} />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <Sidebar
           curricula={curricula}
