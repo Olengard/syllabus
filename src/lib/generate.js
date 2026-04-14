@@ -159,7 +159,7 @@ VINCOLI:
 - "aiSuggestions": 2-3 percorsi correlati che completerebbero questo.
 - Tutte le opere e gli autori devono essere reali e citabili.`
 
-  const text = await callClaude('claude-sonnet-4-6', system, prompt, 4096)
+  const text = await callClaude('claude-sonnet-4-6', system, prompt, 8192)
 
   let data
   try {
