@@ -15,25 +15,37 @@ function getKey() {
 }
 
 async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getKey(),
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 90_000) // 90s max
+
+  let res
+  try {
+    res = await fetch(API_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': getKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+    })
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Timeout: la generazione ha impiegato troppo (>90s). Riprova.')
+    throw new Error(`Errore di rete: ${err.message}`)
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(`API error ${res.status}: ${err.error?.message ?? 'errore sconosciuto'}`)
+    const errBody = await res.json().catch(() => ({}))
+    throw new Error(`API error ${res.status}: ${errBody.error?.message ?? 'errore sconosciuto'}`)
   }
 
   const data = await res.json()
