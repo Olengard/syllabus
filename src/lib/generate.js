@@ -15,8 +15,9 @@ function getKey() {
 }
 
 async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
+  // Connessione con timeout di 30s solo per l'handshake iniziale
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 120_000) // 120s max
+  const connectTimeout = setTimeout(() => controller.abort(), 30_000)
 
   let res
   try {
@@ -32,15 +33,16 @@ async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
+        stream: true,   // streaming SSE — evita timeout su risposte lunghe
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       }),
     })
   } catch (err) {
-    if (err.name === 'AbortError') throw new Error('Timeout: la generazione ha impiegato troppo (>90s). Riprova.')
+    if (err.name === 'AbortError') throw new Error('Connessione lenta: impossibile raggiungere l\'API. Controlla la connessione.')
     throw new Error(`Errore di rete: ${err.message}`)
   } finally {
-    clearTimeout(timeoutId)
+    clearTimeout(connectTimeout)
   }
 
   if (!res.ok) {
@@ -48,8 +50,37 @@ async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
     throw new Error(`API error ${res.status}: ${errBody.error?.message ?? 'errore sconosciuto'}`)
   }
 
-  const data = await res.json()
-  return data.content[0].text
+  // Legge lo stream SSE e accumula il testo
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let fullText = ''
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() // l'ultima riga potrebbe essere incompleta
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const payload = line.slice(6).trim()
+        if (payload === '[DONE]') continue
+        try {
+          const evt = JSON.parse(payload)
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            fullText += evt.delta.text
+          }
+        } catch { /* ignora righe malformate */ }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  if (!fullText) throw new Error('Risposta vuota dall\'API. Riprova.')
+  return fullText
 }
 
 function extractJson(text) {
