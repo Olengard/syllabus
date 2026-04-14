@@ -4,9 +4,10 @@ import ChatPanel from '../components/curriculum/ChatPanel'
 const EMPTY_RESOURCES = { primary: [], secondary: [], other: [] }
 
 function groupResources(resources) {
-  const primary   = resources.filter(r => r.phase === 'primary'   || r.type === 'book'  || r.type === 'libro')
-  const secondary = resources.filter(r => r.phase === 'secondary' || r.type === 'essay' || r.type === 'saggio')
-  const other     = resources.filter(r => !primary.includes(r) && !secondary.includes(r))
+  // Usa solo phase — le categorie sono mutualmente esclusive
+  const primary   = resources.filter(r => r.phase === 'primary')
+  const secondary = resources.filter(r => r.phase === 'secondary')
+  const other     = resources.filter(r => r.phase !== 'primary' && r.phase !== 'secondary')
   const norm = r => ({ ...r, note: r.description })
   return { primary: primary.map(norm), secondary: secondary.map(norm), other: other.map(norm) }
 }

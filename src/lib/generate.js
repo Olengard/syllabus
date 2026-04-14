@@ -195,6 +195,10 @@ Restituisci questo oggetto JSON (tutti i testi in italiano):
 
 VINCOLI:
 - Cita esattamente ${n} risorse. Primary: ~35%, secondary: ~35%, other: ~30%.
+- Includi risorse in italiano quando esistono opere di qualità equivalente a quelle anglofone.
+  Non privilegiare sistematicamente l'inglese: saggisti italiani, traduzioni autorevoli, opere
+  italiane originali vanno considerate alla pari. Esempio: se esiste un saggio italiano
+  eccellente sullo stesso tema, preferiscilo a uno anglosassone mediocre.
 - "referenceSections": includi SOLO se il tema lo giustifica concretamente.
   Musica → dischi. Pittura/scultura → dipinti o sculture. Architettura → edifici.
   Cinema → film_essenziali. Luoghi/cultura materiale → luoghi.
