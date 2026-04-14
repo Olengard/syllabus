@@ -1,8 +1,8 @@
-/**
- * generate.js — Chiamate all'API Anthropic per la generazione AI in Syllabus.
+﻿/**
+ * generate.js â€” Chiamate all'API Anthropic per la generazione AI in Syllabus.
  *
  * Richiede VITE_ANTHROPIC_API_KEY nel .env.
- * ⚠️  La chiave è visibile nel bundle browser: accettabile per uso personale
+ * âš ï¸  La chiave Ã¨ visibile nel bundle browser: accettabile per uso personale
  *     non pubblicato. Non deployare pubblicamente senza una protezione server-side.
  */
 
@@ -10,7 +10,7 @@ const API_URL = 'https://api.anthropic.com/v1/messages'
 
 function getKey() {
   const key = import.meta.env.VITE_ANTHROPIC_API_KEY
-  if (!key) throw new Error('VITE_ANTHROPIC_API_KEY mancante nel .env — aggiungila e riavvia il dev server.')
+  if (!key) throw new Error('VITE_ANTHROPIC_API_KEY mancante nel .env â€” aggiungila e riavvia il dev server.')
   return key
 }
 
@@ -33,7 +33,7 @@ async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
-        stream: true,   // streaming SSE — evita timeout su risposte lunghe
+        stream: true,   // streaming SSE â€” evita timeout su risposte lunghe
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
       }),
@@ -84,18 +84,18 @@ async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
 }
 
 function extractJson(text) {
-  // Rimuove eventuali code fences ```json … ```
+  // Rimuove eventuali code fences ```json â€¦ ```
   return text.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
 }
 
 // ---------------------------------------------------------------------------
-// Step 2 — Chip per le aree di fuoco
+// Step 2 â€” Chip per le aree di fuoco
 // ---------------------------------------------------------------------------
 
 /**
  * Genera 6-8 chip tematici per l'argomento dato.
- * Usa Haiku per velocità (risposta attesa < 2s).
- * In caso di errore API, rilancia l'eccezione — il chiamante gestisce il fallback.
+ * Usa Haiku per velocitÃ  (risposta attesa < 2s).
+ * In caso di errore API, rilancia l'eccezione â€” il chiamante gestisce il fallback.
  */
 export async function generateFocusChips(topic) {
   const text = await callClaude(
@@ -103,7 +103,7 @@ export async function generateFocusChips(topic) {
     `Sei un assistente per la progettazione di percorsi di studio personali.
 Quando ricevi un argomento, generi 8 aree tematiche distinte (chip) che coprono
 angolature diverse: storia, figure chiave, estetica, teoria, influenze, ecc.
-Ogni chip è una frase breve in italiano (4-8 parole).
+Ogni chip Ã¨ una frase breve in italiano (4-8 parole).
 Rispondi SOLO con un array JSON di stringhe. Zero testo aggiuntivo.`,
     `Argomento: "${topic}"`,
     512,
@@ -114,7 +114,7 @@ Rispondi SOLO con un array JSON di stringhe. Zero testo aggiuntivo.`,
     if (Array.isArray(arr) && arr.length > 0) return arr
   } catch { /* continua al fallback testuale */ }
 
-  // Fallback: parsing riga per riga se il JSON è malformato
+  // Fallback: parsing riga per riga se il JSON Ã¨ malformato
   return text
     .split('\n')
     .map(l => l.replace(/^[-*"'\d.\s]+/, '').replace(/["',]+$/, '').trim())
@@ -123,7 +123,7 @@ Rispondi SOLO con un array JSON di stringhe. Zero testo aggiuntivo.`,
 }
 
 // ---------------------------------------------------------------------------
-// Step 6 — Generazione curriculum completo
+// Step 6 â€” Generazione curriculum completo
 // ---------------------------------------------------------------------------
 
 /** Numero di risorse in base alla durata del percorso */
@@ -168,7 +168,7 @@ Restituisci questo oggetto JSON (tutti i testi in italiano):
       "title": "titolo esatto dell'opera",
       "author": "Autore, anno",
       "type": "libro|saggio|film|podcast|articolo|documentario",
-      "description": "1-2 frasi: perché questa risorsa è rilevante in questo percorso",
+      "description": "1-2 frasi: perchÃ© questa risorsa Ã¨ rilevante in questo percorso",
       "phase": "primary|secondary|other"
     }
   ],
@@ -181,7 +181,7 @@ Restituisci questo oggetto JSON (tutti i testi in italiano):
           "title": "titolo",
           "author": "autore o artista",
           "year": "anno",
-          "location": "città, paese (solo per edifici e luoghi)",
+          "location": "cittÃ , paese (solo per edifici e luoghi)",
           "notes": "1 frase di contestualizzazione"
         }
       ]
@@ -195,14 +195,8 @@ Restituisci questo oggetto JSON (tutti i testi in italiano):
 
 VINCOLI:
 - Cita esattamente ${n} risorse. Primary: ~35%, secondary: ~35%, other: ~30%.
-- Includi risorse in italiano quando esistono opere di qualità equivalente a quelle anglofone.
-  Non privilegiare sistematicamente l'inglese: saggisti italiani, traduzioni autorevoli, opere
-  italiane originali vanno considerate alla pari. Esempio: se esiste un saggio italiano
-  eccellente sullo stesso tema, preferiscilo a uno anglosassone mediocre.
-- "referenceSections": includi SOLO se il tema lo giustifica concretamente.
-  Musica → dischi. Pittura/scultura → dipinti o sculture. Architettura → edifici.
-  Cinema → film_essenziali. Luoghi/cultura materiale → luoghi.
-  Lascia array vuoto [] se nessuna sezione è rilevante.
+- Includi risorse in italiano se esistono opere di pari livello (saggisti italiani, traduzioni autorevoli, opere originali italiane). Non preferire sistematicamente l'inglese.
+- "referenceSections": includi SOLO se il tema lo giustifica. Musica: dischi. Arte: dipinti o sculture. Architettura: edifici. Cinema: film_essenziali. Lascia [] se non pertinente.
 - "aiSuggestions": 2-3 percorsi correlati che completerebbero questo.
 - Tutte le opere e gli autori devono essere reali e citabili.`
 
@@ -248,3 +242,4 @@ VINCOLI:
     })),
   }
 }
+
