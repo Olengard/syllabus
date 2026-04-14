@@ -78,11 +78,8 @@ export async function saveCurriculum(curriculumData) {
       title: r.title,
       author: r.author ?? null,
       type: r.type ?? 'libro',
-      url: r.url ?? null,
       description: r.description ?? null,
       phase: r.phase ?? null,
-      duration_minutes: r.duration_minutes ?? null,
-      completed: false,
       order_index: i,
     }))
     const { error: resErr } = await supabase.from('sl_resources').insert(rows)
