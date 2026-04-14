@@ -1,26 +1,7 @@
 import ConnectionsNav from '../components/curriculum/ConnectionsNav'
 import ChatPanel from '../components/curriculum/ChatPanel'
 
-const MOCK_RESOURCES = {
-  primary: [
-    { id: 'r1', type: 'book', title: 'Kind of Blue', author: 'Ashley Kahn, 2000',
-      note: 'La genesi del disco piu influente del jazz modale.' },
-    { id: 'r2', type: 'book', title: 'Miles: The Autobiography', author: 'Miles Davis & Quincy Troupe, 1989',
-      note: 'Voce diretta: personalita, conflitti, evoluzione stilistica.' },
-  ],
-  secondary: [
-    { id: 'r3', type: 'essay', title: 'The Jazz Tradition', author: 'Martin Williams, 1970',
-      note: 'Mappa le personalita fondamentali: Monk, Coltrane, Coleman.' },
-    { id: 'r4', type: 'essay', title: 'Stomping the Blues', author: 'Albert Murray, 1976',
-      note: 'Collega il blues come estetica profonda al jazz moderno.' },
-  ],
-  other: [
-    { id: 'r5', type: 'film', title: 'Jazz (documentario)', author: 'Ken Burns, PBS 2001',
-      note: '19 ore di storia orale, immagini d\'archivio, musica.' },
-    { id: 'r6', type: 'podcast', title: 'Switched on Pop', author: 'ep. "What Makes Jazz Jazz?"',
-      note: 'Analisi musicologica accessibile.' },
-  ],
-}
+const EMPTY_RESOURCES = { primary: [], secondary: [], other: [] }
 
 function groupResources(resources) {
   const primary   = resources.filter(r => r.phase === 'primary'   || r.type === 'book'  || r.type === 'libro')
@@ -210,8 +191,9 @@ function ReferenceSection({ section }) {
 // ---------------------------------------------------------------------------
 
 export default function Curriculum({ curriculum, allCurricula, onNavigate, onNewFromSuggestion, onBack, onDelete, isMobile }) {
-  const hasReal = curriculum.resources?.length > 0
-  const resources = hasReal ? groupResources(curriculum.resources) : MOCK_RESOURCES
+  const resources = curriculum.resources?.length > 0
+    ? groupResources(curriculum.resources)
+    : EMPTY_RESOURCES
   const badges = [curriculum.timeCommitment, curriculum.level, ...(curriculum.focusAreas ?? []).slice(0,2)].filter(Boolean)
 
   return (

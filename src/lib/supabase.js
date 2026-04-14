@@ -67,6 +67,12 @@ export async function saveCurriculum(curriculumData) {
       status: 'active',
       progetto_finale: curriculumData.progettoFinale ?? null,
       ai_suggestions: curriculumData.aiSuggestions ?? [],
+      raw_data: {
+        resources:         curriculumData.resources         ?? [],
+        referenceSections: curriculumData.referenceSections ?? [],
+        progettoFinale:    curriculumData.progettoFinale    ?? null,
+        aiSuggestions:     curriculumData.aiSuggestions     ?? [],
+      },
     })
     .select()
     .single()
@@ -175,34 +181,38 @@ function normalizeCurriculum(raw) {
       location: item.location, year: item.year, notes: item.notes,
     })
   }
+  // raw_data = output AI completo salvato come JSONB, fonte primaria
+  const rd = raw.raw_data ?? {}
   return {
-    id: raw.id,
-    title: raw.title,
-    description: raw.description,
-    topic: raw.topic,
-    focusAreas: raw.focus_areas ?? [],
+    id:             raw.id,
+    title:          raw.title,
+    description:    raw.description,
+    topic:          raw.topic,
+    focusAreas:     raw.focus_areas ?? [],
     timeCommitment: raw.time_commitment,
-    level: raw.level,
-    mustHaves: raw.must_haves ?? [],
-    progressPct: raw.progress_pct ?? 0,
-    status: raw.status,
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
-    resources: (raw.resources ?? [])
-      .sort((a, b) => a.order_index - b.order_index)
-      .map(r => ({
-        id: r.id, title: r.title, author: r.author, type: r.type,
-        url: r.url, description: r.description, phase: r.phase,
-        durationMinutes: r.duration_minutes, completed: r.completed,
-      })),
-    referenceSections: Object.values(sectionsMap),
+    level:          raw.level,
+    mustHaves:      raw.must_haves ?? [],
+    progressPct:    raw.progress_pct ?? 0,
+    status:         raw.status,
+    createdAt:      raw.created_at,
+    updatedAt:      raw.updated_at,
+    resources: rd.resources?.length
+      ? rd.resources
+      : (raw.resources ?? [])
+          .sort((a, b) => a.order_index - b.order_index)
+          .map(r => ({ id: r.id, title: r.title, author: r.author, type: r.type,
+                       description: r.description, phase: r.phase })),
+    referenceSections: rd.referenceSections?.length
+      ? rd.referenceSections
+      : Object.values(sectionsMap),
+    progettoFinale: rd.progettoFinale ?? raw.progetto_finale ?? null,
+    aiSuggestions:  rd.aiSuggestions
+      ?? (raw.ai_suggestions ?? []).map(s => ({ title: s.title, reason: s.reason })),
     connections: (raw.connections ?? []).map(c => ({
       id: c.id,
       connectedCurriculumId: c.connected_curriculum_id,
-      isAiSuggestion: c.is_ai_suggestion,
+      isAiSuggestion:  c.is_ai_suggestion,
       suggestionReason: c.suggestion_reason,
     })),
-    progettoFinale: raw.progetto_finale ?? null,
-    aiSuggestions: (raw.ai_suggestions ?? []).map(s => ({ title: s.title, reason: s.reason })),
   }
 }
