@@ -16,7 +16,7 @@ function getKey() {
 
 async function callClaude(model, systemPrompt, userMessage, maxTokens = 1024) {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 90_000) // 90s max
+  const timeoutId = setTimeout(() => controller.abort(), 120_000) // 120s max
 
   let res
   try {
@@ -171,7 +171,7 @@ VINCOLI:
 - "aiSuggestions": 2-3 percorsi correlati che completerebbero questo.
 - Tutte le opere e gli autori devono essere reali e citabili.`
 
-  const text = await callClaude('claude-sonnet-4-6', system, prompt, 8192)
+  const text = await callClaude('claude-sonnet-4-6', system, prompt, 4096)
 
   let data
   try {
