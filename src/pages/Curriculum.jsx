@@ -209,7 +209,7 @@ function ReferenceSection({ section }) {
 // Componente principale
 // ---------------------------------------------------------------------------
 
-export default function Curriculum({ curriculum, allCurricula, onNavigate, onNewFromSuggestion, onBack, isMobile }) {
+export default function Curriculum({ curriculum, allCurricula, onNavigate, onNewFromSuggestion, onBack, onDelete, isMobile }) {
   const hasReal = curriculum.resources?.length > 0
   const resources = hasReal ? groupResources(curriculum.resources) : MOCK_RESOURCES
   const badges = [curriculum.timeCommitment, curriculum.level, ...(curriculum.focusAreas ?? []).slice(0,2)].filter(Boolean)
@@ -238,13 +238,24 @@ export default function Curriculum({ curriculum, allCurricula, onNavigate, onNew
                           textTransform:'uppercase', color:'var(--warm-mid)', marginBottom:'6px' }}>
               Percorso - in corso
             </div>
-            <button onClick={() => exportCurriculumPDF(curriculum, resources)}
-              style={{ background:'none', border:'1px solid var(--warm-border)',
-                       borderRadius:'var(--radius-sm)', cursor:'pointer',
-                       fontFamily:'var(--font-mono)', fontSize:'.6rem',
-                       color:'var(--warm-mid)', padding:'3px 9px' }}>
-              PDF
-            </button>
+            <div style={{ display:'flex', gap:'6px' }}>
+              <button onClick={() => exportCurriculumPDF(curriculum, resources)}
+                style={{ background:'none', border:'1px solid var(--warm-border)',
+                         borderRadius:'var(--radius-sm)', cursor:'pointer',
+                         fontFamily:'var(--font-mono)', fontSize:'.6rem',
+                         color:'var(--warm-mid)', padding:'3px 9px' }}>
+                PDF
+              </button>
+              {onDelete && (
+                <button onClick={() => onDelete(curriculum.id)}
+                  style={{ background:'none', border:'1px solid #e0c0c0',
+                           borderRadius:'var(--radius-sm)', cursor:'pointer',
+                           fontFamily:'var(--font-mono)', fontSize:'.6rem',
+                           color:'#c0392b', padding:'3px 9px' }}>
+                  Elimina
+                </button>
+              )}
+            </div>
           </div>
           <div style={{ fontSize:'1.7rem', fontStyle:'italic', fontFamily:'var(--font-display)', marginBottom:'4px' }}>
             {curriculum.title}

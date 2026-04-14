@@ -5,7 +5,7 @@ import Home from './pages/Home'
 import Wizard from './pages/Wizard'
 import Curriculum from './pages/Curriculum'
 import AuthScreen from './pages/Auth'
-import { supabase, loadCurricula, saveCurriculum } from './lib/supabase'
+import { supabase, loadCurricula, saveCurriculum, deleteCurriculum } from './lib/supabase'
 import { useMobile } from './hooks/useMobile'
 import './App.css'
 
@@ -155,6 +155,16 @@ export default function App() {
     setScreen('wizard')
   }
 
+  async function onDelete(id) {
+    if (!window.confirm('Eliminare questo percorso? L\'azione non e\' reversibile.')) return
+    if (usingSupabase) {
+      try { await deleteCurriculum(id) }
+      catch (e) { alert(`Errore nell\'eliminazione: ${e.message}`); return }
+    }
+    setCurricula(prev => prev.filter(c => c.id !== id))
+    if (activeCurriculumId === id) { setScreen('home'); setActiveCurriculumId(null) }
+  }
+
   async function onWizardComplete(wizardData) {
     if (usingSupabase) {
       try {
@@ -231,7 +241,7 @@ export default function App() {
 
         <main style={{ flex: 1, overflow: 'hidden', display: 'flex', position: 'relative' }}>
           {screen === 'home' && (
-            <Home curricula={curricula} onSelect={openCurriculum} onNew={openWizard} isMobile={isMobile} />
+            <Home curricula={curricula} onSelect={openCurriculum} onNew={openWizard} onDelete={onDelete} isMobile={isMobile} />
           )}
           {screen === 'wizard' && (
             <Wizard curricula={curricula} onComplete={onWizardComplete} onCancel={() => setScreen('home')} />
@@ -243,6 +253,7 @@ export default function App() {
               onNavigate={openCurriculum}
               onNewFromSuggestion={(title) => openWizard({ prefillTitle: title })}
               onBack={() => setScreen('home')}
+              onDelete={onDelete}
               isMobile={isMobile}
             />
           )}

@@ -44,7 +44,7 @@ function progressLabel(p) {
   return `${p}%`
 }
 
-export default function Home({ curricula, onSelect, onNew, isMobile }) {
+export default function Home({ curricula, onSelect, onNew, onDelete, isMobile }) {
   // Supporta sia il formato mock (progress) sia quello Supabase (progressPct)
   const pct = c => c.progressPct ?? c.progress ?? 0
   const active = curricula.filter(c => pct(c) < 100)
@@ -59,28 +59,44 @@ export default function Home({ curricula, onSelect, onNew, isMobile }) {
       </div>
       <div style={{ ...s.grid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))' }}>
         {curricula.map(c => (
-          <div
-            key={c.id}
-            style={s.card}
-            onClick={() => onSelect(c.id)}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-hover)'}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-          >
-            <div style={s.cardTag}>
-              {c.emoji} {c.timeCommitment ?? c.duration} · {c.level}
+          <div key={c.id} style={{ position: 'relative' }}>
+            <div
+              style={s.card}
+              onClick={() => onSelect(c.id)}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-hover)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
+            >
+              <div style={s.cardTag}>
+                {c.timeCommitment ?? c.duration} · {c.level}
+              </div>
+              <div style={s.cardTitle}>{c.title}</div>
+              <div style={s.progressTrack}>
+                <div style={{
+                  height: '100%', width: `${pct(c)}%`,
+                  background: 'var(--warm-accent)', borderRadius: '2px',
+                  transition: 'width .3s',
+                }} />
+              </div>
+              <div style={s.cardMeta}>
+                <span>{(c.resources?.length ?? c.resourceCount ?? 0)} risorse</span>
+                <span>{progressLabel(pct(c))}</span>
+              </div>
             </div>
-            <div style={s.cardTitle}>{c.title}</div>
-            <div style={s.progressTrack}>
-              <div style={{
-                height: '100%', width: `${pct(c)}%`,
-                background: 'var(--warm-accent)', borderRadius: '2px',
-                transition: 'width .3s',
-              }} />
-            </div>
-            <div style={s.cardMeta}>
-              <span>{(c.resources?.length ?? c.resourceCount ?? 0)} risorse</span>
-              <span>{progressLabel(pct(c))}</span>
-            </div>
+            {onDelete && (
+              <button
+                onClick={e => { e.stopPropagation(); onDelete(c.id) }}
+                title="Elimina percorso"
+                style={{
+                  position: 'absolute', top: '8px', right: '8px',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--warm-border)', fontSize: '1rem', lineHeight: 1,
+                  padding: '2px 5px', borderRadius: '4px',
+                  transition: 'color .15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#c0392b'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--warm-border)'}
+              >x</button>
+            )}
           </div>
         ))}
         <div

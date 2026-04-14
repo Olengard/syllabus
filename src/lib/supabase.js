@@ -113,6 +113,17 @@ export async function saveCurriculum(curriculumData) {
   return getCurriculum(cid)
 }
 
+export async function deleteCurriculum(id) {
+  // Elimina prima i record collegati (per sicurezza, anche se CASCADE è attivo)
+  await supabase.from('sl_chats').delete().eq('curriculum_id', id)
+  await supabase.from('sl_connections').delete().eq('curriculum_id', id)
+  await supabase.from('sl_reference_items').delete().eq('curriculum_id', id)
+  await supabase.from('sl_resources').delete().eq('curriculum_id', id)
+  const { error } = await supabase.from('sl_curricula').delete().eq('id', id)
+  if (error) throw new Error(`[Syllabus] deleteCurriculum: ${error.message}`)
+  return true
+}
+
 export async function updateCurriculum(id, patch) {
   const { error } = await supabase
     .from('sl_curricula')
