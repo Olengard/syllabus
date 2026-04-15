@@ -116,6 +116,65 @@ export async function saveCurriculum(curriculumData) {
   return getCurriculum(cid)
 }
 
+// ---------------------------------------------------------------------------
+// Integrazione cross-app (stesso pattern di Footnote, sessione #9)
+// ---------------------------------------------------------------------------
+
+function parseAuthorYear(authorField) {
+  const parts = (authorField ?? '').split(',')
+  return {
+    author: parts[0]?.trim() ?? '',
+    year:   parts.slice(1).join(',').trim().match(/\d{4}/)?.[0] ?? '',
+  }
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2)
+}
+
+/** Aggiunge un libro/saggio a BookShelf con status 'wishlist' */
+export async function addToBookShelf(resource, curriculumTitle) {
+  const user = await getCurrentUser()
+  if (!user) throw new Error('Non autenticato')
+  const { author, year } = parseAuthorYear(resource.author)
+  const { error } = await supabase.from('bs_books').insert({
+    id:      genId(),
+    user_id: user.id,
+    title:   resource.title,
+    author,
+    year,
+    status:  'wishlist',
+    notes:   'Da Syllabus - ' + curriculumTitle + (resource.description ? ': ' + resource.description : ''),
+    tags:    ['syllabus'],
+    rating:  0,
+  })
+  if (error) throw new Error('BookShelf: ' + error.message)
+}
+
+/** Aggiunge un libro/saggio a Footnote */
+export async function addToFootnote(resource, curriculumTitle) {
+  const user = await getCurrentUser()
+  if (!user) throw new Error('Non autenticato')
+  const { author, year } = parseAuthorYear(resource.author)
+  const bookData = {
+    title: resource.title,
+    author,
+    year,
+    status: 'da leggere',
+    notes:  'Da Syllabus - ' + curriculumTitle + (resource.description ? ': ' + resource.description : ''),
+    tags:   ['syllabus'],
+  }
+  const { error } = await supabase.from('fn_books').insert({
+    id:      genId(),
+    user_id: user.id,
+    title:   resource.title,
+    author,
+    status:  'da leggere',
+    data:    bookData,
+  })
+  if (error) throw new Error('Footnote: ' + error.message)
+}
+
 export async function deleteCurriculum(id) {
   // Elimina prima i record collegati (per sicurezza, anche se CASCADE è attivo)
   await supabase.from('sl_chats').delete().eq('curriculum_id', id)

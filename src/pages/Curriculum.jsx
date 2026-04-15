@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import ConnectionsNav from '../components/curriculum/ConnectionsNav'
 import ChatPanel from '../components/curriculum/ChatPanel'
+import { addToBookShelf, addToFootnote } from '../lib/supabase'
 
 const EMPTY_RESOURCES = { primary: [], secondary: [], other: [] }
 
@@ -102,14 +104,30 @@ function SectionTitle({ children }) {
   )
 }
 
-function ResourceCard({ resource }) {
+function ResourceCard({ resource, curriculumTitle }) {
   const label = TYPE_LABEL[resource.type] || '[*]'
   const app   = TYPE_APP[resource.type]
-  const isText = ['book','essay','libro','saggio'].includes(resource.type)
+  const isText = ['book','essay','libro','saggio','articolo'].includes(resource.type)
+  const [bsState, setBsState] = useState('idle')
+  const [fnState, setFnState] = useState('idle')
 
-  function openApp(name) {
-    const url = APP_URLS[name]
-    if (url) window.open(url, '_blank', 'noreferrer')
+  async function handleAdd(target) {
+    const set = target === 'BookShelf' ? setBsState : setFnState
+    set('loading')
+    try {
+      if (target === 'BookShelf') await addToBookShelf(resource, curriculumTitle)
+      else                        await addToFootnote(resource, curriculumTitle)
+      set('done')
+      setTimeout(() => window.open(APP_URLS[target], '_blank', 'noreferrer'), 600)
+    } catch (e) {
+      set('error')
+      alert('Errore: ' + e.message)
+      setTimeout(() => set('idle'), 2000)
+    }
+  }
+
+  function btnText(state, def) {
+    return state === 'loading' ? '...' : state === 'done' ? 'Aggiunto!' : state === 'error' ? 'Errore' : def
   }
 
   return (
@@ -126,25 +144,28 @@ function ResourceCard({ resource }) {
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:'4px', flexShrink:0 }}>
         {isText && (
-          <button onClick={() => openApp('BookShelf')} style={{
+          <button onClick={() => bsState === 'idle' && handleAdd('BookShelf')} style={{
             fontSize:'.65rem', padding:'3px 8px', border:'none', borderRadius:'4px',
-            cursor:'pointer', background:'var(--warm-dark)', color:'var(--cream)',
-            fontFamily:'var(--font-mono)', whiteSpace:'nowrap',
-          }}>BookShelf</button>
+            cursor: bsState === 'idle' ? 'pointer' : 'default', whiteSpace:'nowrap',
+            background: bsState === 'done' ? '#4a7c59' : bsState === 'error' ? '#c0392b' : 'var(--warm-dark)',
+            color:'var(--cream)', fontFamily:'var(--font-mono)', transition:'background .2s',
+          }}>{btnText(bsState, '+ BookShelf')}</button>
         )}
         {isText && (
-          <button onClick={() => openApp('Footnote')} style={{
+          <button onClick={() => fnState === 'idle' && handleAdd('Footnote')} style={{
             fontSize:'.65rem', padding:'3px 8px', border:'1px solid var(--warm-border)',
-            borderRadius:'4px', cursor:'pointer', background:'var(--cream)',
-            color:'var(--warm-mid)', fontFamily:'var(--font-mono)',
-          }}>Footnote</button>
+            borderRadius:'4px', cursor: fnState === 'idle' ? 'pointer' : 'default',
+            background: fnState === 'done' ? '#4a7c59' : 'var(--cream)',
+            color: fnState === 'done' ? 'var(--cream)' : 'var(--warm-mid)',
+            fontFamily:'var(--font-mono)', transition:'background .2s',
+          }}>{btnText(fnState, '+ Footnote')}</button>
         )}
         {!isText && app && (
-          <button onClick={() => openApp(app)} style={{
+          <button onClick={() => window.open(APP_URLS[app], '_blank', 'noreferrer')} style={{
             fontSize:'.65rem', padding:'3px 8px', border:'1px solid var(--warm-border)',
             borderRadius:'4px', cursor:'pointer', background:'var(--cream)',
             color:'var(--warm-mid)', fontFamily:'var(--font-mono)',
-          }}>{app}</button>
+          }}>apri {app}</button>
         )}
       </div>
     </div>
@@ -262,19 +283,19 @@ export default function Curriculum({ curriculum, allCurricula, onNavigate, onNew
         {resources.primary.length > 0 && (
           <div style={{ marginBottom:'26px' }}>
             <SectionTitle>Risorse primarie</SectionTitle>
-            {resources.primary.map(r => <ResourceCard key={r.id ?? r.title} resource={r} />)}
+            {resources.primary.map(r => <ResourceCard key={r.id ?? r.title} resource={r} curriculumTitle={curriculum.title} />)}
           </div>
         )}
         {resources.secondary.length > 0 && (
           <div style={{ marginBottom:'26px' }}>
             <SectionTitle>Risorse secondarie</SectionTitle>
-            {resources.secondary.map(r => <ResourceCard key={r.id ?? r.title} resource={r} />)}
+            {resources.secondary.map(r => <ResourceCard key={r.id ?? r.title} resource={r} curriculumTitle={curriculum.title} />)}
           </div>
         )}
         {resources.other.length > 0 && (
           <div style={{ marginBottom:'26px' }}>
             <SectionTitle>Risorse non testuali</SectionTitle>
-            {resources.other.map(r => <ResourceCard key={r.id ?? r.title} resource={r} />)}
+            {resources.other.map(r => <ResourceCard key={r.id ?? r.title} resource={r} curriculumTitle={curriculum.title} />)}
           </div>
         )}
 
