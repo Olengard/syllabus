@@ -82,6 +82,65 @@ function extractJson(text) {
 }
 
 // ---------------------------------------------------------------------------
+// Ripara un JSON troncato chiudendo le strutture aperte.
+// Strategia in tre passi:
+//   1) Parsing normale (caso ottimale)
+//   2) Chiusura strutturale: se la stringa e\' troncata mid-token,
+//      tronca al punto sicuro e chiude parentesi/virgolette
+//   3) Backtrack: rimuove l\'ultimo oggetto incompleto e chiude
+// ---------------------------------------------------------------------------
+function repairJson(raw) {
+  const s = extractJson(raw)
+
+  // Passo 1: parsing normale
+  try { return JSON.parse(s) } catch (_) {}
+
+  // Passo 2: analisi strutturale
+  const stk  = []   // stack di chiusure attese
+  let inStr  = false
+  let esc    = false
+  let safe   = 0    // ultima posizione fuori da una stringa
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (esc)                 { esc = false; continue }
+    if (c === '\\' && inStr) { esc = true;  continue }
+    if (c === '"')           { inStr = !inStr; if (!inStr) safe = i + 1; continue }
+    if (inStr)               { continue }
+    safe = i + 1
+    if      (c === '{')              stk.push('}')
+    else if (c === '[')              stk.push(']')
+    else if (c === '}' || c === ']') stk.pop()
+  }
+
+  // Se la stringa era aperta, tronca all\'ultimo punto sicuro
+  let fixed = (inStr ? s.slice(0, safe) : s).replace(/,\s*$/, '')
+  fixed += stk.reverse().join('')
+
+  try { return JSON.parse(fixed) } catch (_) {}
+
+  // Passo 3: backtrack fino all\'ultima virgola di livello radice
+  for (let i = fixed.length - 1; i > 0; i--) {
+    if (fixed[i] !== ',') continue
+    const sub  = fixed.slice(0, i)
+    const stk2 = []
+    let ins2 = false, esc2 = false
+    for (const c of sub) {
+      if (esc2)               { esc2 = false; continue }
+      if (c === '\\' && ins2) { esc2 = true;  continue }
+      if (c === '"')          { ins2 = !ins2;  continue }
+      if (ins2)               { continue }
+      if (c === '{' || c === '[') stk2.push(c === '{' ? '}' : ']')
+      else if (c === '}' || c === ']') stk2.pop()
+    }
+    const candidate = sub + stk2.reverse().join('')
+    try { return JSON.parse(candidate) } catch (_) {}
+  }
+
+  throw new Error('Risposta AI non riparabile: riprova la generazione.')
+}
+
+// ---------------------------------------------------------------------------
 // Step 2 -- Chip per le aree di fuoco (Haiku, veloce)
 // ---------------------------------------------------------------------------
 
@@ -109,20 +168,63 @@ export async function generateFocusChips(topic) {
     .slice(0, 8)
 }
 
+
 // ---------------------------------------------------------------------------
 // Step 6 -- Generazione curriculum completo (Sonnet)
 // ---------------------------------------------------------------------------
 
+// Numero di risorse calibrato sulla durata del percorso
 function targetResourceCount(timeCommitment) {
-  if (/settiman/i.test(timeCommitment)) return 5
-  if (/2.3\s*mes/i.test(timeCommitment)) return 8
-  if (/6\s*mes/i.test(timeCommitment)) return 12
-  if (/anno/i.test(timeCommitment)) return 16
+  if (/settiman/i.test(timeCommitment)) return 5   // 2-4 settimane: solo essenziali
+  if (/2.3\s*mes/i.test(timeCommitment)) return 8  // 2-3 mesi: curato e bilanciato
+  if (/6\s*mes/i.test(timeCommitment)) return 12   // 6 mesi: strutturato in fasi
+  if (/anno/i.test(timeCommitment)) return 16      // 1 anno: completo e multidimensionale
+  if (/aperto/i.test(timeCommitment)) return 22    // Progetto aperto: corpus ampio
   return 9
 }
 
+// Istruzioni di struttura specifiche per durata
+function durationHint(timeCommitment) {
+  if (/settiman/i.test(timeCommitment))
+    return 'STRUTTURA: percorso breve e intenso. Scegli SOLO le risorse strettamente essenziali, ' +
+           'quelle senza cui il tema rimane incompreso. Almeno il 60% siano "primary". ' +
+           'Niente approfondimenti opzionali: zero "other" se non strettamente necessari. ' +
+           'Ordina in sequenza logica di lettura, dal piu\' accessibile al piu\' avanzato. ' +
+           'Distribuzione fasi: primary ~60%, secondary ~30%, other ~10%.'
+
+  if (/2.3\s*mes/i.test(timeCommitment))
+    return 'STRUTTURA: percorso curato e bilanciato. Unisci testi fondamentali e qualche ' +
+           'approfondimento tematico. Varieta\' di formati consigliata (libri + saggi o podcast). ' +
+           'Distribuzione fasi: primary ~35%, secondary ~35%, other ~30%.'
+
+  if (/6\s*mes/i.test(timeCommitment))
+    return 'STRUTTURA: percorso articolato in fasi progressive. Distribuisci le risorse tra ' +
+           'fondamenti (primary), approfondimento (secondary) e ampliamento comparativo (other). ' +
+           'Includi testi di diverse scuole o prospettive. Varieta\' di formati raccomandata. ' +
+           'Distribuzione fasi: primary ~35%, secondary ~35%, other ~30%.'
+
+  if (/anno/i.test(timeCommitment))
+    return 'STRUTTURA: corpus completo e multidimensionale. Massima varieta\' di autori, ' +
+           'scuole di pensiero, periodi storici e formati. Includi anche testi critici, ' +
+           'posizioni minoritarie rilevanti e opere secondarie di qualita\'. ' +
+           'Distribuzione fasi: primary ~30%, secondary ~35%, other ~35%.'
+
+  if (/aperto/i.test(timeCommitment))
+    return 'STRUTTURA: corpus aperto ed esplorativo, senza scadenza ne\' confini rigidi. ' +
+           'NON limitarti agli essenziali: includi testi fondamentali MA ANCHE autori minori ' +
+           'significativi, posizioni critiche contrastanti, opere di nicchia di alta qualita\', ' +
+           'riferimenti interdisciplinari e comparativi, fonti primarie dove disponibili. ' +
+           'Organizza tematicamente piu\' che in sequenza cronologica. ' +
+           'La sezione "referenceSections" deve essere particolarmente ricca e articolata. ' +
+           'Distribuzione fasi: primary ~25%, secondary ~40%, other ~35%.'
+
+  return 'STRUTTURA: distribuzione equilibrata tra primary, secondary e other (~33% ciascuno).'
+}
+
+
 export async function generateCurriculum({ topic, focusAreas, timeCommitment, level, mustHaves }) {
-  const n = targetResourceCount(timeCommitment)
+  const n       = targetResourceCount(timeCommitment)
+  const hint    = durationHint(timeCommitment)
   const mustStr = mustHaves?.length
     ? '\nPunti fermi (devono comparire nel percorso): ' + mustHaves.join(', ') + '.'
     : ''
@@ -172,19 +274,28 @@ export async function generateCurriculum({ topic, focusAreas, timeCommitment, le
     '  ]\n' +
     '}\n\n' +
     'VINCOLI:\n' +
-    '- Cita esattamente ' + n + ' risorse. Primary: ~35%, secondary: ~35%, other: ~30%.\n' +
-    '- Includi risorse in italiano se esistono opere di pari livello (saggisti italiani, traduzioni autorevoli, opere originali italiane). Non preferire sistematicamente l\'inglese.\n' +
-    '- "referenceSections": includi SOLO se il tema lo giustifica. Musica: dischi. Arte: dipinti o sculture. Architettura: edifici. Cinema: film_essenziali. Lascia [] se non pertinente.\n' +
+    '- ' + hint + '\n' +
+    '- Cita esattamente ' + n + ' risorse totali.\n' +
+    '- Includi risorse in italiano se esistono opere di pari livello (saggisti italiani, ' +
+    '  traduzioni autorevoli, opere originali italiane). Non preferire sistematicamente l\'inglese.\n' +
+    '- "referenceSections": includi SOLO se il tema lo giustifica. Musica: dischi. ' +
+    '  Arte: dipinti o sculture. Architettura: edifici. Cinema: film_essenziali. ' +
+    '  Lascia [] se non pertinente.\n' +
     '- "aiSuggestions": 2-3 percorsi correlati che completerebbero questo.\n' +
     '- Tutte le opere e gli autori devono essere reali e citabili.'
 
-  const text = await callClaude('claude-sonnet-4-6', system, prompt, 4096)
+  // max_tokens 8192: riduce drasticamente i rischi di troncatura anche per percorsi
+  // con molte risorse (Progetto aperto = 22 risorse + referenceSections).
+  const text = await callClaude('claude-sonnet-4-6', system, prompt, 8192)
 
+  // repairJson tenta parsing normale, poi chiusura strutturale, poi backtrack.
+  // In questo modo un troncamento non blocca l\'utente: ottiene il massimo
+  // del contenuto gia\' generato, non un errore.
   let data
   try {
-    data = JSON.parse(extractJson(text))
+    data = repairJson(text)
   } catch (e) {
-    throw new Error('Risposta AI non parsabile come JSON: ' + e.message)
+    throw new Error('Generazione non riuscita: ' + e.message + ' — Riprova.')
   }
 
   return {

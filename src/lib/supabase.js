@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+﻿import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -132,6 +132,21 @@ function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2)
 }
 
+
+/** Carica l'insieme dei titoli gia' presenti in BookShelf per l'utente corrente.
+ *  Usato da Curriculum.jsx per mostrare "checkmark BookShelf" invece del bottone. */
+export async function loadBookShelfTitles() {
+  const user = await getCurrentUser()
+  if (!user) return new Set()
+  const { data, error } = await supabase
+    .from('bs_books')
+    .select('title')
+    .eq('user_id', user.id)
+    .is('deleted_at', null)
+  if (error) return new Set()
+  const norm = s => s?.toLowerCase().trim().replace(/[''`\u2019]/g, "'") ?? ''
+  return new Set((data ?? []).map(r => norm(r.title)))
+}
 /** Aggiunge un libro/saggio a BookShelf con status 'wishlist' */
 export async function addToBookShelf(resource, curriculumTitle) {
   const user = await getCurrentUser()
@@ -150,7 +165,6 @@ export async function addToBookShelf(resource, curriculumTitle) {
   })
   if (error) throw new Error('BookShelf: ' + error.message)
 }
-
 /** Aggiunge un libro/saggio a Footnote */
 export async function addToFootnote(resource, curriculumTitle) {
   const user = await getCurrentUser()
@@ -275,3 +289,5 @@ function normalizeCurriculum(raw) {
     })),
   }
 }
+
+

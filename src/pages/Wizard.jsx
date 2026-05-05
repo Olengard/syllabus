@@ -30,7 +30,7 @@ function inputStyle() {
   }
 }
 
-export default function Wizard({ curricula, onComplete, onCancel }) {
+export default function Wizard({ curricula, onComplete, onCancel, prefill = null }) {
   const [step, setStep] = useState(1)
   // Step 1
   const [topic, setTopic] = useState('')
@@ -53,6 +53,21 @@ export default function Wizard({ curricula, onComplete, onCancel }) {
   const [generatedData, setGeneratedData] = useState(null)
 
   const topicRef = useRef()
+
+  // Prefill da suggerimento AI: pre-imposta il topic alla prima render
+  useEffect(() => {
+    if (prefill?.prefillTitle) setTopic(prefill.prefillTitle)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Genera subito con parametri di default (usato dalla modalita' prefill)
+  function quickGenerate() {
+    const chips = CHIP_BANK.default
+    setFocusOptions(chips)
+    setFocusSelected(chips.slice(0, 3))
+    // duration e level rimangono ai loro default ('2-3 mesi', 'Ho gia' basi solide')
+    setStep(6)
+  }
 
   function next() { setStep(s => Math.min(s + 1, TOTAL_STEPS)) }
   function prev() { setStep(s => Math.max(s - 1, 1)) }
@@ -128,7 +143,40 @@ export default function Wizard({ curricula, onComplete, onCancel }) {
   return (
     <WizardShell>
       {/* ── Step 1: argomento ── */}
-      {step === 1 && (
+      {/* Prefill da suggerimento AI: mostra blocco compatto con genera-subito */}
+      {step === 1 && prefill?.prefillTitle && (
+        <>
+          <div style={ws.stepLabel}>Nuovo percorso</div>
+          <div style={ws.question}>{topic}</div>
+          <div style={ws.sub}>
+            Da suggerimento AI. Modifica l&apos;argomento se vuoi, poi scegli come procedere.
+          </div>
+          <input
+            style={inputStyle()}
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && topic.trim() && quickGenerate()}
+            placeholder="Modifica l'argomento..."
+          />
+          <div style={ws.nav}>
+            <button style={ws.btnBack} onClick={onCancel}>Annulla</button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+              <button
+                style={{ ...ws.btnNext, opacity: topic.trim() ? 1 : .4 }}
+                disabled={!topic.trim()}
+                onClick={quickGenerate}
+              >
+                Genera subito
+              </button>
+              <button style={ws.btnSkip} onClick={() => topic.trim() && goToStep2()}>
+                Personalizza passo per passo
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {step === 1 && !prefill?.prefillTitle && (
         <>
           <div style={ws.stepLabel}>Passo 1 di {TOTAL_STEPS} — Argomento</div>
           <div style={ws.question}>Di cosa vuoi occuparti?</div>
