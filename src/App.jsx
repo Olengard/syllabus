@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import Header from './components/layout/Header'
 import Sidebar from './components/layout/Sidebar'
 import Home from './pages/Home'
 import Wizard from './pages/Wizard'
 import Curriculum from './pages/Curriculum'
 import AuthScreen from './pages/Auth'
-import { supabase, loadCurricula, saveCurriculum, deleteCurriculum } from './lib/supabase'
+import { supabase, loadCurricula, saveCurriculum, deleteCurriculum, updateCurriculum } from './lib/supabase'
 import { useMobile } from './hooks/useMobile'
 import './App.css'
 
@@ -104,6 +104,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const isMobile = useMobile()
   // usingSupabase deve stare DOPO la dichiarazione di user
+  const [wizardPrefill, setWizardPrefill] = useState(null)
   const usingSupabase = !!user && !!import.meta.env.VITE_SUPABASE_URL
 
   // ── Auth: sessione corrente + listener ──────────────────────────────────
@@ -152,6 +153,7 @@ export default function App() {
   }
 
   function openWizard(prefill = null) {
+    setWizardPrefill(prefill ?? null)
     setScreen('wizard')
   }
 
@@ -163,6 +165,11 @@ export default function App() {
     }
     setCurricula(prev => prev.filter(c => c.id !== id))
     if (activeCurriculumId === id) { setScreen('home'); setActiveCurriculumId(null) }
+  }
+
+  async function handleCurriculumUpdate(id, patch) {
+    await updateCurriculum(id, patch)
+    setCurricula(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c))
   }
 
   async function onWizardComplete(wizardData) {
@@ -244,7 +251,7 @@ export default function App() {
             <Home curricula={curricula} onSelect={openCurriculum} onNew={openWizard} onDelete={onDelete} isMobile={isMobile} />
           )}
           {screen === 'wizard' && (
-            <Wizard curricula={curricula} onComplete={onWizardComplete} onCancel={() => setScreen('home')} />
+            <Wizard curricula={curricula} onComplete={onWizardComplete} onCancel={() => { setWizardPrefill(null); setScreen('home') }} prefill={wizardPrefill} />
           )}
           {screen === 'curriculum' && activeCurriculum && (
             <Curriculum
@@ -253,7 +260,7 @@ export default function App() {
               onNavigate={openCurriculum}
               onNewFromSuggestion={(title) => openWizard({ prefillTitle: title })}
               onBack={() => setScreen('home')}
-              onDelete={onDelete}
+              onDelete={onDelete} onUpdate={handleCurriculumUpdate}
               isMobile={isMobile}
             />
           )}
