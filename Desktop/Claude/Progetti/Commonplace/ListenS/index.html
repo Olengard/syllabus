@@ -16,6 +16,10 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Supabase via bundle UMD (global window.supabase). NIENTE <script type="module">:
+     con import a livello modulo, @babel/standalone prova a compilarlo come script
+     classico e lancia SyntaxError → pagina bianca. Lo carichiamo come React. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Crimson Pro',serif;font-size:17px}
@@ -36,21 +40,28 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;cur
 <body>
 <div id="root"></div>
 <script>
-// Debug: force SW unregister + show errors on screen
-window.onerror = function(msg, src, line, col, err) {
-  var d = document.createElement('div');
-  d.style.cssText = 'position:fixed;inset:0;background:#0f0e0b;color:#e8e0d4;font-family:monospace;padding:2rem;overflow:auto;z-index:9999';
-  d.innerHTML = '<h2 style="color:#c8903a">ListenS — Errore JS</h2>' +
-    '<p><b>' + msg + '</b></p>' +
-    '<p>Riga: ' + line + ', Col: ' + col + '</p>' +
-    '<pre style="font-size:12px;white-space:pre-wrap;color:#9a8a7a">' + (err && err.stack ? err.stack : 'nessuno stack') + '</pre>';
-  document.body.appendChild(d);
-};
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(regs) {
-    regs.forEach(function(r) { r.unregister(); });
+// Rete di sicurezza: mostra a schermo qualsiasi errore di caricamento/parse
+// invece di lasciare una pagina bianca muta (es. CDN giù, errore di sintassi).
+(function(){
+  var shown=false;
+  function overlay(title,detail){
+    if(shown)return; shown=true;
+    var d=document.createElement('div');
+    d.style.cssText='position:fixed;inset:0;background:#141018;color:#EDE8F8;font-family:Georgia,serif;padding:2rem;overflow:auto;z-index:99999;line-height:1.5';
+    d.innerHTML='<div style="font-size:2rem">⚠️</div>'+
+      '<h2 style="color:#9B7EC8;margin:.4rem 0">ListenS — errore di caricamento</h2>'+
+      '<p style="color:#B8AECF">'+String(title||'')+'</p>'+
+      '<pre style="font-size:12px;white-space:pre-wrap;color:#7A6E8E;margin-top:1rem">'+String(detail||'')+'</pre>'+
+      '<button onclick="location.reload()" style="margin-top:1.4rem;padding:.6rem 1.4rem;background:transparent;color:#9B7EC8;border:1px solid #9B7EC8;border-radius:6px;cursor:pointer;font-family:Georgia,serif">Ricarica</button>';
+    (document.body||document.documentElement).appendChild(d);
+  }
+  window.addEventListener('error',function(e){
+    overlay(e.message||'Errore JavaScript',(e.filename||'')+(e.lineno?(' :'+e.lineno):'')+'\n'+((e.error&&e.error.stack)||''));
   });
-}
+  window.addEventListener('unhandledrejection',function(e){
+    overlay('Promise non gestita',(e.reason&&(e.reason.stack||e.reason.message))||String(e.reason||''));
+  });
+})();
 </script>
 <script type="text/babel">
     function safeLsSet(key, value) {
@@ -88,6 +99,95 @@ const CATEGORIES=[
 ];
 const BUDDY_KEY='listens_buddy_suggestions';
 const COLLECTION_COLORS=['#6B4E9B','#2D6A4F','#C8421A','#2E6FA3','#8B6914','#5A3A6B','#2A6B5A','#A0522D'];
+
+// ── Supabase: la sincronizzazione VERA (prima era solo nel log di progetto) ──
+const SB_URL = "https://pchldmiavycxzpkzochn.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaGxkbWlhdnljeHpwa3pvY2huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjk5MDAsImV4cCI6MjA4NzIwNTkwMH0.bVhCJfeCMnPcR5Ub4hLqNSmVdST5P6cT6T_2kzdKGYM";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+// ID episodio DETERMINISTICO (hash dell'audio_url): prima gli episodi senza guid
+// ricevevano un id casuale a ogni caricamento → posizioni e "ascoltato" orfani
+function stableEpId(s){let h=5381;s=String(s||'');for(let i=0;i<s.length;i++){h=((h<<5)+h+s.charCodeAt(i))|0;}return 'e'+(h>>>0).toString(36);}
+
+// Merge episodi: feed fresco + flag utente (played/posizione) dal salvato.
+// Matching per id e, in subordine, per audio_url (sopravvive ai cambi di guid)
+function mergeEpisodes(fresh, old){
+  const byId=new Map((old||[]).map(e=>[e.id,e]));
+  const byUrl=new Map((old||[]).filter(e=>e.audio_url).map(e=>[e.audio_url,e]));
+  return (fresh||[]).map(e=>{
+    const o=byId.get(e.id)||byUrl.get(e.audio_url);
+    return o?{...e,played:o.played||false,position_sec:o.position_sec||0}:e;
+  });
+}
+
+// Podcast ↔ riga ls_podcasts (cover_url→cover, apple_url→website)
+function podcastToRow(p,userId){
+  return{id:p.id,user_id:userId,title:p.title||'',author:p.author||'',
+    description:p.description||'',cover:p.cover_url||'',feed_url:p.feed_url||'',
+    website:p.apple_url||'',genre:p.genre||'',
+    episode_count:p.track_count||((p.episodes||[]).length)||0,
+    status:p.status||'wishlist',source:p.source||null,
+    episodes:(p.episodes||[]).slice(0,150),itunes_id:String(p.itunes_id||''),
+    updated_at:new Date().toISOString()};
+}
+function rowToPodcast(r){
+  return{id:r.id,title:r.title||'',author:r.author||'',description:r.description||'',
+    cover_url:r.cover||'',feed_url:r.feed_url||'',apple_url:r.website||'',genre:r.genre||'',
+    track_count:r.episode_count||null,status:r.status||'wishlist',
+    source:r.source||{type:'manual'},episodes:r.episodes||[],
+    itunes_id:String(r.itunes_id||''),addedAt:r.added_at||new Date().toISOString()};
+}
+
+// ── Schermata di accesso (stesso account di Footnote/BookShelf) ──────────────
+function AuthScreen({t}){
+  const[mode,setMode]=useState('login');
+  const[email,setEmail]=useState('');
+  const[password,setPassword]=useState('');
+  const[loading,setLoading]=useState(false);
+  const[msg,setMsg]=useState(null);
+  async function submit(e){
+    e.preventDefault();setLoading(true);setMsg(null);
+    if(mode==='login'){
+      const{error}=await sb.auth.signInWithPassword({email,password});
+      if(error)setMsg({type:'err',text:error.message});
+    }else if(mode==='register'){
+      const{error}=await sb.auth.signUp({email,password});
+      if(error)setMsg({type:'err',text:error.message});
+      else setMsg({type:'ok',text:'Controlla la tua email per confermare la registrazione.'});
+    }else{
+      const{error}=await sb.auth.resetPasswordForEmail(email);
+      if(error)setMsg({type:'err',text:error.message});
+      else setMsg({type:'ok',text:'Email di reset inviata.'});
+    }
+    setLoading(false);
+  }
+  const inp={width:'100%',padding:'9px 12px',border:`1px solid ${t.border}`,background:t.inputBg,color:t.text,fontSize:15,borderRadius:8,boxSizing:'border-box'};
+  return(
+    <div style={{minHeight:'100vh',background:t.bg,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div style={{background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:16,padding:'40px 44px',maxWidth:400,width:'100%',boxShadow:`0 8px 32px ${t.shadow}`}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:t.text,marginBottom:6}}>🎙 ListenS</div>
+        <div style={{fontSize:14,color:t.textMuted,fontStyle:'italic',marginBottom:28}}>
+          {mode==='login'?'Accedi alla tua libreria podcast (stesso account di Footnote/BookShelf)':mode==='register'?'Crea il tuo account':'Recupera la password'}
+        </div>
+        <form onSubmit={submit}>
+          <div style={{marginBottom:14}}><label style={{fontSize:12,color:t.textMuted,display:'block',marginBottom:4}}>EMAIL</label>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required style={inp} placeholder="nome@email.com"/></div>
+          {mode!=='reset'&&<div style={{marginBottom:20}}><label style={{fontSize:12,color:t.textMuted,display:'block',marginBottom:4}}>PASSWORD</label>
+            <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required style={inp} placeholder="••••••••"/></div>}
+          {msg&&<div style={{padding:'10px 14px',marginBottom:16,borderRadius:8,background:msg.type==='ok'?t.accent2Bg:t.accentBg,color:msg.type==='ok'?t.accent2:t.accent,fontSize:13}}>{msg.text}</div>}
+          <button type="submit" disabled={loading} style={{width:'100%',padding:'10px 22px',borderRadius:8,border:'none',cursor:'pointer',fontSize:15,background:t.accent,color:'#fff',opacity:loading?.6:1}}>
+            {loading?'...':mode==='login'?'Accedi':mode==='register'?'Registrati':'Invia email di reset'}
+          </button>
+        </form>
+        <div style={{marginTop:20,display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+          {mode!=='login'&&<span onClick={()=>{setMode('login');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Accedi</span>}
+          {mode!=='register'&&<span onClick={()=>{setMode('register');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Crea account</span>}
+          {mode!=='reset'&&<span onClick={()=>{setMode('reset');setMsg(null);}} style={{fontSize:13,color:t.textSec,cursor:'pointer',textDecoration:'underline'}}>Password dimenticata?</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
 function sanitizePodcast(p){
   if(!p||typeof p!=='object')return null;
   return{id:p.id||LS.id(),title:String(p.title||'Senza titolo'),author:String(p.author||''),
@@ -106,7 +206,7 @@ async function fetchFeed(feedUrl){
     const d=await r.json();
     if(d.status!=='ok')throw new Error('rss2json: '+d.message);
     const items=(d.items||[]).filter(i=>i.enclosure?.link||i.link).map(i=>({
-      id:i.guid||LS.id(),title:i.title||'',
+      id:stableEpId(i.enclosure?.link||i.guid||i.title),title:i.title||'',
       description:stripHtml(i.description||i.content||''),
       audio_url:i.enclosure?.link||'',
       duration_sec:parseDuration(i.itunes_duration||''),
@@ -130,7 +230,7 @@ async function fetchFeed(feedUrl){
     if(!channel&&!parsed.querySelector('feed'))throw new Error('no channel');
     const items=[...parsed.querySelectorAll('item')].map(item=>{
       const enc=item.querySelector('enclosure');
-      return{id:item.querySelector('guid')?.textContent||LS.id(),
+      return{id:stableEpId(enc?.getAttribute('url')||item.querySelector('guid')?.textContent||item.querySelector('title')?.textContent),
         title:item.querySelector('title')?.textContent?.trim()||'',
         description:stripHtml(item.querySelector('description')?.textContent||''),
         audio_url:enc?.getAttribute('url')||'',
@@ -188,31 +288,28 @@ function CoverArt({src,size=56,t}){const[err,setErr]=useState(false);return err|
 function Badge({label,color,bg}){return <span style={{display:'inline-block',padding:'2px 8px',borderRadius:20,fontSize:11,background:bg,color:color}}>{label}</span>;}
 function ProgressBar({pct,color,height=3}){return <div style={{width:'100%',height,background:'rgba(0,0,0,.15)',borderRadius:height/2}}><div style={{height:'100%',width:`${Math.min(100,pct||0)}%`,background:color,borderRadius:height/2,transition:'width .3s'}}/></div>;}
 
-// ── Commonplace data layer ────────────────────────────────────────────────
+// ── Commonplace data layer — SUL SUPABASE UNIFICATO (pchld) ───────────────
+// Prima scriveva su localStorage: isola invisibile alle altre app
 function syncCpListen(episode, podcast, status, eventType, meta={}) {
   try {
+    const uid = window._lsUserId;
+    if (!uid) return; // serve il login (c'è sempre, l'app è dietro auth)
     const cpId = 'ls_' + episode.id;
     const now  = new Date().toISOString();
-    const cpGet = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
-    const items = cpGet('cp_items');
-    const idx   = items.findIndex(i => i.id === cpId);
-    const cpItem = {
-      id: cpId, type: 'podcast_episode', title: episode.title || '',
+    sb.from('cp_items').upsert({
+      id: cpId, user_id: uid, source_app: 'listens', source_id: episode.id,
+      type: 'podcast_episode', title: episode.title || '',
       creator: podcast?.title || '', status,
-      source_app: 'listens', source_id: episode.id,
       cover_url: podcast?.cover_url || null,
-      created_at: idx >= 0 ? items[idx].created_at : now, updated_at: now,
-    };
-    if (idx >= 0) items[idx] = cpItem; else items.unshift(cpItem);
-    safeLsSet('cp_items', JSON.stringify(items));
+      metadata: { duration_sec: episode.duration_sec || null, published_at: episode.published_at || null },
+      updated_at: now,
+    }, { onConflict: 'id' }).then(({error})=>{ if(error) console.warn('[cp] items:', error.message); });
     if (eventType) {
-      const log   = cpGet('cp_log');
-      const evId  = 'ls_ev_' + episode.id + '_' + eventType;
-      if (!log.find(e => e.id === evId)) {
-        log.push({ id: evId, item_id: cpId, event_type: eventType,
-          date: now, meta, source_app: 'listens' });
-        safeLsSet('cp_log', JSON.stringify(log));
-      }
+      sb.from('cp_log').upsert({
+        id: 'ls_ev_' + episode.id + '_' + eventType, user_id: uid,
+        item_id: cpId, source_app: 'listens', event_type: eventType,
+        event_at: now, metadata: meta,
+      }, { onConflict: 'id' }).then(({error})=>{ if(error) console.warn('[cp] log:', error.message); });
     }
   } catch(e) { console.warn('[cp] listens sync error', e); }
 }
@@ -235,7 +332,17 @@ function usePlayer(){
     }catch(e){}
     return{episode:null,podcast:null,playing:false,position:0,duration:0,speed:1,sleepMinsLeft:0};
   });
-  function savePosition(id,pos){if(!id||pos<3)return;try{const s=JSON.parse(localStorage.getItem('ls_positions')||'{}');s[id]=Math.floor(pos);safeLsSet('ls_positions',JSON.stringify(s));}catch(e){}}
+  const posSyncRef=useRef({});
+  function savePosition(id,pos){
+    if(!id||pos<3)return;
+    try{const s=JSON.parse(localStorage.getItem('ls_positions')||'{}');s[id]=Math.floor(pos);safeLsSet('ls_positions',JSON.stringify(s));}catch(e){}
+    // Sync su Supabase ogni 30s al massimo per episodio (resume cross-device)
+    const uid=window._lsUserId;
+    if(uid&&Date.now()-(posSyncRef.current[id]||0)>30000){
+      posSyncRef.current[id]=Date.now();
+      sb.from('ls_positions').upsert({user_id:uid,episode_id:id,position:Math.floor(pos),updated_at:new Date().toISOString()},{onConflict:'user_id,episode_id'}).then(()=>{});
+    }
+  }
   function getSavedPosition(id){try{return JSON.parse(localStorage.getItem('ls_positions')||'{}')[id]||0;}catch(e){return 0;}}
   useEffect(()=>{
     const audio=new Audio();audio.preload='auto';audioRef.current=audio;
@@ -831,16 +938,25 @@ function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,lat
   const[err,setErr]=useState('');
   const[showAll,setShowAll]=useState(false);
   const[showFullDesc,setShowFullDesc]=useState(false);
+  const[epQuery,setEpQuery]=useState('');
+  const[sortOldest,setSortOldest]=useState(false);
   const EPISODE_LIMIT=30;
   const saved=podcasts?.find(p=>(p.feed_url&&p.feed_url===podcast.feed_url)||p.title.toLowerCase()===podcast.title.toLowerCase());
   const[addDone,setAddDone]=useState(false);
   useEffect(()=>{
     async function load(){
-      let feedUrl=podcast.feed_url;
+      let feedUrl=podcast.feed_url||saved?.feed_url;
       if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}
+      // Ultimo tentativo: risolvi per titolo (copre i suggerimenti di Footnote/Syllabus, che arrivano senza feed)
+      if(!feedUrl&&podcast.title){try{const r=await fetchItunesSearch(podcast.title);const m=r.find(x=>x.feedUrl||x.feed_url);if(m)feedUrl=m.feed_url||m.feedUrl;}catch(e){}}
       if(!feedUrl){setLoading(false);setErr('Feed RSS non trovato. Usa "+ RSS" e incolla l\'URL manualmente (podcastindex.org).');return;}
-      fetchFeed(feedUrl).then(data=>{setEpisodes(data.episodes);setLoading(false);}).catch(()=>{
-        const cached=podcast.episodes||[];
+      fetchFeed(feedUrl).then(data=>{
+        // Merge con i flag utente e PERSISTENZA: prima il refresh restava solo a video
+        const merged=mergeEpisodes(data.episodes,saved?.episodes||podcast.episodes||[]);
+        setEpisodes(merged);setLoading(false);
+        if(saved&&onUpdateEpisode)onUpdateEpisode(saved.id,merged);
+      }).catch(()=>{
+        const cached=(saved?.episodes&&saved.episodes.length?saved.episodes:podcast.episodes)||[];
         if(cached.length>0){setEpisodes(cached);setLoading(false);}
         else{setErr('Impossibile caricare gli episodi.');setLoading(false);}
       });
@@ -849,7 +965,17 @@ function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,lat
   },[podcast.id]);
   async function handleAddToLibrary(){let feedUrl=podcast.feed_url;if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}onAddPodcast({...podcast,feed_url:feedUrl||'',id:LS.id(),status:'wishlist',addedAt:new Date().toISOString()});setAddDone(true);}
   async function handleFollow(){let feedUrl=podcast.feed_url;if(!feedUrl&&podcast.itunes_id){try{feedUrl=await fetchItunesFeedUrl(podcast.itunes_id,podcast.title);}catch(e){}}onAddPodcast({...podcast,feed_url:feedUrl||'',id:LS.id(),status:'following',addedAt:new Date().toISOString()});setAddDone(true);}
-  function handlePlay(ep){player.play(ep,podcast);onUpdateEpisode&&onUpdateEpisode(podcast.id,episodes.map(e=>e.id===ep.id?{...e,position_sec:player.position}:e));}
+  // Prima qui c'era un salvataggio che sovrascriveva gli episodi con la posizione
+  // dell'episodio PRECEDENTE: le posizioni le gestisce già usePlayer
+  function handlePlay(ep){player.play(ep,podcast);}
+  // Filtro + ordinamento per ritrovare i vecchi episodi
+  const visibleEpisodes=(()=>{
+    let list=episodes;
+    const nq=epQuery.trim().toLowerCase();
+    if(nq)list=list.filter(e=>((e.title||'')+' '+(e.description||'')).toLowerCase().includes(nq));
+    if(sortOldest)list=[...list].sort((a,b)=>new Date(a.published_at||0)-new Date(b.published_at||0));
+    return list;
+  })();
   return(
     <div className="fu">
       <div style={{display:'flex',gap:14,alignItems:'flex-start',marginBottom:20,padding:'14px 18px',background:t.bgCard,borderRadius:14,border:`1px solid ${t.borderLight}`,boxShadow:`0 2px 12px ${t.shadow}`}}>
@@ -877,8 +1003,20 @@ function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,lat
       {loading&&<div style={{textAlign:'center',padding:'40px 0'}}><div style={{fontSize:22,color:t.accent,animation:'spin 2s linear infinite',display:'inline-block'}}>✦</div><p style={{color:t.textMuted,fontSize:14,marginTop:8}}>Carico gli episodi...</p></div>}
       {err&&<p style={{color:t.danger,fontSize:14,textAlign:'center',padding:'20px 0'}}>{err}</p>}
       {!loading&&!err&&episodes.length===0&&<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'20px 0'}}>Nessun episodio trovato.</p>}
+      {!loading&&episodes.length>5&&<div style={{display:'flex',gap:8,marginBottom:12,alignItems:'center'}}>
+        <div style={{flex:1,position:'relative'}}>
+          <input value={epQuery} onChange={e=>setEpQuery(e.target.value)} placeholder={`Cerca tra ${episodes.length} episodi…`}
+            style={{width:'100%',padding:'8px 32px 8px 12px',background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:8,color:t.text,fontSize:14}}/>
+          {epQuery&&<button onClick={()=>setEpQuery('')} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:t.textMuted,fontSize:16,cursor:'pointer',lineHeight:1}}>&#215;</button>}
+        </div>
+        <button onClick={()=>setSortOldest(s=>!s)} title={sortOldest?'Dai più recenti':'Dai più vecchi'}
+          style={{padding:'8px 12px',background:sortOldest?t.accentBg:'none',border:`1px solid ${sortOldest?t.accent:t.border}`,borderRadius:8,color:sortOldest?t.accent:t.textSec,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+          {sortOldest?'↑ Più vecchi':'↓ Più recenti'}
+        </button>
+      </div>}
+      {epQuery&&<p style={{fontSize:12,color:t.textMuted,marginBottom:8,fontStyle:'italic'}}>{visibleEpisodes.length} {visibleEpisodes.length===1?'episodio trovato':'episodi trovati'}</p>}
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {(showAll?episodes:episodes.slice(0,EPISODE_LIMIT)).map(ep=>{
+        {(epQuery||showAll?visibleEpisodes:visibleEpisodes.slice(0,EPISODE_LIMIT)).map(ep=>{
           const isPlaying=player.episode?.id===ep.id&&player.playing;
           const isCurrent=player.episode?.id===ep.id;
           const savedPos=player.getSavedPosition?.(ep.id)||ep.position_sec||0;
@@ -886,7 +1024,7 @@ function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,lat
           const isEpPlayed=savedPodcast?.episodes?.find(e=>e.id===ep.id)?.played||ep.played||false;
           return <EpisodeRow key={ep.id} ep={ep} t={t} isCurrent={isCurrent} isPlaying={isPlaying} savedPos={savedPos} onMarkPlayed={onMarkPlayed?(id,played)=>onMarkPlayed(podcast,id,played):null} player={player} onPlay={()=>handlePlay(ep)} onQueue={()=>onQueue&&onQueue(ep,podcast)} onLater={()=>onLater&&onLater(ep,podcast)} laterAdded={laterIds?.has(ep.id)} collections={collections} onAddToCollection={onAddEpisodeToCollection} isPlayed={isEpPlayed}/>;
         })}
-        {episodes.length>EPISODE_LIMIT&&<button onClick={()=>setShowAll(s=>!s)} style={{marginTop:8,padding:'10px 0',background:'none',border:`1px solid`,borderColor:'inherit',borderRadius:10,color:'inherit',fontSize:13,cursor:'pointer',opacity:0.7,fontFamily:"'Lora',serif",fontStyle:'italic'}}>{showAll?'Mostra meno':'Mostra tutti gli episodi ('+episodes.length+')'}</button>}
+        {!epQuery&&visibleEpisodes.length>EPISODE_LIMIT&&<button onClick={()=>setShowAll(s=>!s)} style={{marginTop:8,padding:'10px 0',background:'none',border:`1px solid`,borderColor:'inherit',borderRadius:10,color:'inherit',fontSize:13,cursor:'pointer',opacity:0.7,fontFamily:"'Lora',serif",fontStyle:'italic'}}>{showAll?'Mostra meno':'Mostra tutti gli episodi ('+episodes.length+')'}</button>}
       </div>
     </div>
   );
@@ -1007,13 +1145,75 @@ function LaterView({t,later,player,onPlay,onQueue,onRemove}){
   );
 }
 
+// ── Ricerca globale: podcast, episodi in libreria, collezioni, "dopo" ────────
+function SearchView({t,podcasts,collections,later,player,onQueue,onOpenPodcast}){
+  const[q,setQ]=useState('');
+  const needle=q.trim().toLowerCase();
+  let podHits=[],epHits=[];
+  if(needle.length>=2){
+    podHits=podcasts.filter(p=>((p.title||'')+' '+(p.author||'')).toLowerCase().includes(needle)).slice(0,10);
+    const seen=new Set();
+    const pushEp=(ep,pod)=>{if(!ep||seen.has(ep.id))return;if(((ep.title||'')+' '+(ep.description||'')).toLowerCase().includes(needle)){seen.add(ep.id);epHits.push({ep,pod});}};
+    podcasts.forEach(pod=>(pod.episodes||[]).forEach(ep=>pushEp(ep,pod)));
+    collections.forEach(c=>(c.episodes||[]).forEach(ep=>pushEp(ep,{title:ep.podcastTitle||'',cover_url:''})));
+    later.forEach(l=>pushEp(l.episode,l.podcast));
+    epHits=epHits.slice(0,80);
+  }
+  return(
+    <div className="fu">
+      <input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca tra i tuoi podcast ed episodi…"
+        style={{width:'100%',padding:'12px 16px',background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:12,color:t.text,fontSize:16,marginBottom:18,boxShadow:`0 1px 8px ${t.shadow}`}}/>
+      {needle.length<2&&<p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'30px 0'}}>
+        Cerca negli episodi dei podcast che segui, nelle collezioni e in "Dopo".<br/>
+        <span style={{fontSize:12}}>Suggerimento: apri un podcast e usa ↻ per indicizzare gli episodi più vecchi.</span></p>}
+      {needle.length>=2&&podHits.length===0&&epHits.length===0&&
+        <p style={{color:t.textMuted,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'30px 0'}}>Nessun risultato per "{q}".</p>}
+      {podHits.length>0&&<div style={{marginBottom:24}}>
+        <p style={{fontSize:11,letterSpacing:2,textTransform:'uppercase',color:t.textMuted,marginBottom:10}}>Podcast · {podHits.length}</p>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {podHits.map(p=>(
+            <div key={p.id} onClick={()=>onOpenPodcast(p)} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:10,cursor:'pointer',boxShadow:`0 1px 6px ${t.shadow}`}}>
+              <CoverArt src={p.cover_url} size={40} t={t}/>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:14,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</p>
+                <p style={{fontSize:12,color:t.textSec,fontStyle:'italic'}}>{p.author||''}{p.status==='following'?' · ● seguito':' · ✦ wishlist'}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>}
+      {epHits.length>0&&<div>
+        <p style={{fontSize:11,letterSpacing:2,textTransform:'uppercase',color:t.textMuted,marginBottom:10}}>Episodi · {epHits.length}</p>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {epHits.map(({ep,pod})=>{
+            const isCurrent=player.episode?.id===ep.id;const isPlaying=isCurrent&&player.playing;
+            return(
+              <div key={ep.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:isCurrent?t.accentBg:t.bgCard,border:`1px solid ${isCurrent?t.accent:t.borderLight}`,borderRadius:10,boxShadow:`0 1px 6px ${t.shadow}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontSize:14,color:t.text,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{ep.title}</p>
+                  <p style={{fontSize:12,color:t.textSec,fontStyle:'italic',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{pod?.title||''}{ep.published_at?` · ${formatDate(ep.published_at)}`:''}{ep.duration_sec?` · ${formatDuration(ep.duration_sec)}`:''}</p>
+                </div>
+                {ep.audio_url&&<button onClick={()=>player.play(ep,pod)} style={{width:32,height:32,borderRadius:'50%',flexShrink:0,background:isCurrent?t.accent:t.bgAlt,border:`1px solid ${isCurrent?t.accent:t.border}`,color:isCurrent?'#fff':t.textSec,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>{isPlaying?'⏸':'▶'}</button>}
+                {ep.audio_url&&onQueue&&<button onClick={()=>onQueue(ep,pod)} title="Aggiungi alla coda" style={{width:32,height:32,borderRadius:'50%',flexShrink:0,background:'none',border:`1px solid ${t.border}`,color:t.textMuted,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>}
+              </div>
+            );
+          })}
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 function App(){
   const[dark,setDark]=useState(LS.raw('ls_dark')==='1');
   const t=dark?DARK:LIGHT;
+  const[user,setUser]=useState(null);
+  const[authLoading,setAuthLoading]=useState(true);
   const[podcasts,setPodcasts]=useState(()=>LS.get('ls_podcasts',[]));
   const[queue,setQueue]=useState(()=>LS.get('ls_queue',[]));
   const[later,setLater]=useState(()=>LS.get('ls_later',[]));
   const[collections,setCollections]=useState(()=>LS.get('ls_collections',[]));
+  const[refreshing,setRefreshing]=useState(false);
   const[view,setView]=useState('home');
   const[activePodcast,setActivePodcast]=useState(null);
   const[previousView,setPreviousView]=useState('discovery');
@@ -1024,20 +1224,159 @@ function App(){
   useEffect(()=>{queueRef.current=queue;},[queue]);
   useEffect(()=>{document.body.style.background=t.bg;},[t]);
   useEffect(()=>{const s=document.getElementById('lsScroll')||document.createElement('style');s.id='lsScroll';s.textContent=`::-webkit-scrollbar-thumb{background:${t.border}!important}`;document.head.appendChild(s);},[t]);
-  function savePodcasts(p){setPodcasts(p);LS.set('ls_podcasts',p);}
-  function saveQueue(q){setQueue(q);LS.set('ls_queue',q);}
-  function saveLater(l){setLater(l);LS.set('ls_later',l);}
-  function saveCollections(c){setCollections(c);LS.set('ls_collections',c);}
-  function addPodcast(podcast){const exists=podcasts.find(p=>p.title.toLowerCase()===podcast.title.toLowerCase()||(p.feed_url&&p.feed_url===podcast.feed_url));if(exists)return;savePodcasts([podcast,...podcasts]);}
-  function removePodcast(id){savePodcasts(podcasts.filter(p=>p.id!==id));}
-  function followPodcast(podcast){savePodcasts(podcasts.map(p=>p.id===podcast.id?{...p,status:'following'}:p));}
-  function updateEpisodes(podcastId,episodes){savePodcasts(podcasts.map(p=>p.id===podcastId?{...p,episodes}:p));}
+
+  // ── Auth ──────────────────────────────────────────────────────────────
+  useEffect(()=>{
+    sb.auth.getSession().then(({data:{session}})=>{setUser(session?.user??null);setAuthLoading(false);});
+    const{data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{setUser(session?.user??null);});
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  // ── Carica tutto da Supabase al login (localStorage = cache di avvio) ──
+  useEffect(()=>{
+    if(!user){window._lsUserId=null;return;}
+    window._lsUserId=user.id; // usato da usePlayer per il sync posizioni
+    (async()=>{
+      try{
+        const[pods,colls,qrows,positions]=await Promise.all([
+          sb.from('ls_podcasts').select('*').eq('user_id',user.id).is('deleted_at',null),
+          sb.from('ls_collections').select('*').eq('user_id',user.id),
+          sb.from('ls_queue').select('*').eq('user_id',user.id).order('position'),
+          sb.from('ls_positions').select('episode_id,position').eq('user_id',user.id),
+        ]);
+        if(pods.error)throw pods.error;
+        // Posizioni di ascolto: server → cache locale (vince la più avanzata)
+        if(positions.data?.length){
+          try{
+            const local=JSON.parse(localStorage.getItem('ls_positions')||'{}');
+            positions.data.forEach(r=>{const sv=Number(r.position)||0;if(sv>(local[r.episode_id]||0))local[r.episode_id]=Math.floor(sv);});
+            safeLsSet('ls_positions',JSON.stringify(local));
+          }catch(e){}
+        }
+        if((pods.data||[]).length===0){
+          // Primo login: migra l'eventuale libreria localStorage su Supabase
+          const local=LS.get('ls_podcasts',[]);
+          if(local.length>0&&window.confirm(`Trovati ${local.length} podcast locali. Importarli nel tuo account?`)){
+            const rows=local.map(p=>podcastToRow(p,user.id));
+            const{error}=await sb.from('ls_podcasts').upsert(rows,{onConflict:'id'});
+            if(!error){
+              const localColls=LS.get('ls_collections',[]);
+              if(localColls.length)await sb.from('ls_collections').upsert(localColls.map(c=>({id:c.id,user_id:user.id,name:c.name,color:c.color||'#6B4E9B',podcast_ids:c.podcastIds||[],episodes:c.episodes||[]})),{onConflict:'id'});
+              await syncQueueRows(LS.get('ls_queue',[]),'queue',user.id);
+              await syncQueueRows(LS.get('ls_later',[]).map(l=>({episode:l.episode,podcast:l.podcast,qid:l.lid})),'later',user.id);
+              return; // dati locali già a video; restano la verità
+            }
+          }
+        }
+        const mapped=(pods.data||[]).map(rowToPodcast);
+        setPodcasts(mapped);LS.set('ls_podcasts',mapped);
+        if(!colls.error){
+          const mc=(colls.data||[]).map(c=>({id:c.id,name:c.name,color:c.color||'#6B4E9B',podcastIds:c.podcast_ids||[],episodes:c.episodes||[],createdAt:c.created_at}));
+          setCollections(mc);LS.set('ls_collections',mc);
+        }
+        if(!qrows.error){
+          const q=(qrows.data||[]).filter(r=>r.queue_type==='queue').map(r=>({episode:r.episode_data,podcast:r.podcast_data,qid:r.episode_id}));
+          const l=(qrows.data||[]).filter(r=>r.queue_type==='later').map(r=>({episode:r.episode_data,podcast:r.podcast_data,lid:r.episode_id,addedAt:r.added_at}));
+          setQueue(q);LS.set('ls_queue',q);
+          setLater(l);LS.set('ls_later',l);
+        }
+        setTimeout(()=>refreshFeedsRef.current&&refreshFeedsRef.current(false),800);
+      }catch(e){console.warn('[ListenS] load Supabase:',e.message||e);/* si resta sulla cache locale */}
+    })();
+  },[user?.id]);
+
+  // ── Sync helper: riscrive le righe coda/dopo (liste piccole) ──────────
+  async function syncQueueRows(items,type,userId){
+    try{
+      await sb.from('ls_queue').delete().eq('user_id',userId).eq('queue_type',type);
+      if(items.length){
+        const rows=items.map((it,i)=>({user_id:userId,episode_id:it.episode.id,episode_data:it.episode,podcast_data:{id:it.podcast?.id,title:it.podcast?.title||'',cover_url:it.podcast?.cover_url||''},position:i,queue_type:type}));
+        await sb.from('ls_queue').upsert(rows,{onConflict:'user_id,episode_id,queue_type'});
+      }
+    }catch(e){console.warn('[ListenS] sync queue:',e.message||e);}
+  }
+
+  // ── Salvataggi write-through: stato + cache locale + Supabase ─────────
+  function savePodcasts(p,changed){
+    setPodcasts(p);LS.set('ls_podcasts',p);
+    if(user&&changed){
+      const toSync=(Array.isArray(changed)?changed:[changed]).map(pk=>podcastToRow(pk,user.id));
+      sb.from('ls_podcasts').upsert(toSync,{onConflict:'id'}).then(({error})=>{if(error)console.warn('[ListenS] upsert podcast:',error.message);});
+    }
+  }
+  function saveQueue(q){setQueue(q);LS.set('ls_queue',q);if(user)syncQueueRows(q,'queue',user.id);}
+  function saveLater(l){setLater(l);LS.set('ls_later',l);if(user)syncQueueRows(l.map(x=>({episode:x.episode,podcast:x.podcast})),'later',user.id);}
+  function saveCollections(c,removedId){
+    setCollections(c);LS.set('ls_collections',c);
+    if(user){
+      if(removedId)sb.from('ls_collections').delete().eq('id',removedId).eq('user_id',user.id).then(()=>{});
+      const rows=c.map(coll=>({id:coll.id,user_id:user.id,name:coll.name,color:coll.color||'#6B4E9B',podcast_ids:coll.podcastIds||[],episodes:coll.episodes||[]}));
+      if(rows.length)sb.from('ls_collections').upsert(rows,{onConflict:'id'}).then(({error})=>{if(error)console.warn('[ListenS] upsert coll:',error.message);});
+    }
+  }
+  function addPodcast(podcast){const exists=podcasts.find(p=>p.title.toLowerCase()===podcast.title.toLowerCase()||(p.feed_url&&p.feed_url===podcast.feed_url));if(exists)return;savePodcasts([podcast,...podcasts],podcast);}
+  function removePodcast(id){
+    savePodcasts(podcasts.filter(p=>p.id!==id));
+    if(user)sb.from('ls_podcasts').update({deleted_at:new Date().toISOString()}).eq('id',id).eq('user_id',user.id).then(()=>{});
+  }
+  function followPodcast(podcast){const upd={...podcast,status:'following'};savePodcasts(podcasts.map(p=>p.id===podcast.id?upd:p),upd);}
+  function updateEpisodes(podcastId,episodes){
+    const target=podcasts.find(p=>p.id===podcastId);
+    if(!target)return;
+    const upd={...target,episodes};
+    savePodcasts(podcasts.map(p=>p.id===podcastId?upd:p),upd);
+  }
+
+  // ── Refresh feed dei podcast seguiti (throttle 30 min, o manuale) ──────
+  const refreshFeedsRef=useRef(null);
+  async function refreshFeeds(force){
+    const last=Number(LS.raw('ls_last_refresh')||0);
+    if(!force&&Date.now()-last<30*60*1000)return;
+    const following=podcasts.filter(p=>p.status==='following'&&p.feed_url);
+    if(!following.length)return;
+    setRefreshing(true);
+    const results=await Promise.allSettled(following.map(async p=>({p,data:await fetchFeed(p.feed_url)})));
+    let updated=[...podcasts];const changed=[];
+    for(const r of results){
+      if(r.status!=='fulfilled'||!r.value.data?.episodes?.length)continue;
+      const{p,data}=r.value;
+      const merged=mergeEpisodes(data.episodes,p.episodes||[]);
+      const upd={...p,episodes:merged,cover_url:p.cover_url||data.cover_url};
+      updated=updated.map(x=>x.id===p.id?upd:x);
+      changed.push(upd);
+    }
+    if(changed.length)savePodcasts(updated,changed);
+    LS.setRaw('ls_last_refresh',String(Date.now()));
+    setRefreshing(false);
+  }
+  refreshFeedsRef.current=refreshFeeds;
   function addToQueue(episode,podcast){if(queue.find(q=>q.episode.id===episode.id))return;saveQueue([...queue,{episode,podcast,qid:LS.id()}]);}
   function removeFromQueue(qid){saveQueue(queue.filter(q=>q.qid!==qid));}
   function reorderQueue(from,to){const q=[...queue];const[item]=q.splice(from,1);q.splice(to,0,item);saveQueue(q);}
   function addToLater(episode,podcast){if(later.find(l=>l.episode.id===episode.id))return;saveLater([{episode,podcast,lid:LS.id(),addedAt:new Date().toISOString()},...later]);}
   function removeFromLater(lid){saveLater(later.filter(l=>l.lid!==lid));}
   const laterIds=new Set(later.map(l=>l.episode.id));
+
+  // ── Esporta tutti i dati localStorage (backup per migrazione Supabase) ──
+  function exportJSON(){
+    const data={};
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&(k.startsWith('ls_')||k.startsWith('cp_')))keys.push(k);
+    }
+    keys.forEach(k=>{
+      const v=localStorage.getItem(k);
+      try{data[k]=JSON.parse(v);}catch{data[k]=v;}
+    });
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='listens-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
   // Auto-play + badge Ascoltato
   useEffect(()=>{
     player.onEndedRef.current=(finishedEp, finishedPodcast)=>{
@@ -1049,6 +1388,11 @@ function App(){
       setPodcasts(prev=>{
         const updated=prev.map(p=>({...p,episodes:(p.episodes||[]).map(e=>e.id===finishedEp.id?{...e,played:true}:e)}));
         LS.set('ls_podcasts',updated);
+        // Sync su Supabase del podcast che contiene l'episodio concluso
+        if(window._lsUserId){
+          const owner=updated.find(p=>(p.episodes||[]).some(e=>e.id===finishedEp.id));
+          if(owner)sb.from('ls_podcasts').upsert([podcastToRow(owner,window._lsUserId)],{onConflict:'id'}).then(()=>{});
+        }
         return updated;
       });
       setQueue(prevQueue=>{
@@ -1080,7 +1424,7 @@ function App(){
     }
   },[]);// eslint-disable-line
   function addCollection(name,color){saveCollections([...collections,{id:LS.id(),name,color:color||'#6B4E9B',podcastIds:[],createdAt:new Date().toISOString()}]);}
-  function removeCollection(id){saveCollections(collections.filter(c=>c.id!==id));}
+  function removeCollection(id){saveCollections(collections.filter(c=>c.id!==id),id);}
   function renameCollection(id,name){saveCollections(collections.map(c=>c.id===id?{...c,name}:c));}
   function togglePodcastInCollection(collId,podId){
     saveCollections(collections.map(c=>{
@@ -1101,12 +1445,15 @@ function App(){
     saveCollections(collections.map(c=>c.id!==collId?c:{...c,episodes:(c.episodes||[]).filter(e=>e.id!==epId)}));
   }
   function markEpisodePlayed(podcast,episodeId,played){
-    savePodcasts(podcasts.map(p=>{
+    const changed=[];
+    const next=podcasts.map(p=>{
       if((p.feed_url&&p.feed_url===podcast.feed_url)||p.id===podcast.id){
-        return{...p,episodes:(p.episodes||[]).map(e=>e.id===episodeId?{...e,played}:e)};
+        const upd={...p,episodes:(p.episodes||[]).map(e=>e.id===episodeId?{...e,played}:e)};
+        changed.push(upd);return upd;
       }
       return p;
-    }));
+    });
+    savePodcasts(next,changed);
     // auto-remove from queue when marked as played
     if(played){
       const newQueue=queue.filter(q=>q.episode.id!==episodeId);
@@ -1118,10 +1465,13 @@ function App(){
     {id:'home',label:'Home',icon:'◉'},
     {id:'discovery',label:'Discovery',icon:'✦'},
     {id:'mypodcasts',label:'I miei podcast',icon:'●'},
+    {id:'search',label:'Cerca',icon:'⌕'},
     {id:'collections',label:'Collezioni',icon:'◈'},
     {id:'queue',label:'Coda',icon:'☰',badge:queue.length||null},
     {id:'later',label:'Dopo',icon:'🕐',badge:later.length||null},
   ];
+  if(authLoading)return <div style={{minHeight:'100vh',background:t.bg,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:t.textMuted,fontStyle:'italic',fontSize:15}}>Caricamento...</span></div>;
+  if(!user)return <AuthScreen t={t}/>;
   return(
     <div style={{minHeight:'100vh',background:t.bg,color:t.text,paddingBottom:player.episode?130:0}}>
       <header style={{background:t.bgCard,borderBottom:`1px solid ${t.border}`,padding:'8px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:200,boxShadow:`0 2px 14px ${t.shadow}`}}>
@@ -1135,8 +1485,14 @@ function App(){
             style={{width:30,height:30,background:'none',border:`1px solid ${t.border}`,borderRadius:7,color:t.textSec,fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
             ←
           </button>}
+          <button onClick={()=>refreshFeeds(true)} disabled={refreshing} title="Aggiorna i feed dei podcast seguiti"
+            style={{width:30,height:30,background:'none',border:`1px solid ${t.border}`,borderRadius:7,color:refreshing?t.accent:t.textSec,fontSize:15,cursor:refreshing?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <span style={refreshing?{display:'inline-block',animation:'spin 1.2s linear infinite'}:{}}>↻</span>
+          </button>
           <button onClick={()=>setShowAdd(true)} style={{padding:'5px 11px',background:t.accent,border:'none',borderRadius:7,color:'#fff',fontSize:12,cursor:'pointer',fontFamily:"'Playfair Display',serif"}}>+ RSS</button>
+          <button onClick={exportJSON} title="Esporta dati localStorage (backup JSON)" style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:t.textSec}}>{'\u2B07\uFE0E'}</button>
           <button onClick={()=>{const v=!dark;setDark(v);LS.setRaw('ls_dark',v?'1':'0');}} title={dark?'Modalità chiara':'Modalità scura'} style={{width:34,height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:t.text}}>{dark?'\u2600\uFE0E':'\u263E\uFE0E'}</button>
+          <button onClick={()=>{if(confirm('Disconnettersi?'))sb.auth.signOut();}} title={user?.email} style={{padding:'0 10px',height:34,background:t.bgAlt,border:`1px solid ${t.border}`,borderRadius:7,fontSize:11,cursor:'pointer',color:t.textMuted,maxWidth:90,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{user?.email?.split('@')[0]} ↩</button>
         </div>
       </header>
       {view!=='detail'&&<div className="nav-tabs" style={{background:t.bgCard,borderBottom:`1px solid ${t.border}`,padding:'0 8px',display:'flex'}}>
@@ -1156,6 +1512,7 @@ function App(){
         {view==='detail'&&activePodcast&&<PodcastDetailView t={t} podcast={activePodcast} player={player} onUpdateEpisode={updateEpisodes} onQueue={addToQueue} onLater={addToLater} laterIds={laterIds} onMarkPlayed={markEpisodePlayed} podcasts={podcasts} onAddPodcast={addPodcast} onFollowPodcast={followPodcast} collections={collections} onAddEpisodeToCollection={(collId,ep)=>addEpisodeToCollection(collId,ep,activePodcast.title)}/>}
         {view==='queue'&&<QueueView t={t} queue={queue} player={player} onRemove={removeFromQueue} onReorder={reorderQueue}/>}
         {view==='later'&&<LaterView t={t} later={later} player={player} onPlay={(ep,pod)=>player.play(ep,pod)} onQueue={addToQueue} onRemove={removeFromLater}/>}
+        {view==='search'&&<SearchView t={t} podcasts={podcasts} collections={collections} later={later} player={player} onQueue={addToQueue} onOpenPodcast={p=>openPodcast(p,'search')}/>}
       </main>
       <PlayerBar player={player} t={t} onExpand={()=>setShowFullPlayer(true)}/>
       {showFullPlayer&&<FullPlayerSheet player={player} t={t} onClose={()=>setShowFullPlayer(false)}/>}
