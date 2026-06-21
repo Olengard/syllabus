@@ -15,7 +15,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Babel PINNATO a 7: Babel 8 usa il runtime JSX "automatic" di default, che aggiunge
+     una dichiarazione di modulo nel codice traspilato e rompe l'esecuzione come script
+     classico (SyntaxError). La 7 usa il runtime classic (React.createElement). -->
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <!-- Supabase caricato come bundle UMD globale (window.supabase), come React e Babel qui sopra. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
