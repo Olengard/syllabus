@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import CatalogBrowser from "./CatalogBrowser.jsx";
 import ClassChoices from "./ClassChoices.jsx";
+import { hasFantasy, generateFantasyNames } from "./nameForge.js";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -1790,8 +1791,8 @@ function EquipmentTab({ char, update }) {
 
 // ─── Name Generator ───────────────────────────────────────────────────────────
 function NameGenerator() {
-  const MOOD_LABELS = ["Eroico","Epico","Neutro","Bizzarro","Ironico"];
-  const MOOD_KEYS   = ["eroico","eroico","neutro","ironico","ironico"];
+  const MOOD_LABELS = ["Eroico","Neutro","Ironico"];
+  const MOOD_KEYS   = ["eroico","neutro","ironico"];
 
   // Categories
   const CATS = [
@@ -1807,7 +1808,8 @@ function NameGenerator() {
   const [cat, setCat]         = React.useState("races");
   const [sub, setSub]         = React.useState(null);
   const [gender, setGender]   = React.useState("m");
-  const [mood, setMood]       = React.useState(2); // 0-4
+  const [mood, setMood]       = React.useState(1); // 0=Eroico 1=Neutro 2=Ironico
+  const [italianPct, setItalianPct] = React.useState(20); // % di nomi "italiani" nel mix
   const [results, setResults] = React.useState([]);
   const [saved, setSaved]     = React.useState(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_saved_names")) || "[]"); } catch { return []; }
@@ -1817,6 +1819,24 @@ function NameGenerator() {
   React.useEffect(() => {
     try { safeLsSet(userKey("dnd_saved_names"), JSON.stringify(saved)); } catch {}
   }, [saved]);
+
+  // Mescola in modo uniforme (Fisher-Yates)
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+
+  // Conteggio reale dei nomi curati (per l'header)
+  const totalCurated = React.useMemo(() => {
+    let n = 0;
+    const walk = (o) => { for (const v of Object.values(o)) { if (Array.isArray(v)) n += v.length; else if (v && typeof v === "object") walk(v); } };
+    walk(NAMES_DB);
+    return n;
+  }, []);
 
   // Sub-options per category
   const subOptions = React.useMemo(() => {
@@ -1845,47 +1865,54 @@ function NameGenerator() {
     return entry && "n" in entry;
   }, [cat, sub]);
 
+  // La razza selezionata ha il generatore fantasy procedurale?
+  const fantasyOn = cat === "races" && !!sub && hasFantasy(sub);
+
   const generate = () => {
     const moodKey = MOOD_KEYS[mood];
     const catData = NAMES_DB[cat];
     if (!catData) return;
 
-    let pool = [];
+    const moodLabel = MOOD_LABELS[mood];
+    const subLabel = sub || cat;
+
+    let items = []; // { name, sub }
 
     if (cat === "races") {
-      // sub = race name, entry has m/f/n each with eroico/neutro/ironico
       const raceData = catData[sub];
       if (!raceData) return;
       const gKey = hasNeutral ? "n" : gender;
       const gData = raceData[gKey];
-      if (!gData) return;
-      // Try exact mood, fallback to neutro, fallback to any
-      pool = gData[moodKey] || gData["neutro"] || Object.values(gData)[0] || [];
+      const italianPool = gData ? (gData[moodKey] || gData["neutro"] || Object.values(gData)[0] || []) : [];
+      const gLabel = hasNeutral ? "neutro" : (gender === "m" ? "maschile" : "femminile");
+
+      if (fantasyOn) {
+        // Mix fantasy (maggioranza) + italiano (minoranza) secondo il dosaggio
+        const nItalian = Math.round(10 * italianPct / 100);
+        const nFantasy = 10 - nItalian;
+        const fGender = hasNeutral ? (Math.random() < 0.5 ? "m" : "f") : gender;
+        const fantasyNames = generateFantasyNames(sub, fGender, nFantasy);
+        const italianNames = shuffle(italianPool).slice(0, Math.min(nItalian, italianPool.length));
+        items = shuffle([
+          ...fantasyNames.map(name => ({ name, sub: `${subLabel} · ${gLabel} · fantasy` })),
+          ...italianNames.map(name => ({ name, sub: `${subLabel} · ${gLabel} · italiano` })),
+        ]);
+      } else {
+        items = shuffle(italianPool).slice(0, 10).map(name => ({ name, sub: `${subLabel} · ${gLabel} · ${moodLabel}` }));
+      }
     } else if (cat === "epiteti" || cat === "oggetti" || cat === "divinita" || cat === "gilde") {
-      // flat: {eroico:[], neutro:[], ironico:[]}
-      pool = catData[moodKey] || catData["neutro"] || [];
+      const pool = catData[moodKey] || catData["neutro"] || [];
+      items = shuffle(pool).slice(0, 10).map(name => ({ name, sub: `${subLabel} · ${moodLabel}` }));
     } else {
-      // sub = subcategory (e.g. "locanda"), entry has eroico/neutro/ironico
       const subData = catData[sub];
       if (!subData) return;
-      pool = subData[moodKey] || subData["neutro"] || [];
+      const pool = subData[moodKey] || subData["neutro"] || [];
+      items = shuffle(pool).slice(0, 10).map(name => ({ name, sub: `${subLabel} · ${moodLabel}` }));
     }
 
-    if (!pool.length) return;
+    if (!items.length) return;
 
-    // Pick 10 random unique names
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const picked = shuffled.slice(0, Math.min(10, shuffled.length));
-
-    const moodLabel = MOOD_LABELS[mood];
-    const subLabel = sub || cat;
-    const gLabel = hasNeutral ? "neutro" : (gender === "m" ? "maschile" : "femminile");
-
-    setResults(picked.map((name, i) => ({
-      id: `${Date.now()}-${i}`,
-      name,
-      sub: hasGender ? `${subLabel} · ${gLabel} · ${moodLabel}` : `${subLabel} · ${moodLabel}`,
-    })));
+    setResults(items.map((it, i) => ({ id: `${Date.now()}-${i}`, name: it.name, sub: it.sub })));
   };
 
   const toggleSave = (item) => {
@@ -1903,7 +1930,7 @@ function NameGenerator() {
       <div className="section-header" style={{marginBottom:0}}>
         <span>GENERATORE DI NOMI</span>
         <span style={{fontSize:"0.65rem",color:"var(--text3)"}}>
-          {saved.length > 0 ? `${saved.length} nomi salvati` : "1864 nomi disponibili"}
+          {saved.length > 0 ? `${saved.length} nomi salvati` : (fantasyOn ? "∞ generatore fantasy" : `${totalCurated} nomi`)}
         </span>
       </div>
 
@@ -1957,6 +1984,23 @@ function NameGenerator() {
             </div>
           )}
 
+          {/* Style dosing (solo razze col generatore fantasy) */}
+          {fantasyOn && (
+            <div className="namegen-section">
+              <div className="namegen-section-title">STILE</div>
+              <div className="namegen-mood-wrap">
+                <div className="namegen-mood-labels">
+                  <span>✨ Fantasy</span>
+                  <span>🍝 Italiano</span>
+                </div>
+                <input type="range" min={0} max={100} step={10} value={italianPct}
+                  className="namegen-mood-slider"
+                  onChange={e => setItalianPct(+e.target.value)} />
+                <div className="namegen-mood-current">{100 - italianPct}% fantasy · {italianPct}% italiano</div>
+              </div>
+            </div>
+          )}
+
           {/* Mood slider */}
           <div className="namegen-section">
             <div className="namegen-section-title">TONO</div>
@@ -1965,7 +2009,7 @@ function NameGenerator() {
                 <span>⚔ Eroico</span>
                 <span>😏 Ironico</span>
               </div>
-              <input type="range" min={0} max={4} value={mood}
+              <input type="range" min={0} max={2} value={mood}
                 className="namegen-mood-slider"
                 onChange={e => setMood(+e.target.value)} />
               <div className="namegen-mood-current">{MOOD_LABELS[mood]}</div>
