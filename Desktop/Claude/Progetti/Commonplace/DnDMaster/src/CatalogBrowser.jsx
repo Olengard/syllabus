@@ -28,6 +28,7 @@ export default function CatalogBrowser({ onImport }) {
   const [needBuild, setNeedBuild] = React.useState(false); // mostri: indice non ancora costruito
   const [busy, setBusy]       = React.useState(null);  // chiave elemento in import
   const [done, setDone]       = React.useState(() => new Set()); // chiavi già importate
+  const [bulk, setBulk]       = React.useState(null);  // { running, msg } per "importa tutti"
 
   const keyOf = (it) => (cat === "class" ? it.slug : `${it.name}|${it.source || ""}`);
 
@@ -89,6 +90,61 @@ export default function CatalogBrowser({ onImport }) {
     setBusy(null);
   }
 
+  // Importa in blocco tutti gli elementi di una categoria
+  async function importCategory(c, list) {
+    if (c === "spell")      return onImport("spell",      { spell: list });
+    if (c === "race")       return onImport("race",       { race: list });
+    if (c === "feat")       return onImport("feat",       { feat: list });
+    if (c === "background") return onImport("background", { background: list });
+    if (c === "class") {
+      const merged = { class: [], subclass: [], classFeature: [], subclassFeature: [] };
+      for (const it of list) {
+        const d = await getClassData(it.file);
+        merged.class.push(...(d.class || []));
+        merged.subclass.push(...(d.subclass || []));
+        merged.classFeature.push(...(d.classFeature || []));
+        merged.subclassFeature.push(...(d.subclassFeature || []));
+      }
+      return onImport("class", merged);
+    }
+    return 0;
+  }
+
+  // "Importa tutti" della categoria corrente (mostri esclusi: si usa la ricerca)
+  async function importAllCurrent() {
+    if (cat === "monster" || !items.length) return;
+    setError(""); setBulk({ running: true, msg: `Importazione ${items.length} elementi…` });
+    try {
+      const n = await importCategory(cat, items);
+      setDone((s) => { const ns = new Set(s); for (const it of items) ns.add(keyOf(it)); return ns; });
+      setBulk({ running: false, msg: `✓ ${n} importati` });
+    } catch (e) {
+      setError("Import fallito: " + e.message); setBulk(null);
+    }
+  }
+
+  // "Importa tutto il catalogo": categorie leggere (mostri esclusi per la quota)
+  async function importEverything() {
+    setError("");
+    const steps = [
+      ["classi",      async () => importCategory("class",      await getClassList())],
+      ["incantesimi", async () => importCategory("spell",      await getSpells())],
+      ["razze",       async () => importCategory("race",       await getRaces())],
+      ["talenti",     async () => importCategory("feat",       await getFeats())],
+      ["background",  async () => importCategory("background", await getBackgrounds())],
+    ];
+    let total = 0;
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        setBulk({ running: true, msg: `Importazione ${steps[i][0]}… (${i + 1}/${steps.length})` });
+        total += await steps[i][1]();
+      }
+      setBulk({ running: false, msg: `✓ ${total} importati (classi, incantesimi, razze, talenti, background)` });
+    } catch (e) {
+      setError("Import fallito: " + e.message); setBulk(null);
+    }
+  }
+
   const subtitle = (it) => {
     if (cat === "spell")   return `Liv. ${it.level ?? 0}${it.school ? " • " + it.school : ""}`;
     if (cat === "monster") return `GS ${it.cr} • ${it.type}`;
@@ -107,6 +163,18 @@ export default function CatalogBrowser({ onImport }) {
             {c.label}
           </button>
         ))}
+      </div>
+
+      {/* Importa tutto il catalogo (categorie leggere) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn btn-sm btn-primary" disabled={!!bulk?.running}
+          title="Importa classi, incantesimi, razze, talenti e background (i mostri si cercano dall'indice)"
+          onClick={importEverything}>
+          {bulk?.running ? "⏳ In corso…" : "⬇ Importa tutto il catalogo"}
+        </button>
+        {bulk && (
+          <span style={{ fontSize: "0.72rem", color: bulk.running ? "var(--gold)" : "var(--gold2)" }}>{bulk.msg}</span>
+        )}
       </div>
 
       {/* Ricerca */}
@@ -151,8 +219,16 @@ export default function CatalogBrowser({ onImport }) {
       {/* Risultati */}
       {!loading && !needBuild && (
         <>
-          <div style={{ fontSize: "0.72rem", color: "var(--text3)" }}>
-            {totalMatches} risultati{totalMatches > MAX_ROWS ? ` — mostro i primi ${MAX_ROWS}, raffina la ricerca` : ""}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ fontSize: "0.72rem", color: "var(--text3)" }}>
+              {totalMatches} risultati{totalMatches > MAX_ROWS ? ` — mostro i primi ${MAX_ROWS}, raffina la ricerca` : ""}
+            </div>
+            {cat !== "monster" && items.length > 0 && (
+              <button className="btn btn-sm" disabled={!!bulk?.running} onClick={importAllCurrent}
+                title={`Importa tutti i ${items.length} elementi di questa categoria`}>
+                ⬇ Importa tutti ({items.length})
+              </button>
+            )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "46vh", overflowY: "auto" }}>
             {filtered.map((it) => {

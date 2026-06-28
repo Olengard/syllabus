@@ -8998,16 +8998,17 @@ function App() {
           onClose={() => setShowImport(false)}
           onImportMonsters={(monsters) => {
             const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_custom_monsters_v1")) || "[]"); } catch { return []; } })();
-            const merged = [...existing, ...monsters];
-            try { safeLsSet(userKey("dnd_custom_monsters_v1"), JSON.stringify(merged)); } catch {}
+            const map = {}; for (const m of [...existing, ...monsters]) map[m.id || m.slug || m.name] = m;
+            try { safeLsSet(userKey("dnd_custom_monsters_v1"), JSON.stringify(Object.values(map))); } catch {}
             window.dispatchEvent(new Event("dnd_monsters_updated"));
           }}
           onImportSpells={(spells) => {
             (() => {
               try {
                 const existing = JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]");
-                const merged = [...existing, ...spells];
-                safeLsSet(userKey("dnd_imported_spells"), JSON.stringify(merged));
+                const map = {};
+                for (const s of [...existing, ...spells]) map[s.slug || s.name] = s;
+                safeLsSet(userKey("dnd_imported_spells"), JSON.stringify(Object.values(map)));
               } catch {}
             })();
           }}
@@ -9023,15 +9024,18 @@ function App() {
           }}
           onImportRaces={(races) => {
             const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_races")) || "[]"); } catch { return []; } })();
-            try { safeLsSet(userKey("dnd_imported_races"), JSON.stringify([...existing, ...races])); } catch {}
+            const map = {}; for (const r of [...existing, ...races]) map[r.slug || r.name] = r;
+            try { safeLsSet(userKey("dnd_imported_races"), JSON.stringify(Object.values(map))); } catch {}
           }}
           onImportFeats={(feats) => {
             const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_feats")) || "[]"); } catch { return []; } })();
-            try { safeLsSet(userKey("dnd_imported_feats"), JSON.stringify([...existing, ...feats])); } catch {}
+            const map = {}; for (const f of [...existing, ...feats]) map[f.slug || f.name] = f;
+            try { safeLsSet(userKey("dnd_imported_feats"), JSON.stringify(Object.values(map))); } catch {}
           }}
           onImportBackgrounds={(bgs) => {
             const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_backgrounds")) || "[]"); } catch { return []; } })();
-            try { safeLsSet(userKey("dnd_imported_backgrounds"), JSON.stringify([...existing, ...bgs])); } catch {}
+            const map = {}; for (const b of [...existing, ...bgs]) map[b.slug || b.name] = b;
+            try { safeLsSet(userKey("dnd_imported_backgrounds"), JSON.stringify(Object.values(map))); } catch {}
           }}
         />
       )}
