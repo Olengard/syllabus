@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import CatalogBrowser from "./CatalogBrowser.jsx";
 import ClassChoices from "./ClassChoices.jsx";
 import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixed, generateHouses, EXTRA_CATEGORIES } from "./nameForge.js";
+import shopExtra from "./shopExtra.json";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -8478,6 +8479,15 @@ function ShopPage() {
   const [selected, setSelected] = React.useState(null);
   const [copied, setCopied] = React.useState(null);
 
+  // PHB curato (IT+EN) + ampliamento 5e.tools (mondano, EN)
+  const ALL_ITEMS = React.useMemo(() => [...SHOP_DB.items, ...shopExtra], []);
+  const ALL_CATS = React.useMemo(() => ([
+    ...SHOP_DB.categorie,
+    { key: "gemme", label: "Gemme & Tesori" },
+    { key: "beni",  label: "Beni & Materiali" },
+    { key: "altro", label: "Altro" },
+  ]), []);
+
   const formatCosto = (item) => {
     if (item.costo_mo > 0) return `${item.costo_mo} mo`;
     if (item.costo_ma > 0) return `${item.costo_ma} ma`;
@@ -8486,12 +8496,12 @@ function ShopPage() {
 
   const filtered = React.useMemo(() => {
     const q = query.toLowerCase().trim();
-    return SHOP_DB.items.filter(it => {
+    return ALL_ITEMS.filter(it => {
       const matchCat = activeCat === "all" || it.cat === activeCat;
-      const matchQ = !q || it.nome.toLowerCase().includes(q) || it.en.toLowerCase().includes(q);
+      const matchQ = !q || it.nome.toLowerCase().includes(q) || (it.en || "").toLowerCase().includes(q);
       return matchCat && matchQ;
     });
-  }, [query, activeCat]);
+  }, [query, activeCat, ALL_ITEMS]);
 
   const copyItem = (item) => {
     const txt = `${item.nome} — ${formatCosto(item)} — ${item.peso_kg > 0 ? item.peso_kg + " kg" : "—"}${item.danno && item.danno !== "—" ? " — " + item.danno : ""}`;
@@ -8501,14 +8511,14 @@ function ShopPage() {
   };
 
   const catLabel = activeCat === "all" ? "Tutti gli oggetti"
-    : SHOP_DB.categorie.find(c => c.key === activeCat)?.label || activeCat;
+    : ALL_CATS.find(c => c.key === activeCat)?.label || activeCat;
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
       {/* ── HEADER ─────────────────────────────────────────── */}
       <div className="section-header" style={{marginBottom:0,flexShrink:0}}>
         <span style={{color:"var(--gold)",fontSize:"1.1rem",fontWeight:700}}>🏪 Prezzi & Equipaggiamento</span>
-        <span style={{fontSize:"0.78rem",color:"var(--text2)",marginLeft:8}}>PHB 5e · {SHOP_DB.items.length} oggetti</span>
+        <span style={{fontSize:"0.78rem",color:"var(--text2)",marginLeft:8}}>PHB + 5e.tools · {ALL_ITEMS.length} oggetti</span>
       </div>
 
       {/* ── RICERCA ─────────────────────────────────────────── */}
@@ -8527,9 +8537,9 @@ function ShopPage() {
         {/* ── SIDEBAR CATEGORIE ──────────────────────────────── */}
         <div style={{width:180,flexShrink:0,overflowY:"auto",borderRight:"1px solid var(--border)",
           padding:"6px 0",background:"var(--surface)"}}>
-          {[{key:"all",label:"📦 Tutti"},...SHOP_DB.categorie].map(c => {
-            const count = c.key === "all" ? SHOP_DB.items.length
-              : SHOP_DB.items.filter(i => i.cat === c.key).length;
+          {[{key:"all",label:"📦 Tutti"},...ALL_CATS].map(c => {
+            const count = c.key === "all" ? ALL_ITEMS.length
+              : ALL_ITEMS.filter(i => i.cat === c.key).length;
             return (
               <div key={c.key}
                 onClick={() => { setActiveCat(c.key); setSelected(null); }}
