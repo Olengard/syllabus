@@ -38,7 +38,7 @@ if not exist "node_modules\" (
 )
 
 echo  Avvio in corso...
-echo  Il browser si aprira' automaticamente su http://localhost:5173
+echo  Il browser si aprira' automaticamente su http://localhost:5175
 echo  Per chiudere il gestionale chiudi questa finestra.
 echo.
 call npm run dev
