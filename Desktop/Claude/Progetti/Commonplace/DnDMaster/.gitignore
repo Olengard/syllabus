@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist.rar
+.netlify/
+.vercel/
+dnd-gestionale/
+outputs/
