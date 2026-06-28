@@ -210,6 +210,102 @@ function buildName(t) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// ─── Cognomi & casate ─────────────────────────────────────────────────────────
+// Due stili: "ruvido" (verbo+nome → Tagliagole) per razze marziali, "lirico"
+// (nome+elemento → Cantodargento) per elfi/gnomi/esotici. Senza problemi di
+// accordo grammaticale.
+const SURNAME = {
+  gritty: {
+    pre: ["Taglia","Ammazza","Spacca","Ruba","Caccia","Doma","Scaccia","Brucia","Frantuma","Sfida","Morde","Schiaccia","Stritola","Sventra","Spezza","Affonda"],
+    suf: ["gole","draghi","ossa","cuori","ombre","lupi","pietre","fiamme","corvi","teschi","catene","scudi","troll","orchi","mura","venti"],
+  },
+  lyric: {
+    pre: ["Canto","Chioma","Occhi","Vello","Manto","Velo","Soffio","Passo","Voce","Sguardo","Ala","Cuore","Filo","Sogno"],
+    suf: ["dargento","doro","diluna","dalba","distelle","disole","dombra","divento","dirugiada","dicristallo","dibrina","difiamma","diluce","dautunno"],
+  },
+};
+// Stile dell'epiteto descrittivo (quando si usa quel registro)
+const GRITTY_RACES = new Set(["Umano","Nano","Nano delle Montagne","Mezzorco","Halfling","Tortle","Dragonide","Kenku","Aarakocra"]);
+// Razze in cui il cognome tende all'epiteto descrittivo (clan/soprannome) anziché
+// a un cognome "proprio" fonetico.
+const DESCRIPTIVE_LEAN = new Set(["Nano","Nano delle Montagne","Mezzorco","Halfling","Tortle","Kenku"]);
+// Razze "nobili" da cui derivare casate dal suono proprio
+const NOBLE_RACES = ["Umano","Elfo Alto","Tiefling","Mezz'Elfo","Elfo del Bosco"];
+// Casate curate dal suono proprio (no compound descrittivi)
+const HOUSE_NAMES = ["Valdoria","Mornaheim","Aldebrand","Grimmaldi","Valenholt","Morvenna","Caldoria","Brennar","Veladin","Soltane","Aldovrandi","Castelmare","Lindenwald","Mornhal","Corvano","Belmonte","Falconieri","Drachenfeld","Saltieri","Veraldi"];
+
+function makeSurname(style) {
+  const t = SURNAME[style];
+  return cap(pick(t.pre)) + pick(t.suf);
+}
+
+// Cognome "proprio" generato dalla fonetica della razza (es. "Hakwald", "Caelaril").
+function phoneticSurname(race) {
+  const table = TABLES[race] || TABLES["Umano"];
+  const t = table[Math.random() < 0.5 ? "m" : "f"] || table.m || table.f;
+  return buildName(t);
+}
+
+// Cognome adatto alla razza: per lo più "proprio" (fonetico), a volte descrittivo.
+// Le razze marziali/clan tendono di più all'epiteto descrittivo.
+export function generateSurname(race) {
+  const descrLean = DESCRIPTIVE_LEAN.has(race) ? 0.55 : 0.25;
+  if (Math.random() < descrLean) return makeSurname(GRITTY_RACES.has(race) ? "gritty" : "lyric");
+  return phoneticSurname(race);
+}
+
+// Lista mista per la categoria: cognomi propri + qualche epiteto descrittivo.
+export function generateSurnamesMixed(count) {
+  const races = Object.keys(TABLES);
+  const out = new Set();
+  let a = 0;
+  while (out.size < count && a < count * 25) {
+    a++;
+    if (Math.random() < 0.55) out.add(phoneticSurname(pick(races)));
+    else out.add(makeSurname(Math.random() < 0.55 ? "gritty" : "lyric"));
+  }
+  return [...out];
+}
+
+// Casate nobiliari: per lo più cognomi propri ("Casa Morvayn", "Casa Valdoria"),
+// di rado un epiteto descrittivo.
+export function generateHouses(count) {
+  const out = new Set();
+  let a = 0;
+  while (out.size < count && a < count * 25) {
+    a++;
+    const r = Math.random();
+    const base = r < 0.45 ? pick(HOUSE_NAMES)
+               : r < 0.85 ? phoneticSurname(pick(NOBLE_RACES))
+               : makeSurname("lyric");
+    out.add(Math.random() < 0.7 ? `Casa ${base}` : `i ${base}`);
+  }
+  return [...out];
+}
+
+// ─── Categorie curate extra (navi, cibi & bevande) ────────────────────────────
+export const EXTRA_CATEGORIES = {
+  navi: {
+    eroico: ["Furia di Tempesta","Falco del Nord","Lama del Mare","Vendetta di Ferro","Aurora Ardente","Corona d'Onda","Sentinella d'Acciaio","Artiglio del Drago","Tuono d'Argento","Stella del Mattino","Cuore di Quercia","Lancia delle Maree"],
+    neutro: ["Onda Vagante","Vento del Sud","Gabbiano Grigio","Rotta Lunga","Marea Calma","Stella Polare","Vela Bianca","Corrente Fredda","Pesce Volante","Albatro","Brezza del Largo","Scogliera"],
+    ironico: ["Sirena Ubriaca","Secchio Galleggiante","Granchio Pigro","Vecchia Bagnarola","Aringa Salata","Salpa o Affonda","Naufragio Annunciato","Polena Storta","Barile Bucato","Gabbiano Strabico","Sgombro Felice","Tappo di Sughero"],
+  },
+  cibi: {
+    piatto: {
+      eroico: ["Arrosto del Cacciatore","Cinghiale alle Brace","Costata del Drago","Stufato del Re","Selvaggina Reale","Spiedo del Campione","Brasato di Montagna","Zuppa del Guerriero"],
+      neutro: ["Zuppa d'Orzo","Pane Nero","Stufato di Coniglio","Formaggio Stagionato","Torta di Carne","Polenta e Funghi","Pesce Affumicato","Pasticcio di Verdure"],
+      ironico: ["Misterioso Stufato","Sorpresa del Cuoco","Pasticcio del Lunedì","Spiedino Incerto","Avanzi Reali","Zuppa di Ieri","Carne Coraggiosa","Tocco del Guarito"],
+    },
+    bevanda: {
+      eroico: ["Idromele del Tuono","Rossa di Barbacorta","Birra del Campione","Sidro di Fuoco","Nettare degli Eroi","Distillato del Drago","Riserva del Re","Brindisi di Vittoria"],
+      neutro: ["Birra Chiara","Vino della Casa","Sidro di Mele","Acquavite","Tè alle Erbe","Birra Scura","Vino Speziato","Latte di Capra"],
+      ironico: ["Piscio di Drago","Rovina del Nano","Acquaragia di Locanda","Sbronza Garantita","Veleno del Mugnaio","Lacrime di Goblin","Brodaglia dell'Oste","Coraggio Liquido"],
+    },
+  },
+};
+
 // Genera fino a `count` nomi fantasy unici per razza+genere.
 export function generateFantasyNames(race, gender, count) {
   const table = TABLES[race];

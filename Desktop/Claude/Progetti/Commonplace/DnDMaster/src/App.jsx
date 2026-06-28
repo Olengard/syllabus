@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import CatalogBrowser from "./CatalogBrowser.jsx";
 import ClassChoices from "./ClassChoices.jsx";
-import { hasFantasy, generateFantasyNames } from "./nameForge.js";
+import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixed, generateHouses, EXTRA_CATEGORIES } from "./nameForge.js";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -1800,9 +1800,12 @@ function NameGenerator() {
     { key:"locali",   label:"🏠 Locali & Negozi" },
     { key:"luoghi",   label:"🗺 Luoghi" },
     { key:"epiteti",  label:"⚔ Epiteti & Soprannomi" },
+    { key:"cognomi",  label:"🏰 Cognomi & Casate" },
     { key:"oggetti",  label:"✨ Oggetti Magici" },
     { key:"divinita", label:"🌟 Divinità & Culti" },
     { key:"gilde",    label:"🛡 Gilde & Organizzazioni" },
+    { key:"navi",     label:"⛵ Navi" },
+    { key:"cibi",     label:"🍺 Cibi & Bevande" },
   ];
 
   const [cat, setCat]         = React.useState("races");
@@ -1810,7 +1813,11 @@ function NameGenerator() {
   const [gender, setGender]   = React.useState("m");
   const [mood, setMood]       = React.useState(1); // 0=Eroico 1=Neutro 2=Ironico
   const [italianPct, setItalianPct] = React.useState(20); // % di nomi "italiani" nel mix
+  const [fullName, setFullName] = React.useState(false);  // razze: aggiunge il cognome
   const [results, setResults] = React.useState([]);
+
+  // Catalogo curato = NAMES_DB inline + categorie extra (navi, cibi)
+  const NAMEDATA = React.useMemo(() => ({ ...NAMES_DB, ...EXTRA_CATEGORIES }), []);
   const [saved, setSaved]     = React.useState(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_saved_names")) || "[]"); } catch { return []; }
   });
@@ -1834,16 +1841,16 @@ function NameGenerator() {
   const totalCurated = React.useMemo(() => {
     let n = 0;
     const walk = (o) => { for (const v of Object.values(o)) { if (Array.isArray(v)) n += v.length; else if (v && typeof v === "object") walk(v); } };
-    walk(NAMES_DB);
+    walk(NAMEDATA);
     return n;
-  }, []);
+  }, [NAMEDATA]);
 
   // Sub-options per category
   const subOptions = React.useMemo(() => {
-    const data = NAMES_DB[cat];
+    const data = NAMEDATA[cat];
     if (!data) return [];
     return Object.keys(data);
-  }, [cat]);
+  }, [cat, NAMEDATA]);
 
   // Auto-select first sub when category changes
   React.useEffect(() => {
@@ -1853,7 +1860,7 @@ function NameGenerator() {
   // Check if this category has gender
   const hasGender = React.useMemo(() => {
     if (!sub) return false;
-    const entry = NAMES_DB[cat]?.[sub];
+    const entry = NAMEDATA[cat]?.[sub];
     if (!entry) return false;
     return "m" in entry || "f" in entry;
   }, [cat, sub]);
@@ -1861,7 +1868,7 @@ function NameGenerator() {
   // Check if has neutral gender (n)
   const hasNeutral = React.useMemo(() => {
     if (!sub) return false;
-    const entry = NAMES_DB[cat]?.[sub];
+    const entry = NAMEDATA[cat]?.[sub];
     return entry && "n" in entry;
   }, [cat, sub]);
 
@@ -1870,13 +1877,23 @@ function NameGenerator() {
 
   const generate = () => {
     const moodKey = MOOD_KEYS[mood];
-    const catData = NAMES_DB[cat];
-    if (!catData) return;
-
     const moodLabel = MOOD_LABELS[mood];
     const subLabel = sub || cat;
 
     let items = []; // { name, sub }
+
+    // Cognomi & casate: procedurale, niente liste curate
+    if (cat === "cognomi") {
+      const list = shuffle([
+        ...generateSurnamesMixed(7).map(name => ({ name, sub: "cognome" })),
+        ...generateHouses(3).map(name => ({ name, sub: "casata" })),
+      ]);
+      setResults(list.map((it, i) => ({ id: `${Date.now()}-${i}`, name: it.name, sub: it.sub })));
+      return;
+    }
+
+    const catData = NAMEDATA[cat];
+    if (!catData) return;
 
     if (cat === "races") {
       const raceData = catData[sub];
@@ -1900,7 +1917,10 @@ function NameGenerator() {
       } else {
         items = shuffle(italianPool).slice(0, 10).map(name => ({ name, sub: `${subLabel} · ${gLabel} · ${moodLabel}` }));
       }
-    } else if (cat === "epiteti" || cat === "oggetti" || cat === "divinita" || cat === "gilde") {
+
+      // Nome completo: aggiunge un cognome adatto alla razza
+      if (fullName) items = items.map(it => ({ ...it, name: `${it.name} ${generateSurname(sub)}` }));
+    } else if (cat === "epiteti" || cat === "oggetti" || cat === "divinita" || cat === "gilde" || cat === "navi") {
       const pool = catData[moodKey] || catData["neutro"] || [];
       items = shuffle(pool).slice(0, 10).map(name => ({ name, sub: `${subLabel} · ${moodLabel}` }));
     } else {
@@ -1998,6 +2018,16 @@ function NameGenerator() {
                   onChange={e => setItalianPct(+e.target.value)} />
                 <div className="namegen-mood-current">{100 - italianPct}% fantasy · {italianPct}% italiano</div>
               </div>
+            </div>
+          )}
+
+          {/* Nome completo (con cognome) — solo razze */}
+          {cat === "races" && (
+            <div className="namegen-section">
+              <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:"0.8rem",color:"var(--text2)"}}>
+                <input type="checkbox" checked={fullName} onChange={e => setFullName(e.target.checked)} />
+                Nome completo (con cognome)
+              </label>
             </div>
           )}
 
