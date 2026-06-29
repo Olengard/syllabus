@@ -12,8 +12,9 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - `src/catalog.js` — fetch dati 5e.tools dal mirror GitHub + cache **IndexedDB**.
 - `src/CatalogBrowser.jsx` — UI "Catalogo online" dentro il modale **📥 Importa** (ricerca per nome, "Importa tutti").
 - `src/ClassChoices.jsx` — tab **🎓 Privilegi** della scheda PG: ASI/talenti (effetto sulle caratteristiche), optional features (infusioni/invocazioni/…), elenco privilegi.
-- `src/nameForge.js` — generatore nomi **fantasy procedurale** per razza, cognomi/casate, categorie curate extra (navi, cibi).
-- `src/shopExtra.json` — ampliamento del tab Prezzi (oggetti mondani 5e.tools, generato offline; ~385 voci EN).
+- `src/nameForge.js` — generatore nomi **fantasy procedurale** per razza (tabelle fonetiche), cognomi/casate, categorie curate extra (navi, cibi); usato dal tab ✨ Nomi.
+- `src/shopExtra.json` — ampliamento del tab Prezzi (oggetti mondani 5e.tools, generato offline; ~385 voci EN), mergiato con `SHOP_DB` in `ShopPage`.
+- `src/detailsExtra.js` — toni extra (sfarzoso, inquietante→Cupo, steampunk/Zeitgeist) per il tab 📖 Descrizioni; mergiato con `DETAILS_DB` in `DescriptionsPage`, che ha anche il generatore "Componi scena".
 
 ## Persistenza (localStorage)
 - Chiavi **prefissate per utente** via `userKey(key)` → `${user}__${key}`. `safeLsSet` gestisce il quota-exceeded (toast).
@@ -35,6 +36,9 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - `App.jsx` è enorme: orientati con **Grep**, non rileggerlo tutto. I DB inline sono JSON su righe singole lunghissime.
 - Dopo modifiche ai parser delle classi, le classi già importate vanno **reimportate** dal catalogo per avere i campi nuovi.
 - L'indice mostri e i dati del catalogo sono in cache **per-dispositivo** (IndexedDB).
+- **Performance**: NON fare `JSON.parse` di localStorage a ogni render (con ~525 incantesimi importati bloccava la ricerca) → memoizza il caricamento; limita le liste renderizzate (slice).
+- **Collisione slug IT/EN**: inline è in italiano ma con slug inglesi (es. "Palla di Fuoco" → slug `fireball`), come gli importati EN → deduplicare le liste combinate per slug (inline vince) per evitare chiavi React duplicate.
+- Pattern attuale per leggere gli importati: alcune pagine ri-leggono localStorage a ogni apertura (la cache non si aggiorna se importi mentre la pagina è montata; basta rientrare nel tab).
 
 ## Roadmap (prossimo grande step)
 **Supabase**: introdurre un **layer di persistenza unico** (oggi incapsula localStorage, domani Supabase) → sync cross-device + isolamento utente reale + auth vera. Vedi memoria `dnd-master-roadmap`.
