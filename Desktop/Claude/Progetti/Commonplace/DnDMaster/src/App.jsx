@@ -1358,17 +1358,24 @@ function SpellSearch({ onAdd, onClose }) {
     range: "18 m", duration: "Istantanea", components: "V, S", desc: "", higherLevel: ""
   });
 
-  // Read directly from localStorage every time the component renders
-  const importedSpells = (() => {
+  // Carica gli importati una sola volta (evita di ri-parsare ~1MB a ogni tasto)
+  const importedSpells = React.useMemo(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
-  })();
-  const allSpells = [...SPELLS_DB, ...importedSpells];
+  }, []);
+  const allSpells = React.useMemo(() => {
+    const map = new Map();
+    for (const s of [...SPELLS_DB, ...importedSpells]) {
+      const k = s.slug || s.name;
+      if (!map.has(k)) map.set(k, s);
+    }
+    return [...map.values()];
+  }, [importedSpells]);
 
-  const results = allSpells.filter(sp => {
-    const matchQuery = !query || sp.name.toLowerCase().includes(query.toLowerCase());
+  const results = React.useMemo(() => allSpells.filter(sp => {
+    const matchQuery = !query || (sp.name || "").toLowerCase().includes(query.toLowerCase());
     const matchLevel = levelFilter === "" || sp.level === parseInt(levelFilter);
     return matchQuery && matchLevel;
-  }).slice(0, 100);
+  }).slice(0, 100), [allSpells, query, levelFilter]);
 
   const schoolEmoji = { Evocation: "🔥", Abjuration: "🛡", Conjuration: "✨", Divination: "🔮", Enchantment: "💫", Illusion: "👁", Necromancy: "💀", Transmutation: "⚗" };
 
@@ -1403,7 +1410,7 @@ function SpellSearch({ onAdd, onClose }) {
             <div className="overlay-body">
               {results.length === 0 && <div className="empty-state">Nessun risultato per "{query}"</div>}
               {results.map(sp => (
-                <div key={sp.slug} className={`spell-result ${selected?.slug === sp.slug ? "selected" : ""}`} onClick={() => setSelected(selected?.slug === sp.slug ? null : sp)}>
+                <div key={sp.slug || sp.name} className={`spell-result ${selected?.slug === sp.slug ? "selected" : ""}`} onClick={() => setSelected(selected?.slug === sp.slug ? null : sp)}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
                     <strong style={{ color: "var(--gold2)", fontFamily: "'Cinzel', serif", fontSize: "0.85rem" }}>
                       {schoolEmoji[sp.school] || "✦"} {sp.name}
@@ -8333,21 +8340,35 @@ function SpellsPage() {
   const [classFilter, setClassFilter] = React.useState("");
   const [selected, setSelected]     = React.useState(null);
 
-  const importedSpells = (() => {
+  // Carica gli incantesimi importati UNA volta (non a ogni render: con "Importa
+  // tutti" sono ~525, ri-parsare ~1MB a ogni tasto bloccava la ricerca).
+  const importedSpells = React.useMemo(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
-  })();
-  const allSpells = [...SPELLS_DB, ...importedSpells];
+  }, []);
+  // Unisce inline (IT) + importati (EN) deduplicando per slug: la versione
+  // italiana inline vince. Evita chiavi React duplicate (es. "fireball" =
+  // "Palla di Fuoco" inline + "Fireball" importato) che rompevano la lista.
+  const allSpells = React.useMemo(() => {
+    const map = new Map();
+    for (const s of [...SPELLS_DB, ...importedSpells]) {
+      const k = s.slug || s.name;
+      if (!map.has(k)) map.set(k, s);
+    }
+    return [...map.values()];
+  }, [importedSpells]);
 
-  const schools = [...new Set(allSpells.map(s => s.school).filter(Boolean))].sort();
-  const classes = [...new Set(allSpells.flatMap(s => s.classes ? s.classes.split(",").map(c=>c.trim()) : []).filter(Boolean))].sort();
+  const schools = React.useMemo(() => [...new Set(allSpells.map(s => s.school).filter(Boolean))].sort(), [allSpells]);
+  const classes = React.useMemo(() => [...new Set(allSpells.flatMap(s => s.classes ? s.classes.split(",").map(c=>c.trim()) : []).filter(Boolean))].sort(), [allSpells]);
 
-  const results = allSpells.filter(sp => {
-    if (query && !sp.name.toLowerCase().includes(query.toLowerCase())) return false;
+  const results = React.useMemo(() => allSpells.filter(sp => {
+    if (query && !(sp.name || "").toLowerCase().includes(query.toLowerCase())) return false;
     if (levelFilter !== "" && sp.level !== parseInt(levelFilter)) return false;
     if (schoolFilter && sp.school !== schoolFilter) return false;
     if (classFilter && !(sp.classes || "").toLowerCase().includes(classFilter.toLowerCase())) return false;
     return true;
-  });
+  }), [allSpells, query, levelFilter, schoolFilter, classFilter]);
+  const MAX_SHOWN = 200;
+  const shown = results.slice(0, MAX_SHOWN);
 
   const schoolEmoji = { Evocation:"🔥", Abjuration:"🛡", Conjuration:"✨", Divination:"🔮",
     Enchantment:"💫", Illusion:"👁", Necromancy:"💀", Transmutation:"⚗" };
@@ -8374,7 +8395,8 @@ function SpellsPage() {
         </select>
         <span style={{fontSize:"0.7rem",color:"var(--text3)",alignSelf:"center",whiteSpace:"nowrap"}}>
           {results.length} / {allSpells.length}
-          {importedSpells.length > 0 ? ` (+${importedSpells.length} imp.)` : ""}
+          {results.length > MAX_SHOWN ? ` (mostro ${MAX_SHOWN})` : ""}
+          {importedSpells.length > 0 ? ` · +${importedSpells.length} imp.` : ""}
         </span>
       </div>
 
@@ -8388,8 +8410,8 @@ function SpellsPage() {
               Nessun incantesimo trovato
             </div>
           )}
-          {results.map(sp => (
-            <div key={sp.slug} onClick={()=>setSelected(selected?.slug===sp.slug ? null : sp)}
+          {shown.map(sp => (
+            <div key={sp.slug || sp.name} onClick={()=>setSelected(selected?.slug===sp.slug ? null : sp)}
               style={{padding:"9px 12px",borderBottom:"1px solid var(--border)",cursor:"pointer",
                 background: selected?.slug===sp.slug ? "var(--surface2)" : "transparent",
                 borderLeft: selected?.slug===sp.slug ? "3px solid var(--gold)" : "3px solid transparent"}}>
