@@ -3,6 +3,7 @@ import CatalogBrowser from "./CatalogBrowser.jsx";
 import ClassChoices from "./ClassChoices.jsx";
 import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixed, generateHouses, EXTRA_CATEGORIES } from "./nameForge.js";
 import shopExtra from "./shopExtra.json";
+import { DETAILS_EXTRA } from "./detailsExtra.js";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -8674,21 +8675,79 @@ function DescriptionsPage() {
   const [activeCategory, setActiveCategory] = React.useState("luoghi");
   const [activeSub, setActiveSub] = React.useState("foresta");
   const [picks, setPicks] = React.useState([]);
+  const [scene, setScene] = React.useState([]);
   const [copied, setCopied] = React.useState(null);
 
-  React.useEffect(() => {
-    const subs = Object.keys(DETAILS_DB[activeCategory]?.sub || {});
-    if (subs.length > 0) setActiveSub(subs[0]);
-    setPicks([]);
-  }, [activeCategory]);
+  // DETAILS_DB inline + toni extra (sfarzoso/inquietante) mergiati per sotto-categoria
+  const DETAILS = React.useMemo(() => {
+    const out = {};
+    for (const [ck, cat] of Object.entries(DETAILS_DB)) {
+      out[ck] = { ...cat, sub: {} };
+      for (const [sk, sub] of Object.entries(cat.sub)) {
+        out[ck].sub[sk] = { ...sub, ...(DETAILS_EXTRA[ck]?.[sk] || {}) };
+      }
+    }
+    return out;
+  }, []);
 
-  const currentSub = DETAILS_DB[activeCategory]?.sub[activeSub];
-  const currentList = currentSub ? (currentSub[tone] || []) : [];
+  const TONES = [
+    ["classic", "☀ Classico"],
+    ["dark", "🌑 Cupo"],
+    ["sfarzoso", "👑 Sfarzoso"],
+    ["steampunk", "⚙ Steampunk"],
+  ];
+  const TONE_COLORS = {
+    classic:   { accent: "var(--gold)", bg: "rgba(180,140,50,0.10)", border: "var(--gold)",            label: "classico" },
+    dark:      { accent: "#d46060",     bg: "rgba(120,20,20,0.18)",  border: "rgba(200,60,60,0.45)",   label: "cupo" },
+    sfarzoso:  { accent: "#c9a13b",     bg: "rgba(150,110,30,0.16)", border: "rgba(210,170,70,0.55)",  label: "sfarzoso" },
+    steampunk: { accent: "#c98a3a",     bg: "rgba(150,95,40,0.18)",  border: "rgba(190,130,70,0.55)",  label: "steampunk" },
+  };
+
+  // Lista dei dettagli per un tono. Il tono "Cupo" unisce dark (DETAILS_DB) + inquietante (extra).
+  const listFor = (sub, t) => {
+    if (!sub) return [];
+    if (t === "dark") return [...(sub.dark || []), ...(sub.inquietante || [])];
+    return sub[t] || [];
+  };
+
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+
+  React.useEffect(() => {
+    const subs = Object.keys(DETAILS[activeCategory]?.sub || {});
+    if (subs.length > 0) setActiveSub(subs[0]);
+    setPicks([]); setScene([]);
+  }, [activeCategory, DETAILS]);
+
+  const currentSub = DETAILS[activeCategory]?.sub[activeSub];
+  const currentList = listFor(currentSub, tone);
 
   const rollRandom = () => {
     if (currentList.length === 0) return;
-    const shuffled = [...currentList].sort(() => Math.random() - 0.5);
-    setPicks(shuffled.slice(0, 3));
+    setScene([]);
+    setPicks(shuffle(currentList).slice(0, 3));
+  };
+
+  // Componi scena: un dettaglio da ogni categoria ambientale, nel tono corrente
+  // (fallback su 'classic' dove il tono non è ancora disponibile).
+  const SCENE_CATS = ["luoghi", "architettura", "meteo", "suoni", "oggetti"];
+  const composeScene = () => {
+    setPicks([]);
+    const parts = [];
+    for (const ck of SCENE_CATS) {
+      const cat = DETAILS[ck]; if (!cat) continue;
+      const subKeys = Object.keys(cat.sub);
+      const sk = subKeys[Math.floor(Math.random() * subKeys.length)];
+      let list = listFor(cat.sub[sk], tone);
+      if (!list.length) list = cat.sub[sk].classic || [];
+      if (!list.length) continue;
+      const it = list[Math.floor(Math.random() * list.length)];
+      parts.push({ catLabel: cat.label, subLabel: cat.sub[sk].label, key: it.key, note: it.note });
+    }
+    setScene(parts);
   };
 
   const copyText = (text) => {
@@ -8698,9 +8757,9 @@ function DescriptionsPage() {
   };
 
   const isDark = tone === "dark";
-  const accentColor = isDark ? "#d46060" : "var(--gold)";
-  const cardBg = isDark ? "rgba(120,20,20,0.18)" : "rgba(180,140,50,0.10)";
-  const cardBorder = isDark ? "rgba(200,60,60,0.45)" : "var(--gold)";
+  const accentColor = TONE_COLORS[tone].accent;
+  const cardBg = TONE_COLORS[tone].bg;
+  const cardBorder = TONE_COLORS[tone].border;
 
   return (
     <div style={{display:"flex",height:"calc(100vh - 120px)",gap:0,overflow:"hidden"}}>
@@ -8719,16 +8778,16 @@ function DescriptionsPage() {
             fontSize:"0.72rem",fontFamily:"'Cinzel',serif",
             color:"var(--text3)",letterSpacing:"0.1em",marginBottom:8
           }}>TONO</div>
-          <div style={{display:"flex",gap:6}}>
-            {[["classic","☀ Classic"],["dark","🌑 Dark"]].map(([t,label]) => (
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {TONES.map(([t,label]) => (
               <button key={t}
                 onClick={()=>setTone(t)}
                 style={{
-                  flex:1, padding:"5px 4px",
-                  fontSize:"0.82rem", fontFamily:"'Cinzel',serif",
+                  flex:"1 1 calc(50% - 3px)", padding:"5px 4px",
+                  fontSize:"0.78rem", fontFamily:"'Cinzel',serif",
                   cursor:"pointer", borderRadius:4,
-                  border: `1px solid ${tone===t ? "var(--gold)" : "var(--border)"}`,
-                  background: tone===t ? "var(--gold)" : "var(--surface2)",
+                  border: `1px solid ${tone===t ? TONE_COLORS[t].accent : "var(--border)"}`,
+                  background: tone===t ? TONE_COLORS[t].accent : "var(--surface2)",
                   color: tone===t ? "#1a1208" : "var(--text2)",
                   fontWeight: tone===t ? 700 : 400,
                   transition:"all 0.15s",
@@ -8740,7 +8799,7 @@ function DescriptionsPage() {
         </div>
 
         {/* Category tree */}
-        {Object.entries(DETAILS_DB).map(([catKey, cat]) => (
+        {Object.entries(DETAILS).map(([catKey, cat]) => (
           <div key={catKey}>
             <div
               onClick={()=>setActiveCategory(catKey)}
@@ -8783,18 +8842,33 @@ function DescriptionsPage() {
               fontFamily:"'Cinzel',serif", fontSize:"1.1rem",
               color:"var(--gold)", fontWeight:700, letterSpacing:"0.03em"
             }}>
-              {DETAILS_DB[activeCategory]?.label}
+              {DETAILS[activeCategory]?.label}
               <span style={{color:"var(--text3)",margin:"0 8px",fontWeight:400}}>·</span>
               {currentSub?.label}
             </div>
             <div style={{fontSize:"0.82rem",color:"var(--text3)",marginTop:4}}>
-              {currentList.length} dettagli · tono <em style={{color:"var(--text2)"}}>{isDark ? "dark" : "classico"}</em>
+              {currentList.length} dettagli · tono <em style={{color:"var(--text2)"}}>{TONE_COLORS[tone].label}</em>
             </div>
           </div>
           <button
+            onClick={composeScene}
+            style={{
+              marginLeft:"auto", padding:"9px 18px",
+              fontSize:"0.9rem", fontFamily:"'Cinzel',serif",
+              fontWeight:700, letterSpacing:"0.04em",
+              cursor:"pointer", borderRadius:6,
+              background:"transparent", color:accentColor,
+              border:`1px solid ${accentColor}`, transition:"opacity 0.15s",
+            }}
+            onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
+            onMouseLeave={e=>e.currentTarget.style.opacity="1"}
+            title="Compone una scena pescando da luogo, architettura, meteo, suoni/odori, oggetti">
+            🎬 Componi scena
+          </button>
+          <button
             onClick={rollRandom}
             style={{
-              marginLeft:"auto", padding:"9px 20px",
+              marginLeft:10, padding:"9px 20px",
               fontSize:"0.9rem", fontFamily:"'Cinzel',serif",
               fontWeight:700, letterSpacing:"0.04em",
               cursor:"pointer", borderRadius:6,
@@ -8806,6 +8880,27 @@ function DescriptionsPage() {
             🎲 3 spunti casuali
           </button>
         </div>
+
+        {/* Scena composta */}
+        {scene.length > 0 && (
+          <div style={{marginBottom:28}}>
+            <div style={{fontSize:"0.72rem",fontFamily:"'Cinzel',serif",color:"var(--text3)",letterSpacing:"0.12em",marginBottom:12}}>
+              SCENA COMPOSTA · tono {TONE_COLORS[tone].label}
+            </div>
+            <div onClick={()=>copyText(scene.map(p=>`${p.subLabel}: ${p.key} — ${p.note}`).join("\n"))}
+              style={{padding:"16px 18px",borderRadius:8,cursor:"pointer",background:cardBg,border:`1px solid ${cardBorder}`,boxShadow:"0 2px 12px rgba(0,0,0,0.3)"}}>
+              {scene.map((p,i)=>(
+                <div key={i} style={{marginBottom: i<scene.length-1?10:0}}>
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:"0.68rem",color:accentColor,letterSpacing:"0.06em"}}>{p.subLabel.toUpperCase()}</span>
+                  <div style={{fontSize:"0.9rem",color:"var(--text)",lineHeight:1.5}}>
+                    <strong style={{color:accentColor}}>{p.key}</strong> — {p.note}
+                  </div>
+                </div>
+              ))}
+              <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:10}}>tocca per copiare l'intera scena</div>
+            </div>
+          </div>
+        )}
 
         {/* Random picks */}
         {picks.length > 0 && (
@@ -8858,6 +8953,11 @@ function DescriptionsPage() {
         }}>
           LISTA COMPLETA
         </div>
+        {currentList.length === 0 && (
+          <div style={{color:"var(--text3)",fontStyle:"italic",fontSize:"0.85rem",padding:"6px 0",lineHeight:1.5}}>
+            Nessun dettaglio per il tono <em>{TONE_COLORS[tone].label}</em> in questa sotto-categoria.
+          </div>
+        )}
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:10}}>
           {currentList.map((item, i) => {
             const key = `${item.key} — ${item.note}`;
