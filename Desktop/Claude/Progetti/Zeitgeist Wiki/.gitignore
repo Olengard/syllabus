@@ -1,0 +1,14 @@
+# Fonti PDF (materiale protetto da copyright, pesante) — non versionare
+_fonti/
+
+# Vault dei giocatori: è un artefatto generato dallo script di export
+Players/
+
+# Obsidian: workspace e cache locali (config/tema sì, stato volatile no)
+Master/.obsidian/workspace.json
+Master/.obsidian/workspace-mobile.json
+Master/.obsidian/cache/
+
+# Sistema
+.DS_Store
+Thumbs.db
