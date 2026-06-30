@@ -4,6 +4,7 @@ import ClassChoices from "./ClassChoices.jsx";
 import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixed, generateHouses, EXTRA_CATEGORIES } from "./nameForge.js";
 import shopExtra from "./shopExtra.json";
 import { DETAILS_EXTRA } from "./detailsExtra.js";
+import GlobalSearch, { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -1184,7 +1185,7 @@ function EquipmentSearch({ onAdd, onClose }) {
                : allItems;
 
   const results = baseDB.filter(item => {
-    const mQ = !query || item.name.toLowerCase().includes(query.toLowerCase()) || (item.subcategory||"").toLowerCase().includes(query.toLowerCase());
+    const mQ = !query || searchNorm(`${item.name} ${deSlug(item.slug)} ${item.subcategory||""}`).includes(searchNorm(query));
     const mC = !catFilter || item.category === catFilter;
     return mQ && mC;
   }).slice(0, 50);
@@ -1372,7 +1373,7 @@ function SpellSearch({ onAdd, onClose }) {
   }, [importedSpells]);
 
   const results = React.useMemo(() => allSpells.filter(sp => {
-    const matchQuery = !query || (sp.name || "").toLowerCase().includes(query.toLowerCase());
+    const matchQuery = !query || searchNorm(`${sp.name || ""} ${deSlug(sp.slug)}`).includes(searchNorm(query));
     const matchLevel = levelFilter === "" || sp.level === parseInt(levelFilter);
     return matchQuery && matchLevel;
   }).slice(0, 100), [allSpells, query, levelFilter]);
@@ -4256,7 +4257,7 @@ function MonstersPage({ onAddToCombat }) {
   const typeList = [...new Set(listSource.map(m=>m.type))].sort();
 
   const filtered = listSource.filter(m => {
-    const mQ = !query || m.name.toLowerCase().includes(query.toLowerCase());
+    const mQ = !query || searchNorm(`${m.name} ${deSlug(m.slug)}`).includes(searchNorm(query));
     const mCR = !crFilter || m.cr === crFilter;
     const mT = !typeFilter || m.type === typeFilter;
     return mQ && mCR && mT;
@@ -4744,8 +4745,8 @@ function MonsterSearch({ onSelect }) {
 
   const results = React.useMemo(() => {
     if (!q.trim()) return [];
-    const lq = q.toLowerCase();
-    return MONSTERS_DB.filter(m => m.name.toLowerCase().includes(lq)).slice(0, 8);
+    const nq = searchNorm(q);
+    return MONSTERS_DB.filter(m => searchNorm(`${m.name} ${deSlug(m.slug)}`).includes(nq)).slice(0, 8);
   }, [q]);
 
   function pick(m) {
@@ -8363,7 +8364,12 @@ function SpellsPage() {
   const classes = React.useMemo(() => [...new Set(allSpells.flatMap(s => s.classes ? s.classes.split(",").map(c=>c.trim()) : []).filter(Boolean))].sort(), [allSpells]);
 
   const results = React.useMemo(() => allSpells.filter(sp => {
-    if (query && !(sp.name || "").toLowerCase().includes(query.toLowerCase())) return false;
+    // Ponte EN↔IT: cerca anche nello slug inglese (es. "fireball" → Palla di Fuoco)
+    if (query) {
+      const q = searchNorm(query);
+      const hay = searchNorm(`${sp.name || ""} ${deSlug(sp.slug)}`);
+      if (!hay.includes(q)) return false;
+    }
     if (levelFilter !== "" && sp.level !== parseInt(levelFilter)) return false;
     if (schoolFilter && sp.school !== schoolFilter) return false;
     if (classFilter && !(sp.classes || "").toLowerCase().includes(classFilter.toLowerCase())) return false;
@@ -9020,6 +9026,63 @@ function DescriptionsPage() {
   );
 }
 
+// Costruisce l'indice per la ricerca globale (palette ⌘K). Unisce i DB inline
+// (IT, con slug EN) e gli importati (EN); il ponte EN↔IT è gratuito perché lo
+// slug 5e.tools è in inglese (es. "Palla di Fuoco" → slug "fireball").
+function buildSearchEntries(importedSpells) {
+  const entries = [];
+  const push = (type, id, title, en, sub, data, extra = "") => {
+    entries.push({
+      type, id: `${type}:${id}`, title, en, sub, data,
+      _hay: searchNorm([title, en, sub, extra].join(" ")),
+    });
+  };
+
+  // Incantesimi: inline (IT) + importati (EN), dedup per slug (inline vince)
+  const spellMap = new Map();
+  for (const s of [...SPELLS_DB, ...(importedSpells || [])]) {
+    const k = s.slug || s.name;
+    if (!spellMap.has(k)) spellMap.set(k, s);
+  }
+  for (const s of spellMap.values()) {
+    const lvl = s.level === 0 ? "Trucchetto" : `Liv. ${s.level}`;
+    push("spell", s.slug || s.name, s.name, deSlug(s.slug), `${lvl}${s.school ? " · " + s.school : ""}`, s, s.desc);
+  }
+
+  // Mostri: inline + custom/importati per-utente
+  let customMonsters = [];
+  try { customMonsters = JSON.parse(localStorage.getItem(userKey("dnd_custom_monsters_v1")) || "[]"); } catch {}
+  const monMap = new Map();
+  for (const m of [...MONSTERS_DB, ...customMonsters]) {
+    const k = m.slug || m.name;
+    if (!monMap.has(k)) monMap.set(k, m);
+  }
+  for (const m of monMap.values()) {
+    push("monster", m.slug || m.name, m.name, deSlug(m.slug), `GS ${m.cr}${m.type ? " · " + m.type : ""}`, m, m.languages);
+  }
+
+  // Oggetti magici
+  for (const it of MAGIC_ITEMS_DB) {
+    push("magic", it.slug || it.name, it.name, deSlug(it.slug), [it.category, it.rarity].filter(Boolean).join(" · "), it, it.notes);
+  }
+
+  // Oggetti del tab Prezzi (PHB curato IT/EN + ampliamento 5e.tools EN)
+  for (const it of [...SHOP_DB.items, ...shopExtra]) {
+    const costo = it.costo_mo > 0 ? `${it.costo_mo} mo` : it.costo_ma > 0 ? `${it.costo_ma} ma` : "—";
+    push("item", it.id, it.nome, it.en || "", costo, it, it.note);
+  }
+
+  // Regole e condizioni (condizioni già bilingui nel titolo)
+  for (const sec of RULES_DB) {
+    const secName = sec.label.replace(/^\S+\s+/, "");
+    for (const v of sec.voci) {
+      push("rule", `${sec.id}-${v.titolo}`, v.titolo, "", secName, { testo: v.testo, sectionLabel: sec.label }, v.testo);
+    }
+  }
+
+  return entries;
+}
+
 function App() {
   const [characters, setCharacters] = useState([]);
   const [activeId, setActiveId] = useState(null);
@@ -9028,6 +9091,7 @@ function App() {
   const [showRules, setShowRules] = useState(false); // "characters" | "combat" | "monsters"
   const [pendingCombatant, setPendingCombatant] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [importedSpells, setImportedSpells] = useState(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
   });
@@ -9072,6 +9136,25 @@ function App() {
   // importedSpells and importedItems are saved to localStorage inside the import handler directly
   // No useEffect here — it would overwrite localStorage on mount with the initial (possibly empty) state
 
+  // Scorciatoia ricerca globale: Ctrl/Cmd+K
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearch(s => !s);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Indice di ricerca: ricostruito a ogni apertura della palette per riflettere
+  // gli ultimi import (gli incantesimi importati arrivano da stato/localStorage).
+  const searchEntries = React.useMemo(
+    () => (showSearch ? buildSearchEntries(importedSpells) : []),
+    [showSearch, importedSpells]
+  );
+
   const addChar = () => {
     const c = defaultChar();
     setCharacters(cs => [...cs, c]);
@@ -9090,6 +9173,7 @@ function App() {
       <div className="app">
         <div className="header">
           <h1>⚔ D&D Master</h1>
+          <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowSearch(true)} title="Ricerca globale (Ctrl/Cmd+K)">🔍 Cerca</button>
           <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowRules(true)} title="Tabelle di riferimento">📋 Regole</button>
           <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowImport(true)} title="Importa da 5e.tools">
             📥 Importa
@@ -9227,6 +9311,13 @@ function App() {
         </div>
       </nav>
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {showSearch && (
+        <GlobalSearch
+          entries={searchEntries}
+          onClose={() => setShowSearch(false)}
+          onNavigate={(tab) => setMainTab(tab)}
+        />
+      )}
     </>
   );
 }
