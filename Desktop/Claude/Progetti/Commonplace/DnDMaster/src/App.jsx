@@ -5,6 +5,7 @@ import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixe
 import shopExtra from "./shopExtra.json";
 import { DETAILS_EXTRA } from "./detailsExtra.js";
 import GlobalSearch, { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
+import BackupModal from "./BackupRestore.jsx";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -9092,6 +9093,7 @@ function App() {
   const [pendingCombatant, setPendingCombatant] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
   const [importedSpells, setImportedSpells] = useState(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
   });
@@ -9178,6 +9180,7 @@ function App() {
           <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowImport(true)} title="Importa da 5e.tools">
             📥 Importa
           </button>
+          <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowBackup(true)} title="Backup ed esportazione dati">💾 Backup</button>
           <div className="header-tabs">
             <button className={`tab-btn ${mainTab === "characters" ? "active" : ""}`} onClick={() => setMainTab("characters")}>Personaggi</button>
             <button className={`tab-btn ${mainTab === "combat" ? "active" : ""}`} onClick={() => setMainTab("combat")}>⚔ Combattimento</button>
@@ -9317,6 +9320,9 @@ function App() {
           onClose={() => setShowSearch(false)}
           onNavigate={(tab) => setMainTab(tab)}
         />
+      )}
+      {showBackup && (
+        <BackupModal user={getStoredUser()} onClose={() => setShowBackup(false)} />
       )}
     </>
   );
