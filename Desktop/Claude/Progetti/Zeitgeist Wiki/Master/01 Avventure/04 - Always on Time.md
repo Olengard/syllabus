@@ -3,59 +3,83 @@ tipo: avventura
 numero: 4
 titolo: Always on Time
 atto: "Atto I: The Investigation Begins"
-autore: Jacob Driscoll
-data_in_gioco: Inverno 501 a.o.v.
-livello_party: 8
+autore: Jacob Driscoll (con Ryan Nock; 5e: Mike Myler)
+data_in_gioco: Inverno 500-501 a.o.v. (11-16 d'Inverno)
+livello_party: 6-8
 player_safe: false
 tags: [avventura, atto-1]
 ---
 
 # 04 - Always on Time
 
-> Viaggia su un treno pieno di farabutti e impedisci che una potente invenzione finisca in mani nemiche.
+> Sotto copertura su un treno pieno di sospetti, il party spia la cospirazione senza farsi scoprire, per scoprire **chi** gli [[Obscurati]] incontrano al capolinea e **cosa** portano con sé: il [[Wayfarer Lantern]].
 
-## Sintesi
-La corrispondenza di [[Caius Bergeron]] rivela che un raduno di alti [[Obscurati]] attende l'arrivo di un treno in [[Crisillyir]] il 16 d'Inverno. Il party adotta identità di copertura e sale alla stazione più a ovest, sperando di capire chi gli Ob incontrano e perché. Una nave li segue lungo la costa pronta a rinforzarli o coprirne la fuga.
+> ⚠️ **La missione è spionaggio, non battaglia.** Vincere = identificare i cospiratori-chiave e fuggire inosservati. Attaccare apertamente = suicidio (il party è in inferiorità).
 
-La persona d'interesse è il tiefling **[[Luc Jierre]]** — fratello di [[Lya Jierre]] e inventore del **[[Wayfarer Lantern]]** — protetto da guardie del corpo in incognito. In pochi giorni il party deve individuarle tra una folla di personaggi sospetti, mentre il treno attraversa [[Danor]], le Malice Lands, [[Drakr]], una città-stato di maghi e infine Crisillyir. Le due fazioni si spiano a vicenda.
+## Premessa (Background)
+Dalla corrispondenza di [[Caius Bergeron]] (ucciso in [[03 - Digging for Lies]]) il party sa che gli Obscurati si radunano a **Vendricce** ([[Crisillyir]]) il **20 d'Inverno**. Il tiefling **[[Luc Jierre]]** — nipote del Sovrano [[Han Jierre]], fratello di [[Lya Jierre]] — ha appena inventato il **[[Wayfarer Lantern]]** nella zona di magia morta di [[Danor]] (una "camera bianca"), e lo porta per il collaudo finale lungo la **[[Avery Coast Railroad]]**, arrivando a Vendricce il 16. Lì lo attende Lya. Anche Luc sarà giudicato se degno di entrare nella cospirazione.
 
-Tra gli sconosciuti: un clandestino legato a [[Wolfgang von Recklinghausen]], un ricco mediatore che porta una **donna eladrin** verso la schiavitù, una famiglia di mezzorchi "nuovi ricchi" di Ber, un veterano che potrebbe aver incrociato un PG, un pistolero affascinante, un giocatore d'azzardo in fuga e una guardia ferroviaria che ha organizzato una rapina.
+> [!segreto-dm]
+> All'inizio **solo [[Ottavia Sacredote]]** sa degli Obscurati (e crede siano solo illuministi anti-Clergy: ignora Axis Seal, colosso, piano finale). Le guardie di [[Bree Kaldeckis]] (Golden Cell tier 5) e i mercenari sono solo muscoli. Il focus **non è Luc**, ma chi incontra al capolinea. I PG possono spacciarsi per **[[Finona Duvall]]** (la mago-tiefling della lettera di Caius) per infiltrarsi più in fretta.
 
-I divinatori Ob avvertono Luc del party; a una fermata una guardia del corpo li attira con illusioni su un'**isola maledetta** dove la [[The Clergy]] tiene rinchiusi oggetti eretici e impuri. Se cadono nella trappola restano intrappolati, ma possono guadagnarsi l'aiuto di **[[Ashima-Shimtu]]**, demone prigioniero da secoli, che pur non potendo fuggire li aiuta a completare la missione.
+## Struttura
+Prologo (pianificazione) + Atto 1 (il treno, Part 1) + Atti 2-3 (Part 2). *(Il PDF contiene entrambe le parti.)*
 
-Al capolinea, il party può assistere a **Lya che invita Luc nella cospirazione**, prova che [[Lya Jierre]] è una minaccia per [[Risur]]. In una finestra stretta possono rubare il [[Wayfarer Lantern]] e tentare di catturare o uccidere Luc e Lya — ma scatenano una ritorsione enorme, e probabilmente devono lanciare il treno **giù da un ponte a metà** sopra il porto per raggiungere la nave e fuggire.
+### La route del treno (7 fermate, con date)
+| Città | Nazione | Arrivo |
+|---|---|---|
+| **Beaumont** | [[Danor]] (cantieri, ovest) | parte l'11 d'Inverno |
+| **Cherage** | capitale di [[Danor]] (coprifuoco serale) | sera dell'11 |
+| **Orithea** | unica città stabile delle [[Malice Lands]] | 12 |
+| **Trekhom** | capitale di [[Drakr]] | 13 |
+| **Nalaam** | città-casinò dei maghi (tra Drakr e Crisillyir) | 14 |
+| **Sid Minos** | città-isola infestata al largo di [[Crisillyir]] | 15 |
+| **Vendricce** | città-confine con [[Elfaivar]]; **palazzo Ob** | 16, prima del tramonto |
+
+### Prologo — If You Choose to Accept It
+[[Stover Delft]] affida la missione: salire in incognito e cercare chiunque Caius dovesse incontrare. "Non fidatevi di nessuno." Una nave RHC ombreggia il treno lungo la costa (rinforzi/fuga).
+
+### Atto 1 — All Aboard *(Beaumont → Malice Lands)*
+Il party sale e deve **individuare l'entourage di Luc** tra decine di passeggeri. Scene: *Dangerous Waters* (scontro navale con una nave capitanata da un mago del ghiaccio), *Battle of Colmarr's Folly*, *Entering Danor* (magia morta!), *Needle in a Haystack*, notte a *Cherage*, *Into the Malice Lands*, *Aurora over Orithea*, *The Screaming Malice*.
+
+### Atto 2 — *(Trekhom → Nalaam)*
+A **Nalaam** (casinò): *Hobo Maximus*, il salvataggio di una damigella da un trio di maghi in un'arena. Comparse: il filosofo **[[Vlendam Heid]]** (fondatore eschatologista), la Family (Sylvester Fomazelli), riciclatori di oggetti magici.
+
+### Atto 3 — *(Sid Minos → Vendricce)*
+A **Sid Minos**, Luc innesca un'illusione che attira il party sull'**isola maledetta** con la **[[Crypta Hereticarum]]** (vault della [[The Clergy]] per oggetti eretici), dove è imprigionata la demonessa **[[Ashima-Shimtu]]**: non può fuggire, ma può aiutarli. Al capolinea (**Vendricce**) il party assiste a **[[Lya Jierre]] che invita Luc nella cospirazione** — prova del suo tradimento. Possono tentare di rubare il [[Wayfarer Lantern]] e catturare/uccidere Luc e Lya, ma scatenano una ritorsione enorme: probabile fuga lanciando il **treno giù da un ponte a metà** verso la nave.
 
 ## Rivelazione chiave
 Gli Obscurati hanno inventato un dispositivo che **arma l'energia extraplanare** (il [[Wayfarer Lantern]]), e **[[Lya Jierre]]**, promessa sposa del re, è parte del complotto.
 
 ## PNG coinvolti
-- [[Luc Jierre]] — inventore del lantern.
-- [[Lya Jierre]] — recluta il fratello; conferma del coinvolgimento.
-- [[Ashima-Shimtu]] — demone prigioniero alleato (Crypta Hereticarum).
-- [[Ottavia Sacredote]] — promossa alla [[Lantern Cell]] proprio attorno a questa avventura (scorta il lantern).
+**Bersaglio & scorte:** [[Luc Jierre]] · [[Ottavia Sacredote]] (Lantern Cell, scorta di Luc) · [[Bree Kaldeckis]] (Golden Cell, sicurezza) · Olivert Boone (pistolero) · Verzubak Tantalovich (mago della fortuna)
+**Al capolinea:** [[Lya Jierre]] · [[Han Jierre]] (a Cherage) · [[Ashima-Shimtu]] (Crypta)
+**Passeggeri (trame secondarie):** [[Damata Griento]] (mercante orco di Ber) · [[Isobel Travers]] (eladrin da salvare) · Elanor Yanette (trafficante) · [[Andrei von Recklinghausen]] ("Mister Mapple", la Creatura) · Cardiff Hengehill (spia voltagabbana) · Malia Baccarin (guardia traditrice) · [[Vlendam Heid]]
+**Istituzioni:** [[Stover Delft]]
 
 ## Fazioni e fili di trama
-- [[Obscurati]] / [[Lantern Cell]] e [[Golden Cell]].
-- [[The Clergy]] — la **Crypta Hereticarum** (vault di oggetti eretici).
-- Un PG **vekeshi** può salvare la donna eladrin dalla schiavitù (Prestigio [[Unseen Court]]).
+- [[Obscurati]] / [[Lantern Cell]] e [[Golden Cell]] — il **ring code** aiuta a smascherarli (oro=Golden, argento=Lantern; vedi [[Obscurati]]).
+- [[The Clergy]] — la [[Crypta Hereticarum]].
+- Un PG **vekeshi** può salvare **[[Isobel Travers]]** dalla schiavitù (Prestigio [[Unseen Court]]).
 
 ## Luoghi
-- Avery Coast Railroad · [[Danor]] · [[Drakr]] · [[Crisillyir]] · Crypta Hereticarum
+- [[Avery Coast Railroad]] · [[Danor]] · [[Malice Lands]] · [[Drakr]] · [[Crisillyir]] · [[Crypta Hereticarum]] (Sid Minos)
 
 ## Indizi seminati / raccolti
-- Il **[[Wayfarer Lantern]]** e il suo scopo planare.
-- Conferma definitiva su [[Lya Jierre]].
-- Esistenza di [[Ashima-Shimtu]] e della Crypta Hereticarum.
+- Il **[[Wayfarer Lantern]]** e il suo scopo planare (fari-controllo delle masse).
+- Conferma definitiva su **[[Lya Jierre]]**.
+- Esistenza di **[[Ashima-Shimtu]]** e della [[Crypta Hereticarum]].
 
 ## Prestigio
 - **[[Risur (Prestigio)|Risur]]**: completare la missione di spionaggio.
-- **[[Unseen Court]]**: salvare l'eladrin Isobel.
-- **[[The Clergy]]**: intrufolarsi nella Crypta Hereticarum.
+- **[[Unseen Court]]**: salvare l'eladrin [[Isobel Travers]].
+- **[[The Clergy]]**: intrufolarsi nella [[Crypta Hereticarum]].
 
 ## Ganci verso le altre avventure
-- [[Ashima-Shimtu]] e la Crypta tornano in [[08 - Diaspora]].
+- [[Ashima-Shimtu]] e la [[Crypta Hereticarum]] tornano in [[08 - Diaspora]].
 - Il [[Wayfarer Lantern]] è centrale in [[07 - Schism]] (repliche usate da Nicodemus).
 - Conferma su [[Lya Jierre]] → caccia che prosegue in [[06 - Revelations from the Mouth of a Madman]].
+- [[Ottavia Sacredote]] scorta il lantern; [[Andrei von Recklinghausen]] e [[Damata Griento]] ricorrono.
 
 ## Fonti
-- PDF: `_fonti/ZG04_Always_On_Time.pdf`
+- PDF: `_fonti/ZG04_Always_On_Time.pdf` (76 pp., Part 1 + Part 2)
