@@ -1,4 +1,5 @@
 import React from "react";
+import { parseDice, rollDice } from "./DiceTray.jsx";
 
 // ─── Helpers di matching / ponte EN↔IT ──────────────────────────────────────
 // Normalizza per la ricerca: minuscolo, senza accenti, spazi collassati.
@@ -19,14 +20,14 @@ export function deSlug(slug) {
   return slug.replace(/-/g, " ").replace(/\b(imported|custom)\b/g, "").trim();
 }
 
-const TYPE_META = {
+export const TYPE_META = {
   spell:   { icon: "✨", label: "Incantesimo",  tab: "spells",   color: "#7c5cbf" },
   monster: { icon: "🐉", label: "Mostro",       tab: "monsters", color: "#c0392b" },
   magic:   { icon: "💎", label: "Oggetto magico", tab: null,     color: "#2980b9" },
   item:    { icon: "🏪", label: "Oggetto",      tab: "shop",     color: "#16a085" },
   rule:    { icon: "📋", label: "Regola",       tab: null,       color: "#8e44ad" },
 };
-const TYPE_ORDER = ["spell", "monster", "rule", "magic", "item"];
+export const TYPE_ORDER = ["spell", "monster", "rule", "magic", "item"];
 const MAX_PER_GROUP = 10;
 
 // ─── Render dei dettagli per tipo (compatto, per consultazione live) ─────────
@@ -135,7 +136,7 @@ function RuleDetail({ d }) {
   );
 }
 
-function Detail({ entry }) {
+export function Detail({ entry }) {
   const d = entry.data;
   switch (entry.type) {
     case "spell":   return <SpellDetail d={d} />;
@@ -148,12 +149,22 @@ function Detail({ entry }) {
 }
 
 // ─── Componente principale ───────────────────────────────────────────────────
-export default function GlobalSearch({ entries, onClose, onNavigate }) {
+export default function GlobalSearch({ entries, onClose, onNavigate, pinnedIds, onTogglePin, onRoll }) {
   const [query, setQuery] = React.useState("");
   const [sel, setSel] = React.useState(0);
   const [expanded, setExpanded] = React.useState(null);
+  const [lastRoll, setLastRoll] = React.useState(null);
   const inputRef = React.useRef(null);
   const listRef = React.useRef(null);
+
+  // La query è una formula di dadi? (es. "3d6+2") → riga speciale "Tira"
+  const diceValid = React.useMemo(() => parseDice(query) !== null, [query]);
+  const doRoll = () => {
+    const r = rollDice(query);
+    if (!r) return;
+    setLastRoll(r);
+    onRoll?.(r);
+  };
 
   React.useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -186,7 +197,7 @@ export default function GlobalSearch({ entries, onClose, onNavigate }) {
     return { groups, flat };
   }, [results]);
 
-  React.useEffect(() => { setSel(0); setExpanded(null); }, [query]);
+  React.useEffect(() => { setSel(0); setExpanded(null); setLastRoll(null); }, [query]);
 
   const move = (delta) => {
     if (!flat.length) return;
@@ -208,6 +219,7 @@ export default function GlobalSearch({ entries, onClose, onNavigate }) {
     else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
     else if (e.key === "Enter") {
       e.preventDefault();
+      if (diceValid) { doRoll(); return; } // Invio ripetuto = ritira
       const cur = flat[sel];
       if (cur) setExpanded(x => x === cur.id ? null : cur.id);
     }
@@ -247,10 +259,31 @@ export default function GlobalSearch({ entries, onClose, onNavigate }) {
             <div style={{ padding: "28px 16px", textAlign: "center", color: "var(--text3)", fontSize: "0.85rem", lineHeight: 1.7 }}>
               Cerca in tutto il gestionale da qui.<br />
               Funziona in <b>italiano</b> e in <b>inglese</b> (es. <i>fireball</i> → Palla di Fuoco).<br />
+              Digita una formula (es. <i>2d8+3</i>) per <b>tirare i dadi</b> · 📌 aggiunge alla <b>Sessione</b>.<br />
               <span style={{ fontSize: "0.78rem" }}>↑↓ per scorrere · Invio per aprire · Esc per chiudere</span>
             </div>
           )}
-          {query && flat.length === 0 && (
+          {diceValid && (
+            <div onClick={doRoll} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+              cursor: "pointer", borderLeft: "3px solid var(--gold)",
+              background: "var(--surface2)", borderBottom: "1px solid var(--border)",
+            }}>
+              <span style={{ fontSize: "1.2rem" }}>🎲</span>
+              <span style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9rem" }}>
+                Tira {query.toLowerCase().replace(/\s+/g, "")}
+              </span>
+              {lastRoll ? (
+                <span style={{ marginLeft: "auto", display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: "0.72rem", color: "var(--text3)" }}>{lastRoll.breakdown} =</span>
+                  <span style={{ fontSize: "1.3rem", fontWeight: 700, color: "var(--gold2)" }}>{lastRoll.total}</span>
+                </span>
+              ) : (
+                <span style={{ marginLeft: "auto", fontSize: "0.72rem", color: "var(--text3)" }}>Invio per tirare</span>
+              )}
+            </div>
+          )}
+          {query && flat.length === 0 && !diceValid && (
             <div style={{ padding: "28px 16px", textAlign: "center", color: "var(--text3)", fontSize: "0.85rem" }}>
               Nessun risultato per "{query}".
             </div>
@@ -285,6 +318,17 @@ export default function GlobalSearch({ entries, onClose, onNavigate }) {
                           <span style={{ fontSize: "0.76rem", color: "var(--text3)", fontStyle: "italic" }}>{e.en}</span>
                         )}
                         <span style={{ marginLeft: "auto", fontSize: "0.74rem", color: "var(--text3)", whiteSpace: "nowrap" }}>{e.sub}</span>
+                        {onTogglePin && (
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); onTogglePin(e); }}
+                            title={pinnedIds?.has(e.id) ? "Rimuovi dalla Sessione" : "Aggiungi alla Sessione (📌)"}
+                            style={{
+                              background: "none", border: "none", cursor: "pointer", padding: "0 2px",
+                              fontSize: "0.9rem", lineHeight: 1, flexShrink: 0,
+                              opacity: pinnedIds?.has(e.id) ? 1 : 0.35,
+                              filter: pinnedIds?.has(e.id) ? "drop-shadow(0 0 3px rgba(212,168,76,0.8))" : "grayscale(1)",
+                            }}>📌</button>
+                        )}
                       </div>
                       {isOpen && (
                         <div style={{ padding: "4px 16px 14px 20px", borderLeft: `3px solid ${meta.color}`, background: "var(--surface2)" }}>

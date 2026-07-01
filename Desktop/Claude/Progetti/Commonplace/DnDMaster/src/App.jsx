@@ -6,6 +6,8 @@ import shopExtra from "./shopExtra.json";
 import { DETAILS_EXTRA } from "./detailsExtra.js";
 import GlobalSearch, { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
 import BackupModal from "./BackupRestore.jsx";
+import DiceTray from "./DiceTray.jsx";
+import SessionPage from "./SessionPage.jsx";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -1149,6 +1151,36 @@ const styles = `
     .mobile-nav  { display: flex; }
     .header-tabs { display: none !important; }
     .main        { padding-bottom: 70px !important; }
+  }
+
+  /* ── Dadi flottanti (visibili da ogni tab) ── */
+  .dice-fab {
+    position: fixed; bottom: 34px; right: 10px; z-index: 8500;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-size: 1.25rem; cursor: pointer;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.12s, border-color 0.12s;
+  }
+  .dice-fab:hover { transform: scale(1.08); border-color: var(--gold); }
+  .dice-fab-last {
+    position: absolute; top: -6px; right: -6px;
+    background: var(--gold); color: #1a1610;
+    font-size: 0.62rem; font-weight: 700; line-height: 1;
+    min-width: 18px; padding: 3px 4px; border-radius: 9px;
+    font-family: 'Cinzel', serif; text-align: center;
+  }
+  .dice-tray {
+    position: fixed; bottom: 88px; right: 10px; z-index: 8500;
+    width: 268px; max-width: calc(100vw - 20px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  }
+  @media (max-width: 768px) {
+    .dice-fab  { bottom: 68px; }
+    .dice-tray { bottom: 122px; }
   }
 
 `;
@@ -9159,6 +9191,14 @@ function App() {
   const [showImport, setShowImport] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showBackup, setShowBackup] = useState(false);
+  // Elementi pinnati per la sessione (dal 📌 nella palette di ricerca)
+  const [pinned, setPinned] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(userKey("dnd_session_pins_v1")) || "[]"); } catch { return []; }
+  });
+  // Cronologia tiri di dado (sopravvive a un reload accidentale in sessione)
+  const [diceHistory, setDiceHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(userKey("dnd_dice_history_v1")) || "[]"); } catch { return []; }
+  });
   const [importedSpells, setImportedSpells] = useState(() => {
     try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
   });
@@ -9222,6 +9262,33 @@ function App() {
     [showSearch, importedSpells]
   );
 
+  // ── Pin di sessione + dadi ────────────────────────────────────────────────
+  const pinnedIds = React.useMemo(() => new Set(pinned.map(p => p.id)), [pinned]);
+  const togglePin = (entry) => {
+    setPinned(prev => {
+      const exists = prev.some(p => p.id === entry.id);
+      // _hay (testo di ricerca) non serve nel pin salvato
+      const next = exists ? prev.filter(p => p.id !== entry.id) : [...prev, { ...entry, _hay: undefined }];
+      try { safeLsSet(userKey("dnd_session_pins_v1"), JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const clearPins = () => {
+    setPinned([]);
+    try { safeLsSet(userKey("dnd_session_pins_v1"), "[]"); } catch {}
+  };
+  const recordRoll = (r) => {
+    setDiceHistory(prev => {
+      const next = [r, ...prev].slice(0, 30);
+      try { safeLsSet(userKey("dnd_dice_history_v1"), JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+  const clearRolls = () => {
+    setDiceHistory([]);
+    try { safeLsSet(userKey("dnd_dice_history_v1"), "[]"); } catch {}
+  };
+
   const addChar = () => {
     const c = defaultChar();
     setCharacters(cs => [...cs, c]);
@@ -9248,6 +9315,7 @@ function App() {
           <button className="btn btn-sm" style={{fontSize:"0.65rem",marginLeft:8}} onClick={()=>setShowBackup(true)} title="Backup ed esportazione dati">💾 Backup</button>
           <div className="header-tabs">
             <button className={`tab-btn ${mainTab === "characters" ? "active" : ""}`} onClick={() => setMainTab("characters")}>Personaggi</button>
+            <button className={`tab-btn ${mainTab === "session" ? "active" : ""}`} onClick={() => setMainTab("session")}>📌 Sessione{pinned.length ? ` (${pinned.length})` : ""}</button>
             <button className={`tab-btn ${mainTab === "combat" ? "active" : ""}`} onClick={() => setMainTab("combat")}>⚔ Combattimento</button>
             <button className={`tab-btn ${mainTab === "monsters" ? "active" : ""}`} onClick={() => setMainTab("monsters")}>🐉 Mostri</button>
             <button className={`tab-btn ${mainTab === "names" ? "active" : ""}`} onClick={() => setMainTab("names")}>✨ Nomi</button>
@@ -9283,6 +9351,14 @@ function App() {
           )}
           {!loading && mainTab === "characters" && activeChar && (
             <CharacterSheet char={activeChar} onChange={updateChar} onDelete={deleteChar} />
+          )}
+          {!loading && mainTab === "session" && (
+            <SessionPage
+              pinned={pinned}
+              onTogglePin={togglePin}
+              onClearAll={clearPins}
+              onOpenSearch={() => setShowSearch(true)}
+            />
           )}
           {!loading && mainTab === "combat" && (
             <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)} />
@@ -9360,6 +9436,7 @@ function App() {
         <div className="mobile-nav-inner">
           {[
             {id:'characters',  icon:'🧙', label:'Pers.'},
+            {id:'session',     icon:'📌',      label:'Sess.'},
             {id:'combat',      icon:'⚔',      label:'Combat'},
             {id:'monsters',    icon:'🐉',  label:'Mostri'},
             {id:'names',       icon:'✨',      label:'Nomi'},
@@ -9384,11 +9461,15 @@ function App() {
           entries={searchEntries}
           onClose={() => setShowSearch(false)}
           onNavigate={(tab) => setMainTab(tab)}
+          pinnedIds={pinnedIds}
+          onTogglePin={togglePin}
+          onRoll={recordRoll}
         />
       )}
       {showBackup && (
         <BackupModal user={getStoredUser()} onClose={() => setShowBackup(false)} />
       )}
+      <DiceTray history={diceHistory} onRoll={recordRoll} onClear={clearRolls} />
     </>
   );
 }
