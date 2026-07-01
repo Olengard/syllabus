@@ -3082,6 +3082,66 @@ function SubclassPicker({ className, currentSubclass, onApply, onClose }) {
 }
 
 // ─── Character Sheet ──────────────────────────────────────────────────────────
+// Ridimensiona un'immagine caricata a un lato massimo e la comprime in JPEG,
+// così il ritratto in base64 pesa ~30-60KB e non satura la quota di localStorage.
+function resizeImage(file, maxDim = 512, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width >= height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+        else if (height > width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Riquadro ritratto del personaggio (in alto a destra nella scheda).
+function CharacterPortrait({ portrait, onSet }) {
+  const inputRef = React.useRef(null);
+  const [busy, setBusy] = React.useState(false);
+  const pick = () => inputRef.current?.click();
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    try { onSet(await resizeImage(file)); } catch { /* immagine non valida */ }
+    setBusy(false);
+  };
+  return (
+    <div style={{ flexShrink: 0, width: 118, display: "flex", flexDirection: "column", gap: 5 }}>
+      <div onClick={pick} title={portrait ? "Cambia ritratto" : "Carica ritratto"}
+        style={{
+          width: 118, height: 148, borderRadius: 8, cursor: "pointer",
+          border: `1px ${portrait ? "solid" : "dashed"} var(--border2)`,
+          background: portrait ? `center/cover no-repeat url(${portrait})` : "var(--surface3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "var(--text3)", fontSize: "0.72rem", textAlign: "center", overflow: "hidden",
+        }}>
+        {!portrait && (busy ? "…" : <span style={{ lineHeight: 1.7 }}>🖼<br />Ritratto</span>)}
+      </div>
+      {portrait && (
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="btn btn-sm" style={{ flex: 1, fontSize: "0.62rem" }} onClick={pick}>Cambia</button>
+          <button className="btn btn-sm" style={{ fontSize: "0.62rem" }} title="Rimuovi ritratto" onClick={() => onSet("")}>✕</button>
+        </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" onChange={onFile} style={{ display: "none" }} />
+    </div>
+  );
+}
+
 function CharacterSheet({ char, onChange, onDelete }) {
   const [tab, setTab] = useState("stats");
   const [showRacePicker, setShowRacePicker]   = useState(false);
@@ -3232,6 +3292,8 @@ function CharacterSheet({ char, onChange, onDelete }) {
       {/* Character header */}
       <div className="section" style={{ marginBottom: 12 }}>
         <div className="section-content">
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
           <div className="grid-2" style={{ marginBottom: 10 }}>
             <div className="field">
               <label>Nome Personaggio</label>
@@ -3329,6 +3391,9 @@ function CharacterSheet({ char, onChange, onDelete }) {
                 </div>
               );
             })()}
+          </div>
+            </div>
+            <CharacterPortrait portrait={char.portrait} onSet={(p) => update({ portrait: p || "" })} />
           </div>
         </div>
       </div>
