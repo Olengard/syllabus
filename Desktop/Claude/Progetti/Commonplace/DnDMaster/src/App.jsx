@@ -112,9 +112,8 @@ const loadData = async () => {
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 };
-const saveData = async (data) => {
-  try { safeLsSet(userKey(STORAGE_KEY), JSON.stringify(data)); } catch {}
-};
+// NB: il salvataggio dei personaggi è debounced dentro App (vedi flushSave):
+// riserializzare tutti i PG (ritratti base64 inclusi) a ogni battitura è sprecato.
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = `
@@ -9236,9 +9235,39 @@ function App() {
     });
   }, []);
 
+  // ── Salvataggio personaggi con debounce ──────────────────────────────────
+  // Ogni battitura in un campo cambia `characters`: scrivere subito significa
+  // riserializzare tutti i PG (ritratti base64 inclusi) a ogni tasto. Si salva
+  // 400ms dopo l'ultima modifica; flush immediato su chiusura/nascondimento
+  // pagina e su unmount (logout). La chiave utente è catturata al momento
+  // della modifica: al flush l'utente potrebbe essere già sloggato.
+  const saveTimer = React.useRef(null);
+  const pendingSave = React.useRef(null);
+  const flushSave = useCallback(() => {
+    const p = pendingSave.current;
+    if (!p) return;
+    pendingSave.current = null;
+    try { safeLsSet(p.key, JSON.stringify(p.data)); } catch {}
+  }, []);
+
   useEffect(() => {
-    if (!loading) saveData({ characters, activeId });
-  }, [characters, activeId, loading]);
+    if (loading) return;
+    pendingSave.current = { key: userKey(STORAGE_KEY), data: { characters, activeId } };
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(flushSave, 400);
+    return () => clearTimeout(saveTimer.current);
+  }, [characters, activeId, loading, flushSave]);
+
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushSave(); };
+    window.addEventListener("pagehide", flushSave);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flushSave);
+      document.removeEventListener("visibilitychange", onHide);
+      flushSave(); // unmount (es. logout): non perdere l'ultima modifica
+    };
+  }, [flushSave]);
 
   // importedSpells and importedItems are saved to localStorage inside the import handler directly
   // No useEffect here — it would overwrite localStorage on mount with the initial (possibly empty) state
