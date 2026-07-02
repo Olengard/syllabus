@@ -7,7 +7,11 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - `npm run build` — genera `dist/` (PWA con service worker).
 
 ## Struttura file
-- `src/App.jsx` — **monolite (~9k righe)**: tutti i componenti + i DB di gioco inline (`MONSTERS_DB`, `SPELLS_DB`, `EQUIPMENT_DB`, `NAMES_DB`, `SHOP_DB`, `RACES_DB`, `CLASSES_DB`, `DETAILS_DB`, `RULES_DB`). Stili CSS in template string `styles`.
+- `src/App.jsx` — **cuore dell'app (~5.5k righe)**: App/AppRoot/LoginScreen, CharacterSheet (+ picker razza/classe/sottoclasse, equipaggiamento, incantesimi del PG), CombatTracker (+ DiceRoller, incontri), MonstersPage (+ statblock, form, Open5e), EncounterGeneratorPage, Import5eTools (parser 5e.tools), `buildSearchEntries()`.
+- `src/data/` — **DB di gioco puri** (export const, zero logica): `spells` (180), `monsters` (37), `equipment`, `magicItems`, `names`, `races`, `classes`, `details`, `shop`, `rules`.
+- `src/styles.js` — il CSS globale (template string iniettata da App).
+- `src/storage.js` — **helper di persistenza** (`userKey`, `safeLsSet`, `getStoredUser`/`storeUser`/`clearUser`, `migrateLegacyKey`): è il seme del futuro layer Supabase — ogni nuova lettura/scrittura localStorage deve passare da qui.
+- Pagine autonome: `src/NameGenerator.jsx`, `RulesModal.jsx`, `SessionNotesPage.jsx`, `SpellsPage.jsx`, `ShopPage.jsx`, `DescriptionsPage.jsx`.
 - `src/main.jsx` — bootstrap + ErrorBoundary.
 - `src/catalog.js` — fetch dati 5e.tools dal mirror GitHub + cache **IndexedDB**.
 - `src/CatalogBrowser.jsx` — UI "Catalogo online" dentro il modale **📥 Importa** (ricerca per nome, "Importa tutti").
@@ -49,7 +53,7 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - Repo radice in `Desktop/Claude` (remote `github.com/Olengard/syllabus`); DnDMaster è un sottoprogetto. `.gitignore` esclude `node_modules/`, `dist/`, `outputs/`.
 
 ## Gotcha
-- `App.jsx` è enorme: orientati con **Grep**, non rileggerlo tutto. I DB inline sono JSON su righe singole lunghissime.
+- `App.jsx` è ancora grande (~5.5k righe): orientati con **Grep**. I DB in `src/data/` sono su righe singole lunghissime (JSON compattato).
 - Dopo modifiche ai parser delle classi, le classi già importate vanno **reimportate** dal catalogo per avere i campi nuovi.
 - L'indice mostri e i dati del catalogo sono in cache **per-dispositivo** (IndexedDB).
 - **Performance**: NON fare `JSON.parse` di localStorage a ogni render (con ~525 incantesimi importati bloccava la ricerca) → memoizza il caricamento; limita le liste renderizzate (slice).
