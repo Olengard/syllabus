@@ -1,6 +1,10 @@
 # Fonti PDF (materiale protetto da copyright, pesante) — non versionare
 _fonti/
 
+# Allegati: mappe/immagini (spesso estratte dai PDF = protette; pesanti binari)
+# Restano in locale e si sincronizzano fuori da Git. Vedi _scripts/estrai_immagini.py.
+Master/_allegati/
+
 # Vault dei giocatori: è un artefatto generato dallo script di export
 Players/
 

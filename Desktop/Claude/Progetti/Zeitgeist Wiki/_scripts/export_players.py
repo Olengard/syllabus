@@ -28,6 +28,9 @@ SECRET_FM_KEYS = {"obiettivo_reale", "verita", "segreti", "livello_spoiler", "pl
 SECRET_HEADINGS = {"## verità nascoste (dm)", "## verità nascoste",
                    "## cosa è vero (dm)", "## verità (dm)"}
 LINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+# Estensioni trattate come allegati (mappe/immagini/media), non come pagine.
+ATTACH_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp",
+               ".pdf", ".mp3", ".m4a", ".wav", ".ogg", ".mp4", ".webm"}
 
 
 def split_frontmatter(text):
@@ -85,16 +88,48 @@ def strip_secret_callouts(body):
     return "\n".join(out)
 
 
-def resolve_links(text, exported_stems):
+def resolve_links(text, exported_stems, collected_attachments):
+    """Risolve i [[link]] e raccoglie gli allegati referenziati.
+
+    Gira sul body GIÀ ripulito dai callout [!segreto-dm]: quindi ogni embed
+    `![[mappa.png]]` ancora presente è, per costruzione, player-safe."""
     def repl(m):
         raw = m.group(1).replace("\\|", "|")          # pipe escapato nelle tabelle
         parts = raw.split("|")
         target = parts[0].split("#")[0].rstrip("\\").strip()
+        if Path(target).suffix.lower() in ATTACH_EXTS:
+            collected_attachments.add(target)         # allegato: da copiare
+            return m.group(0)                          # embed lasciato intatto
         alias = parts[1].strip() if len(parts) > 1 else target
         if target in exported_stems:
             return m.group(0)          # link valido: lascialo invariato
         return alias                    # pagina segreta/assente: testo semplice
     return LINK_RE.sub(repl, text)
+
+
+def copy_attachments(refs):
+    """Copia in Players/_allegati solo gli allegati referenziati (per basename)."""
+    src_root = MASTER / "_allegati"
+    if not src_root.exists() or not refs:
+        return
+    index = {}
+    for f in src_root.rglob("*"):
+        if f.is_file():
+            index.setdefault(f.name, f)   # basename -> path (prima occorrenza)
+    copied, missing = 0, []
+    for ref in refs:
+        name = Path(ref.split("#")[0]).name
+        src = index.get(name)
+        if not src:
+            missing.append(ref)
+            continue
+        dest = PLAYERS / src.relative_to(MASTER)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        copied += 1
+    print(f"Allegati player-safe copiati: {copied}")
+    if missing:
+        print("  ! referenziati ma non trovati in _allegati:", ", ".join(sorted(missing)))
 
 
 def main():
@@ -117,6 +152,7 @@ def main():
         shutil.rmtree(PLAYERS)
     PLAYERS.mkdir(parents=True)
 
+    attachments = set()          # allegati referenziati da pagine esportate
     for p in safe_files:
         text = p.read_text(encoding="utf-8", errors="replace")
         fm, body = split_frontmatter(text)
@@ -128,12 +164,15 @@ def main():
             text = f"---\n{fm}\n---\n{body}"
         else:
             text = body
-        text = resolve_links(text, exported_stems)
+        text = resolve_links(text, exported_stems, attachments)
 
         rel = p.relative_to(MASTER)
         dest = PLAYERS / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(text, encoding="utf-8")
+
+    # Allegati: solo quelli referenziati FUORI dai callout segreti (già rimossi sopra)
+    copy_attachments(attachments)
 
     # Tema Obsidian (lettura comoda anche per i giocatori)
     theme_src = MASTER / ".obsidian"
