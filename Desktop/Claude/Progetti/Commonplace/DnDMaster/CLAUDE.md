@@ -2,9 +2,10 @@
 
 App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: persistenza su `localStorage` (prefissata per-utente). Offline-first, pensata per tablet.
 
-## Avvio / build
+## Avvio / build / test
 - `npm run dev` — Vite, porta 5175 (incrementa se occupata). Oppure doppio click su `avvia-gestionale.bat`.
 - `npm run build` — genera `dist/` (PWA con service worker).
+- `npm test` — Vitest (51 test sulle funzioni pure: dadi, norm/deSlug, storage). **Lancialo dopo ogni modifica a `DiceTray`, `GlobalSearch`, `storage`** — e aggiungi test se estrai altre funzioni pure (config in `vitest.config.js`, separata da vite.config.js).
 
 ## Struttura file
 - `src/App.jsx` — **cuore dell'app (~5.5k righe)**: App/AppRoot/LoginScreen, CharacterSheet (+ picker razza/classe/sottoclasse, equipaggiamento, incantesimi del PG), CombatTracker (+ DiceRoller, incontri), MonstersPage (+ statblock, form, Open5e), EncounterGeneratorPage, Import5eTools (parser 5e.tools), `buildSearchEntries()`.
