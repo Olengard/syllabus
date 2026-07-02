@@ -47,8 +47,8 @@ Nevard presenta le sue visioni a un enorme comizio (sicurezza quasi impossibile)
 ### Conclusione — Il terremoto e l'arresto
 Le prove (Nevard, Gale, Cippiano, i documenti, gli incendiari) legano **[[Reed Macbannin]]** al complotto. Mentre lo arrestano, i tremori esplodono in un **terremoto**: torrenti di [[Witchoil]] minacciano gli slums di [[The Nettles]]. Il party deve scegliere: **salvare migliaia di vite o catturare Macbannin**. Prima del processo, Macbannin **si suicida in cella**.
 
-## Dettaglio scene (T2 — Prologo e Thread 1)
-*Approfondimento dal PDF "Part One". Threads 2-4 e Climax restano a livello overview finché non arrivano le parti successive.*
+## Dettaglio scene (T2)
+*Il PDF `ZG02_Skyseer.pdf` contiene l'**avventura completa** (Part One+Two+Three, 84 pp.). Il dettaglio tattico scena-per-scena vive nel PDF; qui la scaletta con scene, PNG e luoghi.*
 
 ### Cronologia interna (giorni)
 Inizio: **1° d'Estate**, ore ~11. Eventi a data fissa: **Smuggler's Night** la notte del **4**; i villain trovano [[Wolfgang von Recklinghausen]] il **7** se il party non l'ha già fatto; se il party indugia, il **terremoto** su [[Cauldron Hill]] colpisce il **10**.
@@ -72,6 +72,28 @@ Le connessioni criminali di Nilasa (i vecchi soci **Ford Sorghum** e **Travis St
 - **The House Elf** — un contatto elfico.
 - **Smuggler's Night (notte del 4)** — lo **scontro coi contrabbandieri di bacchette** al **[[Family Wharf]]** nel porto: raffiche di bacchette fuori controllo. Catturati alcuni bravi della [[The Family]].
 - **The Meet-Up / Make Them an Offer** — **[[Morgan Cippiano]]** contatta il party: rilascio dei suoi uomini in cambio di aiuto ("trade favors").
+
+### Thread 2 — Gale *(Part Two)*
+Porta a **[[Heward Sechim]]** (fabbrica di alkahest, dove viveva Nilasa): degli uomini "che puzzano di grasso bruciato" (agenti di [[Lorcan Kell]]) volevano comprare acido di nascosto e minacciano l'incendio. Heward chiede aiuto per contattare il prozio **[[Nevard Sechim]]**.
+- **Fog of War** *(Action/Tactical)* — sulla strada per l'henge di Nevard nel **[[Cloudwood]]**, il party trova una carrozza assediata: non semplici briganti, ma una faida tra i ladri di Kell e i brigand di **[[Renard Woodsman]]**, che hanno rapito la sua amata **Morena**.
+- **All'henge di Nevard** — lo skyseer accetta di dare la visione se scortato su **[[Cauldron Hill]]**; contatto con [[Gale]] (che dona l'incantesimo-scia del [[The Bleak Gate]]).
+- **Cauldron Hill — Take One** — la salita e i primi mostri d'ombra.
+
+### Thread 3 — The Doctor *(Part Two)*
+Caccia a **[[Wolfgang von Recklinghausen]]**, nascosto in una **chiesa abbandonata** a [[The Nettles]]. Contatti: **Camp** e la **Prof.ssa [[Lynn Kindleton]]** (Pardwight, leale a Wolfgang; [[Cillian Creed]] "Officer Porter" la sorveglia).
+- **Theater of Scoundrels** *(Social)* — [[Lorcan Kell]] riceve il party al **[[Lammers Theater]]** (suo covo a Parity Lake): un favore in cambio della posizione del dottore… ma avvisa Creed di tendere l'agguato.
+- **L'agguato** — [[Cillian Creed]] attacca; se fallisce, **[[Leone Quital]]** intrappola il party in un ambiente chiuso minacciando di farlo saltare. I documenti rivelano il **[[Witchoil]]** e la firma di [[Julian LeBrix]].
+
+### Thread 4 — Conspiracy *(Part Three)*
+Convergenza delle prove.
+- **Arson** — gli incendiari [[Eberardo e Valando]] danno fuoco alla fabbrica di [[Heward Sechim]] (per farla comprare a un proxy di Kell). Il party può sventarlo grazie a una visione di Nevard.
+- **Nevard's Rally / Nevard's Vision** — al comizio, **grandi felini infusi d'ombra** colpiscono Nevard: proteggerlo o raccoglierne le ultime parole ("tre sciagure su Cauldron Hill").
+
+### Climax — Macbannin's Manor *(Part Three)*
+Le prove incastrano **[[Reed Macbannin]]**. All'arresto (**Cauldron Hill — Take Two**), il terremoto squarcia la collina: torrenti di [[Witchoil]] minacciano [[The Nettles]]. Scelta: **salvare le vite o catturare Macbannin**.
+
+### Conclusione
+**Abortive Trial** — prima del processo/interrogatorio, Macbannin **si suicida in cella**. Bilancio di Prestigio e ganci verso [[03 - Digging for Lies]].
 
 ## Rivelazione chiave
 Una cospirazione, nascosta nel **[[The Bleak Gate]]**, contrabbanda materiali per un misterioso progetto di costruzione. Vedi [[Indice delle Rivelazioni]] e [[Chi opera nel Bleak Gate]].
