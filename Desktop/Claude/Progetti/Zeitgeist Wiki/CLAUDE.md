@@ -26,8 +26,10 @@ python _scripts/genera_stub.py --dry-run
 python _scripts/controlla.py
 # oppure _scripts/controlla.bat
 
-# Estrarre il testo di un PDF (con TOC) in un file di lavoro, per analizzarlo
-python <scratchpad>/extract.py "_fonti/NOME.pdf" out.txt   # usa fitz (pymupdf)
+# Estrarre il testo di un PDF in un .txt di lavoro NELLO SCRATCHPAD (mai nel vault),
+# con un marcatore per pagina così i grep citano la pagina del PDF:
+#   for i, page in enumerate(doc): out.append(f"\n===== PAGINA {i+1} =====\n" + page.get_text())
+# (usa fitz/pymupdf; script usa-e-getta nello scratchpad di sessione)
 
 # Estrarre mappe/immagini da un PDF in Master/_allegati/<sottocartella>/
 python _scripts/estrai_immagini.py "_fonti/ZG02_Skyseer.pdf" avv02
@@ -38,7 +40,7 @@ Validi una modifica con `controlla.py` (convenzioni spoiler/formato) più, se se
 ## Architettura: due vault, una fonte di verità
 - **`Master/`** — il vault Obsidian completo, **con tutti gli spoiler**. È l'unica cosa che si modifica a mano.
 - **`Players/`** — vault per i giocatori, **generato** da `export_players.py`. Mai modificarlo a mano (viene ricreato da zero a ogni run; è in `.gitignore`).
-- **`_fonti/`** — i PDF delle avventure. **Git-ignored** (pesanti, protetti da copyright). Il contenuto della wiki è **parafrasi/riassunto** del materiale, non riproduzione integrale.
+- **`_fonti/`** — i PDF delle avventure. **Git-ignored** (pesanti, protetti da copyright). Il contenuto della wiki è **parafrasi/riassunto** del materiale, non riproduzione integrale. Vedi *Le fonti PDF* più sotto.
 - **`Master/_allegati/`** — mappe/immagini (spesso estratte dai PDF con `estrai_immagini.py`). **Git-ignored** come `_fonti/`: materiale protetto + binari pesanti → restano in locale, sync fuori da Git. Si incorporano con `![[nome.png]]` (o `![[nome.png|500]]` per la larghezza).
 - **`_scripts/`** — utilità Python + wrapper `.bat`.
 
@@ -56,6 +58,13 @@ Ogni pagina ha nel frontmatter `player_safe: true|false`. I segreti dentro pagin
 
 Conseguenza pratica: quando scrivi una pagina `player_safe: true`, **metti sempre i segreti in un callout `[!segreto-dm]`**, non nel testo normale — vale anche per le mappe "soluzione": `![[dungeon.png]]` dentro il callout resta al master.
 
+## Le fonti PDF (`_fonti/`)
+- **`ZG_players_guide_5th_edition-1.pdf`** (60 pp.) — materiale *player-facing*: la **guida della città di Flint è qui** (Part 3, pp. 2-9: distretti, sindaci, tempi di viaggio, mappa città + subrail), più piani/cosmologia noti ai giocatori e regole RHC.
+- **`ZG_Campaign_guide.pdf`** (27 pp.) — overview da GM: fazioni, celle Ob, sinossi delle 13 avventure. È *corta*: il dettaglio vero sta nei PDF-avventura o nella Player's Guide.
+- **`ZG_1` … `ZG_6`** — le avventure 1-6. Le avventure **7-13 non hanno PDF**: per loro esistono solo le sinossi della Campaign Guide.
+- ⚠️ **ZG02/03/04 sono file COMPLETI** (Part One+Two+Three in un unico PDF), ma il **TOC incorporato si ferma alla Part One** e il frontespizio dice solo "Part One": non fidarsi, verificare con `grep -inE "^part (one|two|three)"` sul testo estratto. (Già costato un errore in una scheda.)
+- Per verificare fatti: estrai il testo nello scratchpad con marcatori `===== PAGINA N =====` (vedi Comandi), poi `grep -in` sul `.txt` — così i riscontri citano la pagina del PDF, da riportare in **Fonti** della scheda.
+
 ## Tassonomia del Master (e perché)
 `00 Indici` (pagine-MOC di navigazione) · `01 Avventure` (1 scheda per avventura, con `data_in_gioco` in a.o.v., `livello_party`, atto, rivelazione, ganci) · `02 Personaggi` · `03 Fazioni` · `04 Luoghi` · `05 Misteri e Indizi` (tracker "cosa sa il party vs. cosa è vero") · `06 Cosmologia e Storia` · `07 Concetti e Regole` · `08 Oggetti e Reliquie` · `09 Sessioni` · `_template` (8 modelli, esclusi dagli script) · `_allegati` (mappe/immagini) · `_stub` (segnaposto generati, da riclassificare).
 
@@ -66,7 +75,7 @@ Conseguenza pratica: quando scrivi una pagina `player_safe: true`, **metti sempr
 ## Convenzioni di scrittura
 - **Lingua:** italiano, **nomi propri in inglese** (allineati ai PDF: Obscurati, Risur, Lya Jierre…).
 - **Date in-fiction:** anni in **a.o.v.** (*After Our Victory*); la campagna va dal 500 al 502 a.o.v.
-- **Sezione "Cronologia delle apparizioni":** ogni scheda di PNG/fazione/luogo/oggetto la ha, e àncora il soggetto alle avventure (es. `**[[05 - Cauldron-Born|Avv. 5]]** — ...`). È il meccanismo che situa temporalmente gli eventi: è la convenzione più importante da mantenere.
+- **Sezione "Cronologia …":** ogni scheda di PNG/fazione/luogo/oggetto ne ha una, e àncora il soggetto alle avventure (es. `**[[05 - Cauldron-Born|Avv. 5]]** — ...`). È il meccanismo che situa temporalmente gli eventi: è la convenzione più importante da mantenere. L'heading varia **di proposito** per tipo di scheda: Personaggi → *"Cronologia delle apparizioni"* · Fazioni → *"Cronologia del coinvolgimento"* · Luoghi → *"Cronologia degli eventi"* · Oggetti → *"Cronologia"*. Non uniformarli.
 - **Link nelle tabelle:** il pipe va **escapato** come `[[Pagina\|alias]]`. Gli script normalizzano `\|`→`|` e tolgono il backslash finale dal target — se modifichi il parsing dei link, preserva questo o ricompariranno falsi "link mancanti".
 - Nuove pagine: parti dal template in `_template/` corrispondente.
 
@@ -80,5 +89,7 @@ Le avventure si approfondiscono per livelli: **T0** sinossi · **T1** struttura 
 
 ## Gotcha
 - `Players/` e `_fonti/` sono in `.gitignore`; non versionarli e non condividere il `Master/`.
+- **`controlla.py` vede solo i leak *strutturali*** (callout mancanti, frontmatter, pipe). I leak **semantici** — uno spoiler scritto in chiaro nel corpo di una pagina `player_safe: true` — non può coglierli: quando tocchi una pagina condivisibile, rileggi il testo *come lo leggerebbe un giocatore*. (È già successo: la vecchia scheda di Flint esportava ai giocatori il segreto del governatore.)
+- I tre script condividono convenzioni **duplicate** (`SECRET_FM_KEYS`, `SECRET_HEADINGS`, `ATTACH_EXTS`, gestione del pipe escapato): se ne modifichi una in `export_players.py`, allineala anche in `controlla.py` e `genera_stub.py`.
 - All'apertura del vault, Obsidian può creare una nota di benvenuto di default (`Benvenuto.md` con `[[crea un collegamento]]`): è rumore, si può cancellare.
 - Bonus futuro (binario separato): estrarre gli statblocchi dei mostri dai PDF → JSON importabili in **DnDMaster**. Serve prima lo schema mostri di quell'app.
