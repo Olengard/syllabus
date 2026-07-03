@@ -21,6 +21,11 @@ python _scripts/genera_stub.py
 python _scripts/genera_stub.py --dry-run
 # oppure _scripts/genera_stub.bat
 
+# Lint anti-spoiler: player_safe mancante, heading segreto senza callout,
+# pipe non escapato nelle tabelle, allegati mancanti (exit 1 se ci sono errori)
+python _scripts/controlla.py
+# oppure _scripts/controlla.bat
+
 # Estrarre il testo di un PDF (con TOC) in un file di lavoro, per analizzarlo
 python <scratchpad>/extract.py "_fonti/NOME.pdf" out.txt   # usa fitz (pymupdf)
 
@@ -28,7 +33,7 @@ python <scratchpad>/extract.py "_fonti/NOME.pdf" out.txt   # usa fitz (pymupdf)
 python _scripts/estrai_immagini.py "_fonti/ZG02_Skyseer.pdf" avv02
 python _scripts/estrai_immagini.py "_fonti/ZG02_Skyseer.pdf" avv02 --pagine 40-60 --min 200 --dry-run
 ```
-Non ci sono build/lint/test: validi una modifica rieseguendo `export_players.py --dry-run` (conteggio pagine player-safe) e `genera_stub.py --dry-run` (link irrisolti).
+Validi una modifica con `controlla.py` (convenzioni spoiler/formato) più, se serve, `export_players.py --dry-run` (conteggio pagine player-safe) e `genera_stub.py --dry-run` (link irrisolti). **Dopo una passata di rifinitura manuale alle pagine, esegui sempre `controlla.py`**: intercetta i segreti finiti per sbaglio fuori dai callout.
 
 ## Architettura: due vault, una fonte di verità
 - **`Master/`** — il vault Obsidian completo, **con tutti gli spoiler**. È l'unica cosa che si modifica a mano.

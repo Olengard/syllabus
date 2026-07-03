@@ -55,10 +55,18 @@ def is_player_safe(text):
 
 
 def filter_frontmatter(fm):
-    out = []
+    """Rimuove i campi segreti, incluse le righe di continuazione dei valori
+    multilinea YAML (blocchi `|`/`>`, liste): righe indentate o `- item`."""
+    out, skipping = [], False
     for line in fm.splitlines():
+        stripped = line.strip()
+        if skipping and (line[:1] in (" ", "\t") or stripped.startswith("- ")
+                         or stripped == ""):
+            continue
+        skipping = False
         key = line.split(":", 1)[0].strip().lower() if ":" in line else ""
         if key in SECRET_FM_KEYS:
+            skipping = True
             continue
         out.append(line)
     return "\n".join(out)
@@ -174,10 +182,13 @@ def main():
     # Allegati: solo quelli referenziati FUORI dai callout segreti (già rimossi sopra)
     copy_attachments(attachments)
 
-    # Tema Obsidian (lettura comoda anche per i giocatori)
+    # Tema Obsidian (lettura comoda anche per i giocatori).
+    # NON copiare workspace*/cache: elencano i file aperti di recente dal
+    # master, cioè anche i titoli delle pagine segrete.
     theme_src = MASTER / ".obsidian"
     if theme_src.exists():
-        shutil.copytree(theme_src, PLAYERS / ".obsidian", dirs_exist_ok=True)
+        shutil.copytree(theme_src, PLAYERS / ".obsidian", dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("workspace*", "cache"))
 
     print(f"\nVault giocatori generato in: {PLAYERS}")
     print("Ricordati di NON versionare Players/ (è già in .gitignore) e di non condividere il vault Master.")
