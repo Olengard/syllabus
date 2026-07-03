@@ -45,12 +45,16 @@ CLASSIFICA = {
 }
 
 LINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+# Estensioni di allegati (mappe/immagini/media): non sono pagine, niente stub.
+# Tenere allineate a export_players.py.
+ATTACH_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp",
+               ".pdf", ".mp3", ".m4a", ".wav", ".ogg", ".mp4", ".webm"}
 
 def page_targets(text):
     for raw in LINK_RE.findall(text):
         raw = raw.replace("\\|", "|")                 # pipe escapato nelle tabelle
         target = raw.split("|")[0].split("#")[0].rstrip("\\").strip()
-        if target:
+        if target and Path(target).suffix.lower() not in ATTACH_EXTS:
             yield target
 
 def main():
