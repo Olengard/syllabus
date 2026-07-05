@@ -41,8 +41,16 @@ I PNG ricorrenti, raggruppati per ruolo. ⭐ = compare in più avventure (vedi l
 - [[Quentin Augst]] — avvocato e consigliere di Kell.
 - ⭐ [[Morgan Cippiano]] — capo di [[The Family]] a Flint (legato segretamente alla [[The Clergy]]).
 
+## Escatologisti (Drakr)
+- ⭐ [[Vlendam Heid]] — il filosofo fondatore; i radicali rovesciano il suo insegnamento.
+- [[Grundun Zubov]] — zelota, capo sul campo dei radicali a Flint (Avv. 5).
+- ⭐ [[Grandis Komanov]] — figura ispiratrice dei radicali; esplode nel tardo arco (Avv. 11).
+- ⭐ [[Kvarti Gorbatiy]] — cecchino mercenario e filosofo sincero; jolly ricorrente (Avv. 3, 5).
+
 ## Outsider e jolly
 - ⭐ [[Benedict Pemberton]] — industriale; in realtà il drago **Gradiax, Lord of Steel**.
 - ⭐ [[Rock Rackus]] — performer popolare, jolly comico ricorrente.
 - [[Nevard Sechim]] — skyseer morente, profeta.
 - [[Duchess Ethelyn]] — sorella traditrice del re (Avventura 1).
+- [[Brakken of Heffanita]] — minotauro di Ber, mediatore del summit di pace (Avv. 5).
+- [[Ashima-Shimtu]] — la demonessa della [[Crypta Hereticarum]] (Avv. 4, 8).
