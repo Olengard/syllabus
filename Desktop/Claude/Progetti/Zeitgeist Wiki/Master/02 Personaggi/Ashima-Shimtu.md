@@ -14,10 +14,15 @@ tags: [png, demone, ricorrente]
 
 # Ashima-Shimtu
 
-> Antica **demonessa** imprigionata da secoli nella **[[Crypta Hereticarum]]**, il vault della [[The Clergy]] per oggetti e creature eretiche/impure, su un'isola maledetta al largo di [[Crisillyir]] (Sid Minos).
+![[avv04_p067_1.png|350]]
+
+> Antica **demonessa** imprigionata da secoli — sospesa a catene sopra una pozza — nella **[[Crypta Hereticarum]]**, il vault della [[The Clergy]] per oggetti e creature eretiche/impure, su un'isola maledetta al largo di [[Crisillyir]] ([[Sid Minos]]).
 
 ## Ruolo
-Vincolata, **non può fuggire da sé**, ma può **aiutare il party** a completare la missione se vi restano intrappolati. Custode di antichi segreti (compreso il passato di [[Kasvarina Varal]] e [[Nicodemus the Gnostic]]).
+Vincolata da magia insormontabile, **non può fuggire da sé**, ma vede in chi la raggiunge un *investimento*: può **aiutare il party** a completare la missione se vi resta intrappolato. Custode di antichi segreti (compreso il passato di [[Kasvarina Varal]] e [[Nicodemus the Gnostic]]).
+
+> [!segreto-dm]
+> In Avv. 4 offre di **teletrasportare il party a [[Vendricce]]**. Chi si immerge nella sua **pozza** per lavarsi del sangue le concede, senza saperlo, un **legame di magia del sangue** — un filo che lei tirerà molto più avanti.
 
 ## Cronologia delle apparizioni
 - **[[04 - Always on Time|Avv. 4]]** — alleata riluttante nella Crypta Hereticarum.
