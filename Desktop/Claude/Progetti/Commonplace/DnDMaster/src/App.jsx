@@ -24,6 +24,7 @@ import SessionNotesPage from "./SessionNotesPage.jsx";
 import SpellsPage from "./SpellsPage.jsx";
 import ShopPage from "./ShopPage.jsx";
 import DescriptionsPage from "./DescriptionsPage.jsx";
+import CampaignPage, { loadCampaign } from "./CampaignPage.jsx";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -5053,6 +5054,14 @@ function buildSearchEntries(importedSpells) {
     push("item", it.id, it.nome, it.en || "", costo, it, it.note);
   }
 
+  // Registro Campagna (PNG/luoghi/fazioni importati dalla wiki + voci manuali)
+  for (const e of loadCampaign()) {
+    const sub = e.fields?.ruolo || e.fields?.categoria || e.tipo;
+    const extra = [e.summary, ...(e.tags || []), ...Object.values(e.fields || {}).flat(),
+      ...(e.sections || []).map(s => s.text)].join(" ");
+    push(e.kind, `${e.kind}-${e.nome}`, e.nome, (e.alias || []).join(", "), sub, e, extra);
+  }
+
   // Regole e condizioni (condizioni già bilingui nel titolo)
   for (const sec of RULES_DB) {
     const secName = sec.label.replace(/^\S+\s+/, "");
@@ -5231,6 +5240,7 @@ function App() {
             <button className={`tab-btn ${mainTab === "session" ? "active" : ""}`} onClick={() => setMainTab("session")}>📌 Sessione{pinned.length ? ` (${pinned.length})` : ""}</button>
             <button className={`tab-btn ${mainTab === "combat" ? "active" : ""}`} onClick={() => setMainTab("combat")}>⚔ Combattimento</button>
             <button className={`tab-btn ${mainTab === "monsters" ? "active" : ""}`} onClick={() => setMainTab("monsters")}>🐉 Mostri</button>
+            <button className={`tab-btn ${mainTab === "campaign" ? "active" : ""}`} onClick={() => setMainTab("campaign")}>🗺 Campagna</button>
             <button className={`tab-btn ${mainTab === "names" ? "active" : ""}`} onClick={() => setMainTab("names")}>✨ Nomi</button>
             <button className={`tab-btn ${mainTab === "descriptions" ? "active" : ""}`} onClick={() => setMainTab("descriptions")}>📖 Descrizioni</button>
             <button className={`tab-btn ${mainTab === "shop" ? "active" : ""}`} onClick={() => setMainTab("shop")}>🏪 Prezzi</button>
@@ -5276,6 +5286,7 @@ function App() {
           {!loading && mainTab === "combat" && (
             <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)} />
           )}
+          {!loading && mainTab === "campaign" && <ErrorBoundary><CampaignPage /></ErrorBoundary>}
           {!loading && mainTab === "shop" && <ShopPage />}
           {!loading && mainTab === "notes" && <SessionNotesPage characters={characters} />}
           {!loading && mainTab === "spells" && <SpellsPage />}
@@ -5352,6 +5363,7 @@ function App() {
             {id:'session',     icon:'📌',      label:'Sess.'},
             {id:'combat',      icon:'⚔',      label:'Combat'},
             {id:'monsters',    icon:'🐉',  label:'Mostri'},
+            {id:'campaign',    icon:'🗺',      label:'Camp.'},
             {id:'names',       icon:'✨',      label:'Nomi'},
             {id:'descriptions',icon:'📖',  label:'Descr.'},
             {id:'shop',        icon:'🏪',  label:'Prezzi'},

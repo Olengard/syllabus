@@ -1,5 +1,6 @@
 import React from "react";
 import { parseDice, rollDice } from "./DiceTray.jsx";
+import { fieldLabel } from "./campaign.js";
 
 // ─── Helpers di matching / ponte EN↔IT ──────────────────────────────────────
 // Normalizza per la ricerca: minuscolo, senza accenti, spazi collassati.
@@ -21,13 +22,17 @@ export function deSlug(slug) {
 }
 
 export const TYPE_META = {
-  spell:   { icon: "✨", label: "Incantesimo",  tab: "spells",   color: "#7c5cbf" },
-  monster: { icon: "🐉", label: "Mostro",       tab: "monsters", color: "#c0392b" },
-  magic:   { icon: "💎", label: "Oggetto magico", tab: null,     color: "#2980b9" },
-  item:    { icon: "🏪", label: "Oggetto",      tab: "shop",     color: "#16a085" },
-  rule:    { icon: "📋", label: "Regola",       tab: null,       color: "#8e44ad" },
+  spell:    { icon: "✨", label: "Incantesimo",  tab: "spells",   color: "#7c5cbf" },
+  monster:  { icon: "🐉", label: "Mostro",       tab: "monsters", color: "#c0392b" },
+  png:      { icon: "🎭", label: "PNG",          tab: "campaign", color: "#c8903a" },
+  luogo:    { icon: "🏰", label: "Luogo",        tab: "campaign", color: "#4e9e62" },
+  fazione:  { icon: "🏛", label: "Fazione",      tab: "campaign", color: "#5a96c8" },
+  campagna: { icon: "🗺", label: "Campagna",     tab: "campaign", color: "#9a8a68" },
+  magic:    { icon: "💎", label: "Oggetto magico", tab: null,     color: "#2980b9" },
+  item:     { icon: "🏪", label: "Oggetto",      tab: "shop",     color: "#16a085" },
+  rule:     { icon: "📋", label: "Regola",       tab: null,       color: "#8e44ad" },
 };
-export const TYPE_ORDER = ["spell", "monster", "rule", "magic", "item"];
+export const TYPE_ORDER = ["spell", "monster", "png", "luogo", "fazione", "campagna", "rule", "magic", "item"];
 const MAX_PER_GROUP = 10;
 
 // ─── Render dei dettagli per tipo (compatto, per consultazione live) ─────────
@@ -127,6 +132,33 @@ function ItemDetail({ d }) {
   );
 }
 
+// Voci del registro Campagna (schede wiki: PNG, luoghi, fazioni, ...)
+function CampaignDetail({ d }) {
+  return (
+    <>
+      {d.summary && (
+        <p style={{ fontSize: "0.84rem", color: "var(--text)", lineHeight: 1.6, margin: "0 0 8px", fontStyle: "italic" }}>
+          {d.summary}
+        </p>
+      )}
+      {d.alias?.length > 0 && <Row label="Alias" value={d.alias.join(", ")} />}
+      {Object.entries(d.fields || {}).map(([k, v]) => (
+        <Row key={k} label={fieldLabel(k)} value={Array.isArray(v) ? v.join(", ") : v} />
+      ))}
+      {(d.sections || []).map((s, i) => (
+        <div key={i} style={{ marginTop: 8 }}>
+          <div style={{ fontSize: "0.7rem", color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+            {s.title}
+          </div>
+          <div style={{ fontSize: "0.8rem", color: "var(--text2)", lineHeight: 1.55, whiteSpace: "pre-line" }}>
+            {s.text}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function RuleDetail({ d }) {
   return (
     <>
@@ -139,12 +171,16 @@ function RuleDetail({ d }) {
 export function Detail({ entry }) {
   const d = entry.data;
   switch (entry.type) {
-    case "spell":   return <SpellDetail d={d} />;
-    case "monster": return <MonsterDetail d={d} />;
-    case "magic":   return <MagicDetail d={d} />;
-    case "item":    return <ItemDetail d={d} />;
-    case "rule":    return <RuleDetail d={d} />;
-    default:        return null;
+    case "spell":    return <SpellDetail d={d} />;
+    case "monster":  return <MonsterDetail d={d} />;
+    case "magic":    return <MagicDetail d={d} />;
+    case "item":     return <ItemDetail d={d} />;
+    case "rule":     return <RuleDetail d={d} />;
+    case "png":
+    case "luogo":
+    case "fazione":
+    case "campagna": return <CampaignDetail d={d} />;
+    default:         return null;
   }
 }
 
