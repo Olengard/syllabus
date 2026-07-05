@@ -31,8 +31,11 @@ export const TYPE_META = {
   magic:    { icon: "💎", label: "Oggetto magico", tab: null,     color: "#2980b9" },
   item:     { icon: "🏪", label: "Oggetto",      tab: "shop",     color: "#16a085" },
   rule:     { icon: "📋", label: "Regola",       tab: null,       color: "#8e44ad" },
+  note:     { icon: "📓", label: "Nota",         tab: "notes",    color: "#b3762e" },
+  encounter:{ icon: "⚡", label: "Incontro",     tab: "combat",   color: "#d44848" },
+  savedname:{ icon: "🏷", label: "Nome salvato", tab: "names",    color: "#7d6e50" },
 };
-export const TYPE_ORDER = ["spell", "monster", "png", "luogo", "fazione", "campagna", "rule", "magic", "item"];
+export const TYPE_ORDER = ["spell", "monster", "png", "luogo", "fazione", "campagna", "note", "encounter", "rule", "magic", "item", "savedname"];
 const MAX_PER_GROUP = 10;
 
 // ─── Render dei dettagli per tipo (compatto, per consultazione live) ─────────
@@ -159,6 +162,33 @@ function CampaignDetail({ d }) {
   );
 }
 
+// Nota di sessione (dati personali)
+function NoteDetail({ d }) {
+  return (
+    <>
+      {d.sessione && <Row label="Sessione" value={d.sessione} />}
+      {d.ts && <Row label="Data" value={new Date(d.ts).toLocaleDateString("it-IT")} />}
+      {d.tags?.length > 0 && <Row label="Tag" value={d.tags.join(", ")} />}
+      <p style={{ fontSize: "0.82rem", color: "var(--text2)", lineHeight: 1.6, marginTop: 8, whiteSpace: "pre-line" }}>{d.testo}</p>
+    </>
+  );
+}
+
+// Incontro salvato (dati personali)
+function EncounterDetail({ d }) {
+  return (
+    <>
+      {d.notes && <p style={{ fontSize: "0.8rem", color: "var(--text2)", lineHeight: 1.55, margin: "0 0 6px" }}>{d.notes}</p>}
+      {(d.enemies || []).map((e, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, fontSize: "0.8rem", lineHeight: 1.6 }}>
+          <span style={{ color: "var(--red2)", fontWeight: 600 }}>{e.name}</span>
+          <span style={{ color: "var(--text3)" }}>PF {e.maxHp} · CA {e.ac}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function RuleDetail({ d }) {
   return (
     <>
@@ -180,6 +210,9 @@ export function Detail({ entry }) {
     case "luogo":
     case "fazione":
     case "campagna": return <CampaignDetail d={d} />;
+    case "note":      return <NoteDetail d={d} />;
+    case "encounter": return <EncounterDetail d={d} />;
+    case "savedname": return d.sub ? <Row label="Origine" value={d.sub} /> : null;
     default:         return null;
   }
 }

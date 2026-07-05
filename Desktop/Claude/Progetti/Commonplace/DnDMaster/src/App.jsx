@@ -1773,6 +1773,27 @@ function CharacterPortrait({ portrait, onSet }) {
   );
 }
 
+// Autocompilazione attacco scegliendo un'arma del DB nel form (stessa logica
+// dell'auto-attacco da equipaggiamento: "accurata" → max(FOR,DES), a distanza
+// → DES, bonus competenza incluso). Il nome resta libero per attacchi custom.
+const WEAPON_SUGGEST = EQUIPMENT_DB.filter(i => i.category === "Arma" && i.damage);
+function weaponToAttack(item, char) {
+  const strMod = Math.floor(((char.abilities?.STR || 10) - 10) / 2);
+  const dexMod = Math.floor(((char.abilities?.DEX || 10) - 10) / 2);
+  const isFinesse = (item.properties || []).some(p => p.toLowerCase().includes("accurata"));
+  const isRanged = (item.subcategory || "").toLowerCase().includes("distanza");
+  const atkMod = isFinesse ? Math.max(strMod, dexMod) : isRanged ? dexMod : strMod;
+  const profBonus = Math.ceil((char.level || 1) / 4) + 1;
+  return {
+    name: item.name,
+    atkBonus: (atkMod + profBonus >= 0 ? "+" : "") + (atkMod + profBonus),
+    dmgDice: item.damage,
+    dmgBonus: String(atkMod),
+    dmgType: item.damageType || "",
+    notes: (item.properties || []).join(", "),
+  };
+}
+
 function CharacterSheet({ char, onChange, onDelete }) {
   const [tab, setTab] = useState("stats");
   const [showRacePicker, setShowRacePicker]   = useState(false);
@@ -1927,7 +1948,16 @@ function CharacterSheet({ char, onChange, onDelete }) {
             <div style={{ flex: 1, minWidth: 0 }}>
           <div className="grid-2" style={{ marginBottom: 10 }}>
             <div className="field">
-              <label>Nome Personaggio</label>
+              <label>Nome Personaggio
+                <span
+                  onClick={() => update({ inspiration: !char.inspiration })}
+                  title={char.inspiration ? "Ha l'ispirazione — click per consumarla" : "Concedi ispirazione"}
+                  style={{ cursor: "pointer", marginLeft: 8, fontSize: "0.9rem",
+                    opacity: char.inspiration ? 1 : 0.3,
+                    filter: char.inspiration ? "drop-shadow(0 0 4px rgba(212,168,76,0.8))" : "grayscale(1)" }}>
+                  ⭐{char.inspiration ? " Ispirazione" : ""}
+                </span>
+              </label>
               <input value={char.name} onChange={e => update({ name: e.target.value })} style={{ fontSize: "1.1rem", fontFamily: "'Cinzel', serif", color: "var(--gold2)" }} />
             </div>
             <div className="field">
@@ -2152,12 +2182,21 @@ function CharacterSheet({ char, onChange, onDelete }) {
                   }}>+ Aggiungi</button>
                 </div>
                 <div className="grid-3" style={{ marginBottom: 8 }}>
-                  <input placeholder="Nome attacco" value={newAttack.name} onChange={e => setNewAttack(a => ({ ...a, name: e.target.value }))} />
+                  <input placeholder="Nome attacco (o arma dal DB…)" list="weapon-suggest" value={newAttack.name}
+                    onChange={e => {
+                      const v = e.target.value;
+                      // Arma nota selezionata/digitata per intero → autocompila i campi
+                      const w = WEAPON_SUGGEST.find(i => i.name.toLowerCase() === v.toLowerCase());
+                      setNewAttack(a => w ? { ...a, ...weaponToAttack(w, char) } : { ...a, name: v });
+                    }} />
+                  <datalist id="weapon-suggest">
+                    {WEAPON_SUGGEST.map(i => <option key={i.slug} value={i.name} />)}
+                  </datalist>
                   <input placeholder="Bonus attacco (es +5)" value={newAttack.atkBonus} onChange={e => setNewAttack(a => ({ ...a, atkBonus: e.target.value }))} />
                   <input placeholder="Dado danno (es 1d8)" value={newAttack.dmgDice} onChange={e => setNewAttack(a => ({ ...a, dmgDice: e.target.value }))} />
                 </div>
                 <div className="grid-3" style={{ marginBottom: 10 }}>
-                  <input placeholder="Bonus danno" value={newAttack.atkBonus2} onChange={e => setNewAttack(a => ({ ...a, dmgBonus: e.target.value }))} />
+                  <input placeholder="Bonus danno" value={newAttack.dmgBonus} onChange={e => setNewAttack(a => ({ ...a, dmgBonus: e.target.value }))} />
                   <select value={newAttack.dmgType} onChange={e => setNewAttack(a => ({ ...a, dmgType: e.target.value }))}>
                     <option value="">Tipo danno...</option>
                     {DAMAGE_TYPES.map(t => <option key={t}>{t}</option>)}
@@ -5070,6 +5109,21 @@ function buildSearchEntries(importedSpells) {
     }
   }
 
+  // Dati personali: note di sessione, incontri salvati, nomi salvati
+  const loadLs = (key) => { try { return JSON.parse(localStorage.getItem(userKey(key)) || "[]"); } catch { return []; } };
+  for (const n of loadLs("dnd_session_notes")) {
+    const title = (n.testo || "").slice(0, 60) + ((n.testo || "").length > 60 ? "…" : "");
+    push("note", n.id, title || "Nota", "", (n.tags || []).join(" · "), n, n.testo);
+  }
+  for (const enc of loadLs("dnd_encounters_v2")) {
+    const sub = `${(enc.enemies || []).length} nemici`;
+    push("encounter", enc.id, enc.name || "Scontro", "", sub, enc,
+      [enc.notes, ...(enc.enemies || []).map(e => e.name)].join(" "));
+  }
+  for (const sn of loadLs("dnd_saved_names")) {
+    push("savedname", sn.id || sn.name, sn.name, "", sn.sub || "", sn, "");
+  }
+
   return entries;
 }
 
@@ -5254,6 +5308,7 @@ function App() {
           <div className="char-list">
             {characters.map(c => (
               <div key={c.id} className={`char-chip ${c.id === activeId ? "active" : ""}`} onClick={() => setActiveId(c.id)}>
+                {c.inspiration && <span title="Ispirazione" style={{ marginRight: 3 }}>⭐</span>}
                 {c.name}
                 {c.level ? <span style={{ marginLeft: 4, opacity: 0.6 }}>Lv{c.level}</span> : null}
               </div>
@@ -5281,6 +5336,10 @@ function App() {
               onTogglePin={togglePin}
               onClearAll={clearPins}
               onOpenSearch={() => setShowSearch(true)}
+              characters={characters}
+              onUpdateCharacters={(updated) => {
+                setCharacters(cs => cs.map(c => updated.find(u => u.id === c.id) || c));
+              }}
             />
           )}
           {!loading && mainTab === "combat" && (
