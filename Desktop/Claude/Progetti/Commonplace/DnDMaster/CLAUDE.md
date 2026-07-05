@@ -12,7 +12,8 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - `src/data/` — **DB di gioco puri** (export const, zero logica): `spells` (180), `monsters` (37), `equipment`, `magicItems`, `names`, `races`, `classes`, `details`, `shop`, `rules`.
 - `src/styles.js` — il CSS globale (template string iniettata da App).
 - `src/storage.js` — **helper di persistenza** (`userKey`, `safeLsSet`, `getStoredUser`/`storeUser`/`clearUser`, `migrateLegacyKey`): è il seme del futuro layer Supabase — ogni nuova lettura/scrittura localStorage deve passare da qui.
-- Pagine autonome: `src/NameGenerator.jsx`, `RulesModal.jsx`, `SessionNotesPage.jsx`, `SpellsPage.jsx`, `ShopPage.jsx`, `DescriptionsPage.jsx`.
+- Pagine autonome: `src/NameGenerator.jsx`, `RulesModal.jsx`, `SessionNotesPage.jsx`, `SpellsPage.jsx`, `ShopPage.jsx`, `DescriptionsPage.jsx`, `CampaignPage.jsx`.
+- `src/campaign.js` — **registro Campagna** (puro, testato): parser delle schede markdown della wiki Obsidian (frontmatter YAML → voce con riassunto/campi/sezioni). Il tab 🗺 Campagna importa i `.md` (multi-selezione), le voci finiscono in ⌘K (tipi 🎭/🏰/🏛/🗺) e nei pin di Sessione. Chiave `dnd_campaign_v1`. Whitelist `IMPORT_TIPI`; le voci `manual: true` non vengono sovrascritte dagli import.
 - `src/main.jsx` — bootstrap + ErrorBoundary.
 - `src/catalog.js` — fetch dati 5e.tools dal mirror GitHub + cache **IndexedDB**.
 - `src/CatalogBrowser.jsx` — UI "Catalogo online" dentro il modale **📥 Importa** (ricerca per nome, "Importa tutti").
