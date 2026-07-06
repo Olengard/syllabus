@@ -988,7 +988,22 @@ export const styles = `
     .field label { font-size: 0.75rem !important; margin-bottom: 5px; }
 
     .header h1    { font-size: 1.15rem !important; }
-    .header-tabs  { gap: 4px; }
+
+    /* Header su due righe: titolo+azioni sopra, tab sotto a tutta larghezza
+       (scorrevoli in orizzontale se non entrano) */
+    .header { flex-wrap: wrap; row-gap: 8px; padding-bottom: 8px; }
+    .header-tabs {
+      gap: 4px;
+      width: 100%; order: 10;
+      overflow-x: auto; overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .header-tabs::-webkit-scrollbar { display: none; }
+    .tab-btn { white-space: nowrap; flex-shrink: 0; }
+
+    /* Lo spazio di lavoro usa tutta la larghezza del tablet */
+    .main { max-width: none; }
   }
 
   /* Solo in portrait: colonna singola nei grid doppi */
