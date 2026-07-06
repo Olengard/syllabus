@@ -5388,7 +5388,13 @@ function App() {
             })();
           }}
           onImportItems={(items) => {
-            setImportedItems(s => [...s, ...items]);
+            setImportedItems(s => {
+              const map = {};
+              for (const it of [...s, ...items]) map[it.slug || it.name] = it;
+              const merged = Object.values(map);
+              try { safeLsSet(userKey("dnd_imported_items"), JSON.stringify(merged)); } catch {}
+              return merged;
+            });
           }}
           onImportClasses={(classes) => {
             const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]"); } catch { return []; } })();

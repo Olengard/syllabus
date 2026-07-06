@@ -143,7 +143,10 @@ export default function CampaignPage() {
             <button onClick={() => setReport(null)} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer" }}>✕</button>
           </div>
         )}
-        {showManual && <ManualForm onAdd={(e) => persist(mergeCampaignEntries(entries, []).concat([e]))} onClose={() => setShowManual(false)} />}
+        {showManual && <ManualForm onAdd={(e) => {
+          // la nuova voce manuale sostituisce un'eventuale omonima (evita chiavi duplicate)
+          persist([...entries.filter(x => !(x.kind === e.kind && x.nome.toLowerCase() === e.nome.toLowerCase())), e]);
+        }} onClose={() => setShowManual(false)} />}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <input placeholder="🔍 Cerca nome, alias, tag, testo..." value={query} onChange={e => setQuery(e.target.value)} style={{ flex: 1, minWidth: 180 }} />
           {["all", ...KINDS].map(k => (
