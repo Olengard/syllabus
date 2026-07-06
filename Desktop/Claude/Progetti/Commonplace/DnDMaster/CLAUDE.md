@@ -17,6 +17,9 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - La palette ⌘K indicizza anche i **dati personali**: note di sessione (📓), incontri salvati (⚡), nomi salvati (🏷) — letti da localStorage in `buildSearchEntries` a ogni apertura.
 - Il tab 📌 Sessione ha un **cruscotto** (`SessionDashboard` in SessionPage.jsx): orologio di gioco in-game (chiave `dnd_game_clock_v1`, helper puri `advanceClock`/`clockTime` testati) + riposo lungo (PF/slot/TS morte del party, +8h) e breve (+PF per PG, +1h). Riceve `characters`/`onUpdateCharacters` da App.
 - Scheda PG: ⭐ ispirazione (toggle accanto al nome, campo `char.inspiration`, stella sui chip); form attacchi con **datalist armi** da `EQUIPMENT_DB` (`weaponToAttack`: accurata→max(FOR,DES), distanza→DES, competenza inclusa) — il nome libero resta per attacchi custom.
+- Scheda PG: **BackgroundPicker** (background importati → nome + competenze skill via mappa `SKILL_EN_TO_IT`, campo libero invariato); allineamento con datalist dei 9 classici; **CARATTERISTICHE DI CLASSE filtrate per sottoclasse** (i privilegi delle altre sottoclassi sono esclusi dal blocco base confrontando i nomi con `subclassFeaturesByLevel`) con pin ★ → blocco "IN EVIDENZA" a descrizione completa (`char.pinnedFeatures`).
+- `src/encounter.js` — **coerenza tematica del generatore incontri** (puro, testato): `canonMonsterType` (tipi IT inline + EN importati), `TYPE_AFFINITY` (àncora + tipi affini: demoni+cultisti, drago+servitori, branchi omogenei...), `TERRAIN_CANON`. Il generatore sceglie un'àncora e completa solo con tipi affini.
+- Catalogo (`CatalogBrowser`): segna "✓ importato" leggendo l'archivio locale (`loadImportedNames`, match per nome), bottone ↻ per reimportare, "Importa mancanti (N)" salta i già presenti.
 - `src/main.jsx` — bootstrap + ErrorBoundary.
 - `src/catalog.js` — fetch dati 5e.tools dal mirror GitHub + cache **IndexedDB**.
 - `src/CatalogBrowser.jsx` — UI "Catalogo online" dentro il modale **📥 Importa** (ricerca per nome, "Importa tutti").
@@ -64,6 +67,9 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - **Performance**: NON fare `JSON.parse` di localStorage a ogni render (con ~525 incantesimi importati bloccava la ricerca) → memoizza il caricamento; limita le liste renderizzate (slice).
 - **Collisione slug IT/EN**: inline è in italiano ma con slug inglesi (es. "Palla di Fuoco" → slug `fireball`), come gli importati EN → deduplicare le liste combinate per slug (inline vince) per evitare chiavi React duplicate.
 - Pattern attuale per leggere gli importati: alcune pagine ri-leggono localStorage a ogni apertura (la cache non si aggiorna se importi mentre la pagina è montata; basta rientrare nel tab).
+- **Un solo dev server**: se la 5175 risponde già (avvia-gestionale.bat dell'utente), NON avviarne un secondo — due watcher Vite sulla stessa cartella confliggono e quello perdente serve moduli stantii con status 200. Se "non vedo la modifica" con build/test verdi: `curl localhost:PORTA/src/File.jsx | grep <codice nuovo>`.
+- I **dati importati vecchi** possono avere forme diverse da quelle attese (es. razze con `abilityScoreIncrease` stringa invece di `abilityBonuses` oggetto): quando cambi un parser, aggiungi la conversione di compatibilità nel punto di lettura (vedi `parseAsiLegacy`) e normalizza alla forma dei dati inline.
+- Il bump tablet (`@media max-width:1400px`) imposta padding/min-height dei `.btn` con `!important`: gli stili inline compatti nei componenti vengono scavalcati — serve una regola CSS con specificità maggiore (vedi `.dice-tray .btn`).
 
 ## Roadmap (prossimo grande step)
 **Supabase**: introdurre un **layer di persistenza unico** (oggi incapsula localStorage, domani Supabase) → sync cross-device + isolamento utente reale + auth vera. Vedi memoria `dnd-master-roadmap`.
