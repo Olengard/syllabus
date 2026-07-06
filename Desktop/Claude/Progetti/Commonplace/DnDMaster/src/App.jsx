@@ -57,6 +57,21 @@ const SKILLS = [
   { name: "Religione", ability: "INT" }, { name: "Rappresentazione", ability: "CHA" },
   { name: "Sopravvivenza", ability: "WIS" }, { name: "Storia", ability: "INT" },
 ];
+// Skill 5e.tools (EN) → nomi italiani dell'app: usata dal BackgroundPicker
+// per applicare le competenze dei background importati.
+const SKILL_EN_TO_IT = {
+  "athletics": "Atletica", "acrobatics": "Acrobazia", "sleight of hand": "Rapidità di Mano",
+  "stealth": "Furtività", "arcana": "Arcano", "history": "Storia", "investigation": "Indagare",
+  "nature": "Natura", "religion": "Religione", "animal handling": "Addestrare Animali",
+  "insight": "Intuizione", "medicine": "Medicina", "perception": "Percezione",
+  "survival": "Sopravvivenza", "deception": "Inganno", "intimidation": "Intimidazione",
+  "performance": "Rappresentazione", "persuasion": "Persuasione",
+};
+const ALIGNMENTS = [
+  "Legale Buono", "Neutrale Buono", "Caotico Buono",
+  "Legale Neutrale", "Neutrale", "Caotico Neutrale",
+  "Legale Malvagio", "Neutrale Malvagio", "Caotico Malvagio",
+];
 const DAMAGE_TYPES = ["Perforante","Tagliente","Contundente","Fuoco","Freddo","Fulmine","Acido","Veleno","Necrotico","Radiante","Psichico","Forza","Tuono"];
 const SIZES = ["Minuscolo","Piccolo","Medio","Grande","Enorme","Mastodontico"];
 
@@ -1073,9 +1088,18 @@ function Import5eTools({ onImportMonsters, onImportSpells, onImportItems, onImpo
         languages: Array.isArray(r.languageProficiencies)
           ? Object.keys(r.languageProficiencies[0]||{}).join(", ")
           : "Comune",
-        abilityScoreIncrease: r.ability
-          ? r.ability.map(a => Object.entries(a).map(([k,v])=>`${k.toUpperCase()} +${v}`).join(", ")).join("; ")
-          : "",
+        // Stesso formato delle razze inline: oggetto {STR:2, ...} + __choose
+        // per i bonus a scelta (era una stringa: crashava picker e applyRace)
+        abilityBonuses: (() => {
+          const out = {};
+          for (const a of r.ability || []) {
+            for (const [k, v] of Object.entries(a)) {
+              if (k === "choose") out.__choose = true;
+              else if (typeof v === "number") out[k.toUpperCase()] = v;
+            }
+          }
+          return out;
+        })(),
         traits: (r.entries||[]).filter(e=>e.name).map(e=>({
           name: e.name, desc: entriesToText(e.entries||[])
         })),
@@ -1301,9 +1325,13 @@ function RacePicker({ currentRace, onApply, onClose }) {
           name: ir.name,
           size: ir.size || "Medio",
           speed: ir.speed || 30,
-          languages: ir.languages || "Comune",
-          abilityScoreIncrease: ir.abilityScoreIncrease || {},
+          // stessa forma delle razze inline: languages array, resistances/darkvision presenti
+          languages: Array.isArray(ir.languages) ? ir.languages
+            : ir.languages ? String(ir.languages).split(/,\s*/) : ["Comune"],
+          abilityBonuses: ir.abilityBonuses || parseAsiLegacy(ir.abilityScoreIncrease),
           traits: ir.traits || [],
+          resistances: ir.resistances || [],
+          darkvision: ir.darkvision || 0,
           source: ir.source,
           _imported: true,
         }));
@@ -1343,10 +1371,10 @@ function RacePicker({ currentRace, onApply, onClose }) {
               <div className="rc-detail-section">
                 <div className="rc-detail-section-title">BONUS CARATTERISTICHE</div>
                 <div className="rc-ab-bonus">
-                  {Object.entries(sel.abilityBonuses).filter(([k])=>!k.startsWith("__")).map(([ab,v])=>(
+                  {Object.entries(sel.abilityBonuses || {}).filter(([k])=>!k.startsWith("__")).map(([ab,v])=>(
                     <span key={ab} className="rc-ab-chip">{abLabels[ab]||ab} +{v}</span>
                   ))}
-                  {Object.keys(sel.abilityBonuses).some(k=>k.startsWith("__")) && (
+                  {Object.keys(sel.abilityBonuses || {}).some(k=>k.startsWith("__")) && (
                     <span className="rc-ab-chip" style={{borderColor:"var(--text3)",color:"var(--text3)"}}>+1 a due a scelta</span>
                   )}
                 </div>
@@ -1355,11 +1383,11 @@ function RacePicker({ currentRace, onApply, onClose }) {
               {/* Languages */}
               <div className="rc-detail-section">
                 <div className="rc-detail-section-title">LINGUE</div>
-                <div style={{fontSize:"0.78rem",color:"var(--text2)"}}>{sel.languages.join(", ")}</div>
+                <div style={{fontSize:"0.78rem",color:"var(--text2)"}}>{Array.isArray(sel.languages) ? sel.languages.join(", ") : sel.languages}</div>
               </div>
 
               {/* Resistances */}
-              {sel.resistances.length > 0 && (
+              {(sel.resistances || []).length > 0 && (
                 <div className="rc-detail-section">
                   <div className="rc-detail-section-title">RESISTENZE</div>
                   <div style={{fontSize:"0.78rem",color:"var(--blue2)"}}>{sel.resistances.join(", ")}</div>
@@ -1369,7 +1397,7 @@ function RacePicker({ currentRace, onApply, onClose }) {
               {/* Traits */}
               <div className="rc-detail-section">
                 <div className="rc-detail-section-title">TRATTI RAZZIALI</div>
-                {sel.traits.map((t,i)=>(
+                {(sel.traits || []).map((t,i)=>(
                   <div key={i} className="rc-trait">
                     <span className="rc-trait-name">{t.name}. </span>
                     <span className="rc-trait-desc">{t.desc}</span>
@@ -1548,6 +1576,116 @@ function ClassPicker({ currentClass, currentLevel, onApply, onClose }) {
   );
 }
 
+
+// ─── Background Picker ────────────────────────────────────────────────────────
+// Sceglie tra i background importati da 5e.tools e applica nome + competenze
+// (skill EN → IT via SKILL_EN_TO_IT). Il campo testo resta libero per i
+// background costruiti ad hoc.
+function BackgroundPicker({ currentBackground, onApply, onClose }) {
+  const [query, setQuery] = React.useState("");
+  const backgrounds = React.useMemo(() => {
+    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_backgrounds")) || "[]"); }
+    catch { return []; }
+  }, []);
+  const [sel, setSel] = React.useState(
+    backgrounds.find(b => b.name === currentBackground) || null
+  );
+
+  const filtered = React.useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return q ? backgrounds.filter(b => (b.name || "").toLowerCase().includes(q)) : backgrounds;
+  }, [backgrounds, query]);
+
+  // Skill del background selezionato, tradotte (null = non mappabile)
+  const selSkills = React.useMemo(() => {
+    if (!sel?.skills) return [];
+    return sel.skills.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+      .map(en => ({ en, it: SKILL_EN_TO_IT[en] || null }));
+  }, [sel]);
+
+  return (
+    <div className="overlay" onClick={onClose} onTouchEnd={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="overlay-panel rc-overlay-panel" onClick={e=>e.stopPropagation()} onTouchEnd={e=>e.stopPropagation()}>
+        <div className="overlay-header">
+          <span className="overlay-title">🎭 Scegli Background</span>
+          <button className="btn btn-sm" onClick={onClose}>✕</button>
+        </div>
+        {backgrounds.length === 0 ? (
+          <div style={{padding:"24px 16px",textAlign:"center",color:"var(--text3)",fontSize:"0.85rem",lineHeight:1.7}}>
+            Nessun background importato.<br/>
+            Importali da <b>📥 Importa → 🌐 Catalogo → Background</b>,<br/>
+            oppure scrivi il background a mano nel campo della scheda.
+          </div>
+        ) : (
+        <div className="rc-grid">
+          <div className="rc-list" style={{display:"flex",flexDirection:"column"}}>
+            <input placeholder="🔍 Cerca..." value={query} onChange={e=>setQuery(e.target.value)}
+              style={{margin:"6px 8px",fontSize:"0.8rem"}} autoFocus />
+            <div style={{flex:1,overflowY:"auto"}}>
+              {filtered.map(b => (
+                <div key={b.name} className={`rc-list-item ${sel?.name===b.name?"active":""}`}
+                  onClick={()=>setSel(b)}>
+                  {b.name}
+                  {b.source && <span style={{fontSize:"0.62rem",color:"var(--text3)",marginLeft:5}}>{b.source}</span>}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div style={{padding:"12px",fontSize:"0.75rem",color:"var(--text3)"}}>Nessun risultato.</div>
+              )}
+            </div>
+          </div>
+          <div className="rc-detail">
+            {!sel ? (
+              <div style={{padding:24,color:"var(--text3)",fontSize:"0.82rem"}}>Seleziona un background dalla lista.</div>
+            ) : (<>
+              <div className="rc-detail-title">{sel.name}</div>
+              {sel.source && <div className="rc-detail-sub">{sel.source}</div>}
+
+              {selSkills.length > 0 && (
+                <div className="rc-detail-section">
+                  <div className="rc-detail-section-title">COMPETENZE (applicate alla scheda)</div>
+                  <div className="rc-ab-bonus">
+                    {selSkills.map(({ en, it }) => (
+                      <span key={en} className="rc-ab-chip"
+                        style={it ? {} : {borderColor:"var(--text3)",color:"var(--text3)"}}
+                        title={it ? "" : "Skill a scelta: spuntala a mano nella scheda"}>
+                        {it || (en === "choose" || en === "any" ? "a scelta" : en)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {sel.feature && (
+                <div className="rc-detail-section">
+                  <div className="rc-detail-section-title">PRIVILEGIO</div>
+                  <div style={{fontSize:"0.78rem",color:"var(--text2)",lineHeight:1.5}}>
+                    {sel.feature.replace(/^Feature:\s*/i, "")}
+                  </div>
+                </div>
+              )}
+
+              <button className="rc-apply-btn" onClick={()=>onApply(sel, selSkills.map(s=>s.it).filter(Boolean))}>
+                ✦ Applica Background alla Scheda
+              </button>
+            </>)}
+          </div>
+        </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Compat: le razze importate prima del fix salvavano i bonus caratteristica
+// come stringa ("STR +2, CHA +1"); questa le converte nell'oggetto atteso.
+function parseAsiLegacy(s) {
+  const out = {};
+  if (typeof s !== "string") return out;
+  for (const m of s.matchAll(/([A-Z]{3})\s*\+(\d+)/g)) out[m[1]] = +m[2];
+  if (/choose/i.test(s)) out.__choose = true;
+  return out;
+}
 
 // ─── Subclass Picker ──────────────────────────────────────────────────────────
 function SubclassPicker({ className, currentSubclass, onApply, onClose }) {
@@ -1799,6 +1937,7 @@ function CharacterSheet({ char, onChange, onDelete }) {
   const [showRacePicker, setShowRacePicker]   = useState(false);
   const [showClassPicker, setShowClassPicker] = useState(false);
   const [showSubclassPicker, setShowSubclassPicker] = useState(false);
+  const [showBgPicker, setShowBgPicker] = useState(false);
   const [collapsed, setCollapsed] = useState({});
   const [showSpellSearch, setShowSpellSearch] = useState(false);
 
@@ -1877,7 +2016,7 @@ function CharacterSheet({ char, onChange, onDelete }) {
   const applyRace = (raceData) => {
     const patch = { race: raceData.name, speed: raceData.speed, size: raceData.size };
     const newAbilities = { ...char.abilities };
-    Object.entries(raceData.abilityBonuses).forEach(([ab, bonus]) => {
+    Object.entries(raceData.abilityBonuses || {}).forEach(([ab, bonus]) => {
       if (!ab.startsWith("__") && newAbilities[ab] !== undefined)
         newAbilities[ab] = Math.min(20, (newAbilities[ab] || 10) + bonus);
     });
@@ -1939,6 +2078,15 @@ function CharacterSheet({ char, onChange, onDelete }) {
         />
       )}
       {showRacePicker && <ErrorBoundary><RacePicker currentRace={char.race} onApply={applyRace} onClose={()=>setShowRacePicker(false)} /></ErrorBoundary>}
+      {showBgPicker && <ErrorBoundary><BackgroundPicker currentBackground={char.background}
+        onApply={(bg, skillsIT) => {
+          // applica nome + competenze (senza degradare esperto/metà già presenti)
+          const skills = { ...char.skills };
+          for (const it of skillsIT) if (!skills[it]) skills[it] = "full";
+          update({ background: bg.name, skills });
+          setShowBgPicker(false);
+        }}
+        onClose={()=>setShowBgPicker(false)} /></ErrorBoundary>}
       {showClassPicker && <ErrorBoundary><ClassPicker currentClass={char.class} currentLevel={char.level} onApply={applyClass} onClose={()=>setShowClassPicker(false)} /></ErrorBoundary>}
 
       {/* Character header */}
@@ -2019,8 +2167,23 @@ function CharacterSheet({ char, onChange, onDelete }) {
                 )}
               </div>
             </div>
-            <div className="field"><label>Background</label><input value={char.background} onChange={e => update({ background: e.target.value })} /></div>
-            <div className="field"><label>Allineamento</label><input value={char.alignment} onChange={e => update({ alignment: e.target.value })} /></div>
+            <div className="field">
+              <label>Background
+                <span className="rc-auto-badge" style={{cursor:"pointer",marginLeft:6}} onClick={()=>setShowBgPicker(true)}>scegli</span>
+              </label>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <input value={char.background} onChange={e => update({ background: e.target.value })}
+                  placeholder="Digita o clicca 'scegli'" style={{flex:1}} />
+                <button className="btn btn-sm" onClick={()=>setShowBgPicker(true)} title="Scegli tra i background importati">🎭</button>
+              </div>
+            </div>
+            <div className="field"><label>Allineamento</label>
+              <input value={char.alignment} onChange={e => update({ alignment: e.target.value })}
+                list="alignment-suggest" placeholder="Clicca per i 9 classici, o digita" />
+              <datalist id="alignment-suggest">
+                {ALIGNMENTS.map(a => <option key={a} value={a} />)}
+              </datalist>
+            </div>
 
             {/* Race/Class quick-info strip — works for DB picks AND manual entry */}
             {(() => {
@@ -2262,7 +2425,8 @@ function CharacterSheet({ char, onChange, onDelete }) {
         const skills      = dbClass?.skills      ?? char.classSkills      ?? [];
         const skillChoices= dbClass?.skillChoices ?? 2;
         const spellAbil   = dbClass?.spellcasting ?? char.spellcastingAbility ?? null;
-        const languages   = dbRace?.languages    ?? char.raceLanguages    ?? [];
+        const languagesRaw = dbRace?.languages   ?? char.raceLanguages    ?? [];
+        const languages   = Array.isArray(languagesRaw) ? languagesRaw : [String(languagesRaw)];
         const traits      = dbRace?.traits       ?? char.raceTraits       ?? [];
         const darkvision  = dbRace?.darkvision   ?? char.raceDarkvision   ?? 0;
         const resistances = dbRace?.resistances  ?? char.raceResistances  ?? [];
