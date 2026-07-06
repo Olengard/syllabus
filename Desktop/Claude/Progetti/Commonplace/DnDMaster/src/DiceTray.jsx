@@ -66,10 +66,13 @@ export function rollAdvantage(kind, bonus = 0) {
 const QUICK = [4, 6, 8, 10, 12, 20, 100];
 
 // ─── Vassoio dadi flottante (visibile da ogni tab) ───────────────────────────
+const MULTS = [1, 2, 3, 4, 5, 6, 8, 10];
+
 export default function DiceTray({ history, onRoll, onClear }) {
   const [open, setOpen] = React.useState(false);
   const [expr, setExpr] = React.useState("");
   const [err, setErr] = React.useState(false);
+  const [mult, setMult] = React.useState(1); // quanti dadi al tap (es. ×3 + d6 = 3d6)
   const inputRef = React.useRef(null);
 
   const doRoll = (e) => {
@@ -100,11 +103,29 @@ export default function DiceTray({ history, onRoll, onClear }) {
             <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "var(--text2)", fontSize: "1.05rem", cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
 
+          {/* moltiplicatore: ×3 poi tap su d6 = 3d6 (resta attivo per ritirare) */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 6, alignItems: "center" }}>
+            <span style={{ fontSize: "0.66rem", color: "var(--text3)", flexShrink: 0 }}>N°</span>
+            {MULTS.map(m => (
+              <button key={m} onClick={() => setMult(m)}
+                style={{
+                  flex: 1, minWidth: 0, padding: "3px 0", fontSize: "0.7rem", cursor: "pointer",
+                  borderRadius: 5, lineHeight: 1.4,
+                  border: `1px solid ${mult === m ? "var(--gold)" : "var(--border)"}`,
+                  background: mult === m ? "var(--gold)" : "var(--surface2)",
+                  color: mult === m ? "#1a1208" : "var(--text2)",
+                  fontWeight: mult === m ? 700 : 400,
+                }}>{m}</button>
+            ))}
+          </div>
+
           {/* dadi rapidi */}
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
             {QUICK.map(s => (
-              <button key={s} className="btn btn-sm" style={{ flex: 1, minWidth: 36, fontSize: "0.68rem", padding: "4px 2px" }}
-                onClick={() => doRoll(`d${s}`)}>d{s}</button>
+              <button key={s} className="btn btn-sm dice-quick-btn" style={{ flex: 1, minWidth: 36 }}
+                onClick={() => doRoll(`${mult > 1 ? mult : ""}d${s}`)}>
+                {mult > 1 ? `${mult}d${s}` : `d${s}`}
+              </button>
             ))}
           </div>
 

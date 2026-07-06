@@ -1076,6 +1076,16 @@ export const styles = `
     border-radius: 10px; padding: 12px;
     box-shadow: 0 8px 30px rgba(0,0,0,0.6);
   }
+  /* Bottoni del vassoio dadi: compatti e centrati anche col bump tablet
+     (che imposta padding/min-height dei .btn con !important) */
+  .dice-tray .btn {
+    display: flex; align-items: center; justify-content: center;
+    padding: 8px 4px !important;
+    min-height: 38px !important;
+    font-size: 0.74rem !important;
+    white-space: nowrap;
+  }
+
   @media (max-width: 768px) {
     .dice-fab  { bottom: 68px; }
     .dice-tray { bottom: 122px; }
