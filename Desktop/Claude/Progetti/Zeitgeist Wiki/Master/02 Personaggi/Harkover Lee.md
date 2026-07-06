@@ -22,6 +22,7 @@ tags: [png, risur, drago, ricorrente]
 
 ## Cronologia delle apparizioni
 - **[[01 - The Island at the Axis of the World|Avv. 1]]** — al fianco del re; prima apparizione.
+- **[[05 - Cauldron-Born|Avv. 5]]** — tenta invano di sciogliere il geas sul golem di [[Alexander Grappa]] (13° livello contro un vincolo da 17°, opera di [[Kasvarina Varal]]).
 - **Personaggio ricorrente** come massimo consigliere della corona.
 
 ## Fonti

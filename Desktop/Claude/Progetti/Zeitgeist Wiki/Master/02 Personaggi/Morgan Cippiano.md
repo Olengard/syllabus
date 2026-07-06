@@ -21,6 +21,7 @@ tags: [png, criminalità, ricorrente]
 
 ## Cronologia delle apparizioni
 - **[[02 - The Dying Skyseer|Avv. 2]]** — dopo lo scontro coi contrabbandieri, contatta il party e offre aiuto in cambio del rilascio dei suoi uomini. **Contatto ricorrente** da qui in poi (vedi [[The Family]]).
+- **[[05 - Cauldron-Born|Avv. 5]]** — *Enemy of My Enemy Is My Family*: offre al party l'aiuto della Family contro la [[Kell Guild]] (accettare = Prestigio Family +1; a gilda caduta, la malavita di Flint è sua).
 
 ## Fonti
 - `_fonti/ZG02_Skyseer.pdf` (pp. 4, 13); `_fonti/ZG_Campaign_guide.pdf` (p. 11)

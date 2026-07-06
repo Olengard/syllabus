@@ -25,6 +25,7 @@ Da secoli alimenta il **risentimento eterno** degli eladrin sopravvissuti verso 
 
 ## Cronologia delle apparizioni
 - **[[01 - The Island at the Axis of the World|Avv. 1]]** — invia il marito [[Asrabey Varal]] a zittire la [[Duchess Ethelyn]] (regia invisibile).
+- **[[05 - Cauldron-Born|Avv. 5]]** — **smemorata** (da [[Alexander Grappa]], 9 mesi prima), custodita nella stanza 20 del [[Cauldron Hill Complex]]; [[Asrabey Varal]] la salva nel crollo e la nasconde nel [[The Dreaming]].
 - **[[07 - Schism|Avv. 7]]** — rivelata come ex co-leader capace di unire gli Ob contro Nicodemus.
 - **[[08 - Diaspora|Avv. 8]]** — **protagonista**: il party la guida (amnesica) attraverso la sua storia e quella della caduta eladrin, fino al luogo della Grande Malizia.
 

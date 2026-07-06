@@ -26,7 +26,7 @@ tags: [avventura, atto-1]
 > - I nodi del negoziato: lo [[Yerasol Archipelago]], i brevetti industriali, e lo **scambio di prigionieri** ([[Nathan Jierre]] e [[Duchess Ethelyn]]!).
 
 ## Struttura
-Prologo (*Meet the King*) + **Atto 1 in tre fili paralleli** + banchetto (*The Etiquette of Gustatory Interrogation*) + spedizione nel Bleak Gate e battaglia finale. *(Attenzione: i tre PDF-installment "Part One/Two/Three" NON coincidono coi capitoli interni — la Part Two contiene i fili 1-2, la Part Three il filo 3 + banchetto + climax.)*
+Prologo (*Meet the King*) + **Atto 1 in tre fili paralleli** + **Atto 2** banchetto (*The Etiquette of Gustatory Interrogation*) + **Atto 3** spedizione nel Bleak Gate (*Expedition to the Bleak Gate*) + **Atto 4** battaglia finale (*To Battle a Colossus*). *(Attenzione: il PDF ha **QUATTRO** installment — "Part One/Two/Three/Four" — e non coincidono coi capitoli interni: la Part Two contiene i fili 1-2, la Part Three il filo 3 + banchetto + spedizione, la Part Four la battaglia.)*
 
 ### Cronologia degli eventi programmati (8-14 di Primavera 501)
 | Giorno | Eventi |
@@ -40,19 +40,30 @@ Prologo (*Meet the King*) + **Atto 1 in tre fili paralleli** + banchetto (*The E
 | **14** | Mezzanotte: il **rituale del re** apre il varco per il [[The Bleak Gate]] (se il party non ha già trovato la via di Kell) |
 
 ### Filo 1 — The Downfall of Kell
-Task force di polizia (liaison: Sgt. Deb Macon) contro la [[Kell Guild]]. Scene: *What You Gonna Do When They Come for You?* · *Enemy of My Enemy Is My Family* (**[[Morgan Cippiano]] offre l'aiuto della [[The Family]]** — la guerra di territorio dura da un anno) · *Sunset Bench* · *Duke of Slaughter* ([[Lorcan Kell]] nel suo teatro) · *Interrogation*. Nella gilda: il luogotenente Rufus Hammerton, la talpa della Family **Dester Rathnine**, e **Sylyx** ("Norm"), il liaison Obscurati.
+Task force di polizia (liaison: Sgt. Deb Macon) contro la [[Kell Guild]]. Scene: *What You Gonna Do When They Come for You?* · *Enemy of My Enemy Is My Family* (**[[Morgan Cippiano]] offre l'aiuto della [[The Family]]** — la guerra di territorio dura da un anno) · *Sunset Bench* (il club-copertura, sera del 10, con Brakken e la B-Team dentro) · l'**opera** (sera dell'11): l'occasione di prendere **[[Quentin Augst]]**, l'avvocato-monocolo che tiene i conti della gilda · *Duke of Slaughter* ([[Lorcan Kell]] nel suo covo-quartier generale, il **Theater of Scoundrels**; se non preso, lo lascia alle 3:00 del 13) · *Interrogation*. Nella gilda: il luogotenente Rufus Hammerton, la talpa della Family **Dester Rathnine**, e **Sylyx** ("Norm"), il liaison Obscurati.
 
 ### Filo 2 — One Season Slain
-[[Ekossigan]], lord dell'[[Unseen Court]], ha guardato troppo a fondo nel Bleak Gate (ha udito le **anime bruciate come carburante** nelle forge Ob) ed è impazzito: vuole distruggere le fabbriche della cospirazione, ma per entrare nel Bleak Gate deve compiere un atto orrendo — **impiccare 31 bambini a un albero centenario** (*Gallo's School for Boys*). Il party aiuta [[Asrabey Varal]] a fermarlo. Scene: *Following Fey* · *Casing the Cloudwood* · *Her Majesty, Princess Fairy Dust* · *It Takes a Gremlin* · *Torches and Pitchforks* · *Spring Returns to Winter*. Contatti fey: il "Vecchio Cervo" (Rear Admiral Morris Dawkins), la pixie-spia Mugwort nell'RHC, la hag Trash Heap della discarica.
+[[Ekossigan]], lord dell'[[Unseen Court]], ha guardato troppo a fondo nel Bleak Gate (ha udito le **anime bruciate come carburante** nelle forge Ob) ed è impazzito: vuole distruggere le fabbriche della cospirazione, ma per entrare nel Bleak Gate deve compiere un atto orrendo — **impiccare 31 bambini a un albero centenario**. Il bersaglio è la **Gallo's School for Boys**: orfanotrofio fondato cent'anni fa nel sud-est del [[Cloudwood]], costruito *sull'albero stesso* (logo: un albero con un libro al posto della chioma). Ekossigan vi ha ucciso adulti e maestri e vi tiene corte coi bambini prigionieri; indizi: un **bimbo già impiccato e reciso** trovato a miglia di distanza, e una **pioggerella perenne** nel mezzo miglio attorno al suo umore. **Deadline: mezzanotte del 12.** Il party aiuta [[Asrabey Varal]] a fermarlo. Scene: *Following Fey* · *Casing the Cloudwood* · *Her Majesty, Princess Fairy Dust* · *It Takes a Gremlin* (l'interrogatorio del gremlin: con Asrabey presente, Prestigio effettivo 15) · *Torches and Pitchforks* · *Gallo's School for Boys* · *Spring Returns to Winter* (Ekossigan scatena la tempesta di ghiaccio e prova ad abbattere l'albero-orfanotrofio). Contatti fey: il "Vecchio Cervo" (Rear Admiral Morris Dawkins), la pixie-spia Mugwort nell'RHC, la hag Trash Heap della discarica.
+
+![[avv05_p057_1.png|500]]
 
 ### Filo 3 — Eschatological Terrorists
-I **Discepoli di Heid Eschatol**, nani radicali guidati dallo zelota **[[Grundun Zubov]]** (figura ispiratrice a distanza: [[Grandis Komanov]]), non "si preparano alla fine" — vogliono **farla accadere**: bombe, cecchini, il più grande attentato mai visto a Risur, per far saltare il summit. Il cecchino ingaggiato, **[[Kvarti Gorbatiy]]**, ha ripensamenti (*Kvarti Talks*: può diventare la crepa nel piano). Scene: *Investigating Zubov* · *Beasts of the End Time* · *Hostage Situation* · *Subrail Assault*. **Non sono affiliati agli Ob.**
+I **Discepoli di Heid Eschatol**, nani radicali guidati dallo zelota **[[Grundun Zubov]]** (figura ispiratrice a distanza: [[Grandis Komanov]]), non "si preparano alla fine" — vogliono **farla accadere**: bombe, cecchini, il più grande attentato mai visto a Risur, per far saltare il summit. Il cecchino ingaggiato, **[[Kvarti Gorbatiy]]**, ha ripensamenti (*Kvarti Talks*: può diventare la crepa nel piano). Scene: *Investigating Zubov* · *Beasts of the End Time* · *Hostage Situation* · *Subrail Assault* (mappa sotto). **Non sono affiliati agli Ob.**
 
-### Il banchetto e la spedizione
-*The Banquet* (13 sera): il party a tavola con Han, Lya e i dignitari (occasione d'oro per l'inganno sociale — e un red herring: tra Cippiano e Leone, "forse la cospirazione è crisillyira"). Poi *Pick Your Team* → *Into the Gate* (rituale del re) → *Toll Bridge* → l'ingresso del complesso → *Welcome to My Parlor* (**[[Leone Quital]]**; nella stanza 20, dietro gli arazzi, **[[Kasvarina Varal]]**) → *Villainous Victory* (se il party perde, Leone gongola — ma l'attivazione del colosso gli impedisce di ucciderli) → *Borne to be Wild*: **[[Borne]] si attiva**, squarcia la montagna, e **[[Lorcan Kell]] attacca il party nel caos** (se non è già stato preso). [[Alexander Grappa]] (golem di bronzo) può placare i golem-fratelli e parlare al colosso; Leone gli strappa un braccio. **Leone e Grappa cadono nel pozzo: morte ambigua** (torneranno in [[07 - Schism]]).
+![[avv05_p071_1.png|500]]
 
-### La battaglia di Bosum Strand
-*Regroup Time* (sessione d'emergenza all'Hotel Aurum) → **[[Borne]] in furia attraverso [[Flint]]** verso la flotta nel porto. Il party lo attira verso il mare e resiste mentre **[[King Aodhan]] compie il rituale che lo bandisce nel [[The Dreaming]]** — soluzione temporanea. [[Asrabey Varal]] fugge con [[Kasvarina Varal]], nascondendola nel Dreaming.
+### Atto 2 — Il banchetto
+*The Banquet* (13 sera): il party a tavola con Han, Lya e i dignitari (occasione d'oro per l'inganno sociale — e un red herring: tra Cippiano e Leone, "forse la cospirazione è crisillyira"). È qui che si costruisce il rapporto con la capitana danorana **Rosalyn Taylor** — che pagherà all'Atto 4.
+
+### Atto 3 — Expedition to the Bleak Gate
+*Pick Your Team* (vie d'accesso: la **rotta del canale** di Kell o il varco rituale del re) → *Into the Gate* → *Toll Bridge* → il **[[Cauldron Hill Complex]]** (mappa sotto: quattro ingressi — Canal, West Nettles, South Nettles, Parity Lake Dock — e la camera del colosso col pozzo di [[Witchoil]] da 200 piedi) → *Welcome to My Parlor* (**[[Leone Quital]]**; nella stanza 20, dietro gli arazzi, **[[Kasvarina Varal]]**) → *Villainous Victory* (se il party perde, Leone gongola — ma l'attivazione del colosso gli impedisce di ucciderli; **non rivela mai Stanfield né l'Axis Seal**) → *Borne to be Wild*: **[[Borne]] si attiva**, squarcia la montagna, e **[[Lorcan Kell]] attacca il party nel caos** (se non è già stato preso). [[Alexander Grappa]] (golem di bronzo) può placare i golem-fratelli e parlare al colosso; Leone gli strappa un braccio. **Leone e Grappa cadono nel pozzo: morte ambigua** (torneranno in [[07 - Schism]]).
+
+![[avv05_p084_1.png|550]]
+
+### Atto 4 — To Battle a Colossus
+*Regroup Time* (sessione d'emergenza all'Hotel Aurum) → **[[Borne]] in furia attraverso [[Flint]]**. *The Battle of Bosum Strand*: sotto la pioggia, ai royal docks, si raduna una **flotta improvvisata** — una dozzina di navi risurane (per lo più sesta classe, 30 cannoni), la *R.N.S. Impossible*, forse la [[R.N.S. Coaltongue]] e la nave del party, i dockers volontari (*Dockers United*) — e, se il banchetto è andato bene, la **Freux Rouge** di **Rosalyn Taylor**, ship-of-the-line danorana che onora l'ultimo ordine del Sovrano: proteggere la pace (*A Danoran Always Pays Her Debts*). La flotta fa da esca: il colosso entra in acqua fino alle ginocchia, poi alla vita, mentre il party resiste sul fronte e **[[King Aodhan]] compie il rituale che bandisce Borne nel [[The Dreaming]]** — soluzione temporanea. [[Asrabey Varal]] fugge con [[Kasvarina Varal]], nascondendola nel Dreaming.
+
+![[avv05_p090_1.png|450]]
 
 ## Rivelazione chiave
 Gli Obscurati hanno costruito un **colosso titanico** ([[Borne]]) sotto [[Cauldron Hill]] — e ora è libero, senza padrone, nel [[The Dreaming]].
@@ -93,5 +104,5 @@ Gli Obscurati hanno costruito un **colosso titanico** ([[Borne]]) sotto [[Cauldr
 - [[Borne]] nel Dreaming riemerge in [[08 - Diaspora]] e [[09 - The Last Starry Sky]]; [[King Aodhan]] e [[Roland Stanfield]] sono le chiavi di [[09 - The Last Starry Sky]].
 
 ## Fonti
-- PDF: `_fonti/ZG05_Caldron_Born.pdf` (109 pp., **completo**: Part One pp. 1-35 · Part Two pp. 36-60 · Part Three pp. 61-109; i capitoli interni NON seguono gli installment)
-- Timeline: p. 3 · background: pp. 3-5 · roster PNG: pp. 7-8 · rewards: p. 8
+- PDF: `_fonti/ZG05_Caldron_Born.pdf` (109 pp., **completo, QUATTRO installment**: Part One pp. 1-35 · Part Two pp. 36-58 · Part Three pp. 59-91 · Part Four pp. 92-109; i capitoli interni NON seguono gli installment)
+- Timeline: p. 3 · background: pp. 3-5 · roster PNG: pp. 7-8 · rewards: p. 8 · Gallo's School: Part Two pp. 21-25 · complesso: Part Three (mappa p. 84) · battaglia: Part Four

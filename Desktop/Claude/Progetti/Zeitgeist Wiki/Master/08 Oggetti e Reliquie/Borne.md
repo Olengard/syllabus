@@ -11,7 +11,9 @@ tags: [oggetto, obscurati, colosso]
 
 # Borne (il Colosso)
 
-> Golem alto **~90 metri** (300 ft) costruito dalla [[Colossus Cell]] nel [[The Bleak Gate]] sotto [[Cauldron Hill]]. Serve a **sollevare l'[[Axis Seal]]** (oltre 10.000 t) resistendo alla magia selvaggia liberata; poi gli Obscurati lo userebbero come **arma di pacificazione** contro chi resiste al nuovo ordine.
+![[avv05_p094_1.png|350]]
+
+> Golem alto **~90 metri** (300 ft) costruito dalla [[Colossus Cell]] nel [[Cauldron Hill Complex]], nel [[The Bleak Gate]]. Serve a **sollevare l'[[Axis Seal]]** (oltre 10.000 t) resistendo alla magia selvaggia liberata; poi gli Obscurati lo userebbero come **arma di pacificazione** contro chi resiste al nuovo ordine. Cresciuto da [[Alexander Grappa]] **come un bambino** (memorie artificiali + esperienza vissuta): non è una macchina, è un *figlio* — ed è per questo che in Avv. 13 lo si può convertire con le idee.
 
 ## I "genitori" del colosso
 - **[[Tinker Oddcog]]** — "Gearbuilder", il progettista.

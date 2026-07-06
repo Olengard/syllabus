@@ -21,6 +21,7 @@ Sabota fabbriche di [[Flint]] (macchine, navi). Il governo la bolla come provoca
 
 ## Cronologia delle apparizioni
 - **[[02 - The Dying Skyseer|Avv. 2]]** — bersaglio iniziale del party, ma può diventare **alleata**: se non la arrestano, dona un **incantesimo per tracciare la scia del [[The Bleak Gate]]** e condivide i suoi sospetti su un gruppo segreto legato ai danorani. Un PG [[Vekeshi Mystics|vekeshi]] deve proteggerla e consegnarle uno [[Specchio dell'Unseen Court|specchio]]. Incontrarla in pace dà [[Prestige|Prestigio]] con l'[[Unseen Court]].
+- **[[05 - Cauldron-Born|Avv. 5]]** — [[Asrabey Varal]] chiede al party di essere portato da lei (10 di Primavera): è il tramite fey per la caccia a [[Ekossigan]].
 
 ## Note
 Avversaria simbolo del conflitto **vecchie vie vs. industria**. Ottimo aggancio per PG legati ai fey.
