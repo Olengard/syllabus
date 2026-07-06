@@ -101,6 +101,7 @@ const defaultChar = () => ({
   savingThrows: { STR: false, DEX: false, CON: false, INT: false, WIS: false, CHA: false },
   skills: {},
   equipment: [],
+  pinnedFeatures: [],
   spells: [],
   spellSlots: {},
   usedSpellSlots: {},
@@ -2481,36 +2482,108 @@ function CharacterSheet({ char, onChange, onDelete }) {
               </div>
             )}
 
-            {features && (
+            {features && (() => {
+              // Filtro sottoclasse: featuresByLevel importato mescola i privilegi
+              // di TUTTE le sottoclassi → tolgo quelli di sottoclasse dal blocco
+              // base e mostro solo quelli della sottoclasse scelta, etichettati.
+              const scMapAll = importedClass?.subclassFeaturesByLevel || null;
+              const subNamesByLv = {};
+              if (scMapAll) {
+                for (const perLv of Object.values(scMapAll)) {
+                  for (const [lv, fs] of Object.entries(perLv || {})) {
+                    (subNamesByLv[lv] ||= new Set());
+                    for (const f of fs || []) if (f?.name) subNamesByLv[lv].add(f.name);
+                  }
+                }
+              }
+              const selSc = (scMapAll && char.subclass && scMapAll[char.subclass]) || null;
+              const pinned = char.pinnedFeatures || [];
+              const isPinned = (name, lv) => pinned.some(p => p.name === name && p.lv === +lv);
+              const togglePinFeat = (f, lv, from) => {
+                const name = typeof f === "string" ? f : (f?.name || "");
+                const desc = typeof f === "string" ? "" : (typeof f?.desc === "string" ? f.desc : "");
+                if (!name) return;
+                update({
+                  pinnedFeatures: isPinned(name, +lv)
+                    ? pinned.filter(p => !(p.name === name && p.lv === +lv))
+                    : [...pinned, { id: Date.now(), name, desc, lv: +lv, from: from || "" }],
+                });
+              };
+              const FeatRow = ({ f, lv, from, color }) => {
+                const fname = typeof f === "string" ? f : (f?.name || "");
+                const fdesc = typeof f === "string" ? "" : (typeof f?.desc === "string" ? f.desc : "");
+                const pin = isPinned(fname, +lv);
+                return (
+                  <div style={{display:"flex",alignItems:"baseline",gap:6,fontSize:"0.78rem",color:"var(--text2)",paddingLeft:8,borderLeft:`2px solid ${color || "var(--border)"}`,marginBottom:2}}>
+                    <span onClick={() => togglePinFeat(f, lv, from)}
+                      title={pin ? "Togli dalla scheda" : "Aggiungi alla scheda (★ In evidenza)"}
+                      style={{cursor:"pointer",flexShrink:0,fontSize:"0.75rem",
+                        opacity: pin ? 1 : 0.3, filter: pin ? "drop-shadow(0 0 3px rgba(212,168,76,0.8))" : "grayscale(1)"}}>★</span>
+                    <span style={{minWidth:0}}>
+                      <strong>{fname}</strong>
+                      {fdesc && <span style={{color:"var(--text3)",marginLeft:4,fontSize:"0.73rem"}}>{fdesc.length > 120 ? fdesc.slice(0,120)+"…" : fdesc}</span>}
+                    </span>
+                  </div>
+                );
+              };
+              const levels = [...new Set([
+                ...Object.keys(features),
+                ...(selSc ? Object.keys(selSc) : []),
+              ])].filter(lv => +lv <= char.level).sort((a, b) => +b - +a);
+              return (
               <div className="section">
                 <div className="section-header">
                   <span>CARATTERISTICHE DI CLASSE</span>
-                  <span style={{fontSize:"0.65rem",color:"var(--text3)"}}>fino a Lv{char.level}</span>
+                  <span style={{fontSize:"0.65rem",color:"var(--text3)"}}>
+                    {char.subclass ? `${char.subclass} · ` : ""}fino a Lv{char.level}
+                  </span>
                 </div>
                 <div className="section-content">
-                  {Object.entries(features)
-                    .filter(([lv]) => +lv <= char.level)
-                    .reverse()
-                    .map(([lv, feats]) => feats.length ? (
+                  {/* privilegi pinnati: sempre visibili, descrizione completa */}
+                  {pinned.length > 0 && (
+                    <div style={{marginBottom:12,background:"var(--surface3)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"8px 10px"}}>
+                      <div style={{fontFamily:"'Cinzel',serif",fontSize:"0.6rem",color:"var(--gold)",letterSpacing:"0.08em",marginBottom:5}}>★ IN EVIDENZA</div>
+                      {pinned.map(pf => (
+                        <div key={pf.id} style={{marginBottom:7}}>
+                          <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                            <span onClick={() => update({ pinnedFeatures: pinned.filter(p => p.id !== pf.id) })}
+                              title="Togli dalla scheda" style={{cursor:"pointer",fontSize:"0.75rem",filter:"drop-shadow(0 0 3px rgba(212,168,76,0.8))"}}>★</span>
+                            <strong style={{fontSize:"0.8rem",color:"var(--gold2)"}}>{pf.name}</strong>
+                            <span style={{fontSize:"0.66rem",color:"var(--text3)"}}>LV{pf.lv}{pf.from ? ` · ${pf.from}` : ""}</span>
+                          </div>
+                          {pf.desc && <div style={{fontSize:"0.76rem",color:"var(--text2)",lineHeight:1.55,marginTop:2,paddingLeft:20}}>{pf.desc}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {scMapAll && !char.subclass && (
+                    <div style={{fontSize:"0.72rem",color:"var(--text3)",marginBottom:8,fontStyle:"italic"}}>
+                      Scegli la sottoclasse (in alto) per vedere anche i suoi privilegi.
+                    </div>
+                  )}
+
+                  {levels.map(lv => {
+                    const baseFeats = (features[lv] || []).filter(f => {
+                      const n = typeof f === "string" ? f : (f?.name || "");
+                      return !(subNamesByLv[lv]?.has(n));
+                    });
+                    const scFeats = selSc?.[lv] || [];
+                    if (!baseFeats.length && !scFeats.length) return null;
+                    return (
                       <div key={lv} style={{marginBottom:8}}>
                         <div style={{fontFamily:"'Cinzel',serif",fontSize:"0.6rem",color:"var(--text3)",letterSpacing:"0.08em",marginBottom:3}}>
                           LV {lv} {+lv === char.level && <span style={{color:"var(--gold)"}}>← attuale</span>}
                         </div>
-                        {feats.map((f,i) => {
-                          const fname = typeof f === "string" ? f : (f?.name || "");
-                          const fdesc = typeof f === "string" ? "" : (typeof f?.desc === "string" ? f.desc : "");
-                          return (
-                            <div key={i} style={{fontSize:"0.78rem",color:"var(--text2)",paddingLeft:8,borderLeft:"2px solid var(--border)",marginBottom:2}}>
-                              <strong>{fname}</strong>
-                              {fdesc && <span style={{color:"var(--text3)",marginLeft:4,fontSize:"0.73rem"}}>{fdesc.length > 120 ? fdesc.slice(0,120)+"…" : fdesc}</span>}
-                            </div>
-                          );
-                        })}
+                        {baseFeats.map((f, i) => <FeatRow key={i} f={f} lv={lv} from="" />)}
+                        {scFeats.map((f, i) => <FeatRow key={`sc${i}`} f={f} lv={lv} from={char.subclass} color="var(--gold)" />)}
                       </div>
-                    ) : null)}
+                    );
+                  })}
                 </div>
               </div>
-            )}
+              );
+            })()}
           </>
         );
       })()}
