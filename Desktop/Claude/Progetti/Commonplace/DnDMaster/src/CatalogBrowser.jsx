@@ -5,6 +5,7 @@ import {
   getSpells,
   buildMonsterIndex, hasMonsterIndex, getMonsterStatblock,
 } from "./catalog.js";
+import { userKey } from "./storage.js";
 
 const CATS = [
   { id: "class",      label: "📖 Classi" },
@@ -17,6 +18,22 @@ const CATS = [
 
 const MAX_ROWS = 80; // limita il rendering; oltre, l'utente raffina la ricerca
 
+// Dove vivono gli elementi già importati, per categoria del catalogo.
+const IMPORTED_KEYS = {
+  class: "dnd_imported_classes", spell: "dnd_imported_spells",
+  race: "dnd_imported_races",    feat: "dnd_imported_feats",
+  background: "dnd_imported_backgrounds", monster: "dnd_custom_monsters_v1",
+};
+
+// Nomi (minuscoli) già presenti nell'archivio locale per una categoria:
+// il catalogo li segna "✓ importato" e li esclude dagli import di massa.
+function loadImportedNames(type) {
+  try {
+    const arr = JSON.parse(localStorage.getItem(userKey(IMPORTED_KEYS[type])) || "[]");
+    return new Set(arr.map((x) => (x.name || "").toLowerCase()).filter(Boolean));
+  } catch { return new Set(); }
+}
+
 // onImport(type, rawDataObj) → Promise<number> (n. elementi importati)
 export default function CatalogBrowser({ onImport }) {
   const [cat, setCat]         = React.useState("class");
@@ -27,10 +44,17 @@ export default function CatalogBrowser({ onImport }) {
   const [error, setError]     = React.useState("");
   const [needBuild, setNeedBuild] = React.useState(false); // mostri: indice non ancora costruito
   const [busy, setBusy]       = React.useState(null);  // chiave elemento in import
-  const [done, setDone]       = React.useState(() => new Set()); // chiavi già importate
+  const [refresh, setRefresh] = React.useState(0);      // bump dopo ogni import → rilegge l'archivio
   const [bulk, setBulk]       = React.useState(null);  // { running, msg } per "importa tutti"
 
   const keyOf = (it) => (cat === "class" ? it.slug : `${it.name}|${it.source || ""}`);
+
+  // Già importati (dall'archivio locale, non solo dalla sessione corrente)
+  const importedNames = React.useMemo(() => loadImportedNames(cat), [cat, refresh]);
+  const isImported = React.useCallback(
+    (it) => importedNames.has((it.name || "").toLowerCase()),
+    [importedNames]
+  );
 
   const loadCategory = React.useCallback(async (c, { build = false } = {}) => {
     setError(""); setItems([]); setProgress(null); setNeedBuild(false);
@@ -83,7 +107,7 @@ export default function CatalogBrowser({ onImport }) {
         type = "monster"; data = { monster: [sb] };
       }
       await onImport(type, data);
-      setDone((s) => new Set(s).add(k));
+      setRefresh((r) => r + 1); // l'archivio è cambiato: aggiorna i "✓ importato"
     } catch (e) {
       setError("Import fallito: " + e.message);
     }
@@ -110,36 +134,46 @@ export default function CatalogBrowser({ onImport }) {
     return 0;
   }
 
-  // "Importa tutti" della categoria corrente (mostri esclusi: si usa la ricerca)
+  // "Importa tutti" della categoria corrente: SOLO gli elementi mancanti
+  // (mostri esclusi: si usa la ricerca)
   async function importAllCurrent() {
-    if (cat === "monster" || !items.length) return;
-    setError(""); setBulk({ running: true, msg: `Importazione ${items.length} elementi…` });
+    if (cat === "monster") return;
+    const missing = items.filter((it) => !isImported(it));
+    if (!missing.length) return;
+    setError(""); setBulk({ running: true, msg: `Importazione ${missing.length} elementi…` });
     try {
-      const n = await importCategory(cat, items);
-      setDone((s) => { const ns = new Set(s); for (const it of items) ns.add(keyOf(it)); return ns; });
-      setBulk({ running: false, msg: `✓ ${n} importati` });
+      const n = await importCategory(cat, missing);
+      setRefresh((r) => r + 1);
+      setBulk({ running: false, msg: `✓ ${n} importati (${items.length - missing.length} già presenti, saltati)` });
     } catch (e) {
       setError("Import fallito: " + e.message); setBulk(null);
     }
   }
 
-  // "Importa tutto il catalogo": categorie leggere (mostri esclusi per la quota)
+  // "Importa tutto il catalogo": categorie leggere, solo gli elementi mancanti
+  // (mostri esclusi per la quota)
   async function importEverything() {
     setError("");
     const steps = [
-      ["classi",      async () => importCategory("class",      await getClassList())],
-      ["incantesimi", async () => importCategory("spell",      await getSpells())],
-      ["razze",       async () => importCategory("race",       await getRaces())],
-      ["talenti",     async () => importCategory("feat",       await getFeats())],
-      ["background",  async () => importCategory("background", await getBackgrounds())],
+      ["classi",      "class",      getClassList],
+      ["incantesimi", "spell",      getSpells],
+      ["razze",       "race",       getRaces],
+      ["talenti",     "feat",       getFeats],
+      ["background",  "background", getBackgrounds],
     ];
-    let total = 0;
+    let total = 0, skipped = 0;
     try {
       for (let i = 0; i < steps.length; i++) {
-        setBulk({ running: true, msg: `Importazione ${steps[i][0]}… (${i + 1}/${steps.length})` });
-        total += await steps[i][1]();
+        const [label, type, fetchList] = steps[i];
+        setBulk({ running: true, msg: `Importazione ${label}… (${i + 1}/${steps.length})` });
+        const list = await fetchList();
+        const already = loadImportedNames(type);
+        const missing = list.filter((it) => !already.has((it.name || "").toLowerCase()));
+        skipped += list.length - missing.length;
+        if (missing.length) total += await importCategory(type, missing);
       }
-      setBulk({ running: false, msg: `✓ ${total} importati (classi, incantesimi, razze, talenti, background)` });
+      setRefresh((r) => r + 1);
+      setBulk({ running: false, msg: `✓ ${total} importati${skipped ? `, ${skipped} già presenti (saltati)` : ""}` });
     } catch (e) {
       setError("Import fallito: " + e.message); setBulk(null);
     }
@@ -221,32 +255,49 @@ export default function CatalogBrowser({ onImport }) {
         <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ fontSize: "0.72rem", color: "var(--text3)" }}>
-              {totalMatches} risultati{totalMatches > MAX_ROWS ? ` — mostro i primi ${MAX_ROWS}, raffina la ricerca` : ""}
+              {totalMatches} risultati
+              {importedNames.size > 0 && ` · ${items.filter(isImported).length} già importati`}
+              {totalMatches > MAX_ROWS ? ` — mostro i primi ${MAX_ROWS}, raffina la ricerca` : ""}
             </div>
-            {cat !== "monster" && items.length > 0 && (
-              <button className="btn btn-sm" disabled={!!bulk?.running} onClick={importAllCurrent}
-                title={`Importa tutti i ${items.length} elementi di questa categoria`}>
-                ⬇ Importa tutti ({items.length})
-              </button>
-            )}
+            {cat !== "monster" && items.length > 0 && (() => {
+              const missing = items.filter((it) => !isImported(it)).length;
+              return missing > 0 ? (
+                <button className="btn btn-sm" disabled={!!bulk?.running} onClick={importAllCurrent}
+                  title={`Importa i ${missing} elementi non ancora presenti`}>
+                  ⬇ Importa mancanti ({missing})
+                </button>
+              ) : (
+                <span style={{ fontSize: "0.72rem", color: "var(--green2)" }}>✓ tutto importato</span>
+              );
+            })()}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "46vh", overflowY: "auto" }}>
             {filtered.map((it) => {
               const k = keyOf(it);
-              const isDone = done.has(k);
+              const isDone = isImported(it);
               const isBusy = busy === k;
               return (
-                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: 5 }}>
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: 5, opacity: isDone ? 0.55 : 1 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "0.85rem", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.name}</div>
                     {subtitle(it) && <div style={{ fontSize: "0.7rem", color: "var(--text3)" }}>{subtitle(it)}</div>}
                   </div>
-                  <button
-                    className={`btn btn-sm${isDone ? "" : " btn-primary"}`}
-                    disabled={isBusy || isDone}
-                    onClick={() => importItem(it)}>
-                    {isBusy ? "…" : isDone ? "✓" : (cat === "class" ? "+ Classe" : "+ Importa")}
-                  </button>
+                  {isDone ? (
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: "0.7rem", color: "var(--green2)" }}>✓ importato</span>
+                      <button className="btn btn-sm" disabled={isBusy} onClick={() => importItem(it)}
+                        title="Reimporta (aggiorna la copia locale)" style={{ fontSize: "0.7rem", padding: "2px 6px" }}>
+                        {isBusy ? "…" : "↻"}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      disabled={isBusy}
+                      onClick={() => importItem(it)}>
+                      {isBusy ? "…" : (cat === "class" ? "+ Classe" : "+ Importa")}
+                    </button>
+                  )}
                 </div>
               );
             })}
