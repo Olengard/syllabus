@@ -25,6 +25,7 @@ import SpellsPage from "./SpellsPage.jsx";
 import ShopPage from "./ShopPage.jsx";
 import DescriptionsPage from "./DescriptionsPage.jsx";
 import CampaignPage, { loadCampaign } from "./CampaignPage.jsx";
+import { coherentWith, terrainAllows } from "./encounter.js";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 const USERS = [
@@ -4985,21 +4986,8 @@ const TERRAIN_TYPES = [
   "Qualsiasi","Dungeon","Foresta","Pianura","Montagna","Palude","Grotta","Mare / Costa",
   "Città","Sottosuolo","Deserto","Tundra","Piano Infernale",
 ];
-const TERRAIN_MONSTER_TYPES = {
-  "Dungeon":       ["Non morto","Costrutto","Aberrazione","Umanoide","Demonio"],
-  "Foresta":       ["Bestia","Fata","Umanoide","Pianta","Drago"],
-  "Pianura":       ["Bestia","Umanoide","Gigante","Drago"],
-  "Montagna":      ["Gigante","Drago","Umanoide","Bestia"],
-  "Palude":        ["Non morto","Bestia","Umanoide","Demonio"],
-  "Grotta":        ["Bestia","Aberrazione","Non morto","Umanoide"],
-  "Mare / Costa":  ["Bestia","Umanoide","Elementale"],
-  "Città":         ["Umanoide","Costrutto","Non morto"],
-  "Sottosuolo":    ["Aberrazione","Non morto","Umanoide","Costrutto"],
-  "Deserto":       ["Bestia","Non morto","Umanoide","Elementale"],
-  "Tundra":        ["Bestia","Gigante","Non morto","Umanoide"],
-  "Piano Infernale":["Demonio","Non morto","Umanoide"],
-  "Qualsiasi":     null,
-};
+// Filtri terreno e affinità tematiche: vedi src/encounter.js (terrainAllows,
+// coherentWith) — gestiscono tipi italiani inline ED inglesi importati.
 
 function crToNum(cr) {
   if (!cr) return 0;
@@ -5052,13 +5040,12 @@ function EncounterGeneratorPage({ onSendToTracker }) {
   }
 
   function candidateMonsters() {
-    const types = TERRAIN_MONSTER_TYPES[terrain];
     const maxCr = partyLevel + 3;
     const minCr = Math.max(0, partyLevel - 5);
     return allMonsters.filter(m => {
       const cr = crToNum(m.cr);
       if (cr > maxCr || cr < minCr) return false;
-      if (types && !types.some(t => (m.type||"").toLowerCase().includes(t.toLowerCase()))) return false;
+      if (!terrainAllows(terrain, m.type)) return false;
       return true;
     });
   }
@@ -5072,9 +5059,15 @@ function EncounterGeneratorPage({ onSendToTracker }) {
     let bestDiff   = Infinity;
 
     for (let attempt=0; attempt<200; attempt++) {
-      // pick 1–4 random monster types from pool
-      const numTypes = 1 + Math.floor(Math.random()*Math.min(3,pool.length));
-      const shuffled = [...pool].sort(()=>Math.random()-0.5).slice(0,numTypes);
+      // Coerenza tematica: si sceglie un mostro "àncora" e si completa il
+      // gruppo solo con tipi affini (goblin+lupi sì, fantasma+lupi no).
+      const anchor = pool[Math.floor(Math.random()*pool.length)];
+      const compatible = pool.filter(m => m !== anchor && coherentWith(anchor.type, m.type));
+      const numExtra = Math.floor(Math.random()*Math.min(2, compatible.length + 1)); // 0–2 tipi oltre l'àncora
+      const shuffled = [
+        anchor,
+        ...[...compatible].sort(()=>Math.random()-0.5).slice(0, numExtra),
+      ];
       let groups = [];
       let totalRawXP = 0;
       let totalCount = 0;
