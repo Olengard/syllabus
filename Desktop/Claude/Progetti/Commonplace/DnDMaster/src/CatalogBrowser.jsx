@@ -5,7 +5,7 @@ import {
   getSpells,
   buildMonsterIndex, hasMonsterIndex, getMonsterStatblock,
 } from "./catalog.js";
-import { userKey } from "./storage.js";
+import { K, loadJSON } from "./storage.js";
 
 const CATS = [
   { id: "class",      label: "📖 Classi" },
@@ -20,16 +20,16 @@ const MAX_ROWS = 80; // limita il rendering; oltre, l'utente raffina la ricerca
 
 // Dove vivono gli elementi già importati, per categoria del catalogo.
 const IMPORTED_KEYS = {
-  class: "dnd_imported_classes", spell: "dnd_imported_spells",
-  race: "dnd_imported_races",    feat: "dnd_imported_feats",
-  background: "dnd_imported_backgrounds", monster: "dnd_custom_monsters_v1",
+  class: K.importedClasses, spell: K.importedSpells,
+  race: K.importedRaces,    feat: K.importedFeats,
+  background: K.importedBackgrounds, monster: K.customMonsters,
 };
 
 // Nomi (minuscoli) già presenti nell'archivio locale per una categoria:
 // il catalogo li segna "✓ importato" e li esclude dagli import di massa.
 function loadImportedNames(type) {
   try {
-    const arr = JSON.parse(localStorage.getItem(userKey(IMPORTED_KEYS[type])) || "[]");
+    const arr = loadJSON(IMPORTED_KEYS[type], []);
     return new Set(arr.map((x) => (x.name || "").toLowerCase()).filter(Boolean));
   } catch { return new Set(); }
 }

@@ -1,13 +1,13 @@
 import React from "react";
 import { TYPE_META, TYPE_ORDER, Detail } from "./GlobalSearch.jsx";
-import { userKey, safeLsSet } from "./storage.js";
+import { K, loadJSON, saveJSON } from "./storage.js";
 
 // ─── Orologio di gioco (tempo in-game della campagna) ───────────────────────
-export const CLOCK_KEY = "dnd_game_clock_v1";
+export const CLOCK_KEY = K.gameClock;
 
 export function loadClock() {
   try {
-    const c = JSON.parse(localStorage.getItem(userKey(CLOCK_KEY)) || "null");
+    const c = loadJSON(K.gameClock, null);
     if (c && Number.isFinite(c.day) && Number.isFinite(c.minutes)) return c;
   } catch {}
   return { day: 1, minutes: 8 * 60 }; // Giorno 1, 08:00
@@ -33,7 +33,7 @@ function SessionDashboard({ characters, onUpdateCharacters }) {
   const [heals, setHeals] = React.useState({});
   const pcs = (characters || []).filter(c => c.name && c.name !== "Nuovo Personaggio");
 
-  const save = (c) => { setClock(c); try { safeLsSet(userKey(CLOCK_KEY), JSON.stringify(c)); } catch {} };
+  const save = (c) => { setClock(c); saveJSON(K.gameClock, c); };
   const bump = (min) => save(advanceClock(clock, min));
 
   const longRest = () => {

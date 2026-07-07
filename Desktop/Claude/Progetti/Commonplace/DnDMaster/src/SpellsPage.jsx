@@ -1,5 +1,5 @@
 import React from "react";
-import { userKey, safeLsSet } from "./storage.js";
+import { K, loadJSON } from "./storage.js";
 import { SPELLS_DB } from "./data/spells.js";
 import { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
 
@@ -14,7 +14,7 @@ export default function SpellsPage() {
   // Carica gli incantesimi importati UNA volta (non a ogni render: con "Importa
   // tutti" sono ~525, ri-parsare ~1MB a ogni tasto bloccava la ricerca).
   const importedSpells = React.useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.importedSpells, []); } catch { return []; }
   }, []);
   // Unisce inline (IT) + importati (EN) deduplicando per slug: la versione
   // italiana inline vince. Evita chiavi React duplicate (es. "fireball" =

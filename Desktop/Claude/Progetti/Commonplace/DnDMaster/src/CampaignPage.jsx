@@ -1,5 +1,5 @@
 import React from "react";
-import { userKey, safeLsSet } from "./storage.js";
+import { K, loadJSON, saveJSON } from "./storage.js";
 import { parseWikiPage, mergeCampaignEntries } from "./campaign.js";
 import { TYPE_META, Detail, norm } from "./GlobalSearch.jsx";
 
@@ -7,11 +7,11 @@ import { TYPE_META, Detail, norm } from "./GlobalSearch.jsx";
 // Si popola importando le schede markdown della wiki Obsidian (frontmatter
 // YAML) e/o con voci manuali; le voci sono cercabili in ⌘K e pinnabili.
 
-export const CAMPAIGN_KEY = "dnd_campaign_v1";
+export const CAMPAIGN_KEY = K.campaign;
 const KINDS = ["png", "luogo", "fazione", "campagna"];
 
 export function loadCampaign() {
-  try { return JSON.parse(localStorage.getItem(userKey(CAMPAIGN_KEY)) || "[]"); } catch { return []; }
+  return loadJSON(K.campaign, []);
 }
 
 function ManualForm({ onAdd, onClose }) {
@@ -60,7 +60,7 @@ export default function CampaignPage() {
 
   const persist = (next) => {
     setEntries(next);
-    try { safeLsSet(userKey(CAMPAIGN_KEY), JSON.stringify(next)); } catch {}
+    saveJSON(K.campaign, next);
   };
 
   const onFiles = async (e) => {

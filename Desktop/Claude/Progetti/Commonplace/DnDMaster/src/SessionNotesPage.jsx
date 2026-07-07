@@ -1,6 +1,6 @@
 // Estratto da App.jsx (scorporo monolite).
 import React from "react";
-import { userKey, safeLsSet } from "./storage.js";
+import { K, loadJSON, saveJSON } from "./storage.js";
 
 export default function SessionNotesPage({ characters }) {
   const TAG_TIPI = ["Evento","Deduzione","PNG","Luogo","Segreto","Altro"];
@@ -14,10 +14,10 @@ export default function SessionNotesPage({ characters }) {
   };
 
   const [notes, setNotes] = React.useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_session_notes")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.sessionNotes, []); } catch { return []; }
   });
   const [sessione, setSessione] = React.useState(() => {
-    try { return parseInt(localStorage.getItem(userKey("dnd_session_current")) || "1"); } catch { return 1; }
+    return parseInt(loadJSON(K.sessionCurrent, 1), 10) || 1;
   });
   const [testo, setTesto]       = React.useState("");
   const [tagInput, setTagInput] = React.useState("");
@@ -29,10 +29,10 @@ export default function SessionNotesPage({ characters }) {
   const textareaRef = React.useRef(null);
 
   React.useEffect(() => {
-    try { safeLsSet(userKey("dnd_session_notes"), JSON.stringify(notes)); } catch {}
+    try { saveJSON(K.sessionNotes, (notes)); } catch {}
   }, [notes]);
   React.useEffect(() => {
-    try { safeLsSet(userKey("dnd_session_current"), String(sessione)); } catch {}
+    saveJSON(K.sessionCurrent, sessione);
   }, [sessione]);
 
   // tag suggeriti = tipi fissi + nomi personaggi + tag già usati

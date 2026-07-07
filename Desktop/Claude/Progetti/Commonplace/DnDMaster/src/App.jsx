@@ -17,7 +17,7 @@ import { SHOP_DB } from "./data/shop.js";
 import { RULES_DB } from "./data/rules.js";
 // Moduli estratti dal monolite (ondata 2)
 import { styles } from "./styles.js";
-import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey } from "./storage.js";
+import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON } from "./storage.js";
 import NameGenerator from "./NameGenerator.jsx";
 import RulesModal from "./RulesModal.jsx";
 import SessionNotesPage from "./SessionNotesPage.jsx";
@@ -125,13 +125,8 @@ const defaultChar = () => ({
 });
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
-const STORAGE_KEY = "dnd5e-master-v1";
-const loadData = async () => {
-  try {
-    const raw = localStorage.getItem(userKey(STORAGE_KEY));
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
+const STORAGE_KEY = K.characters;
+const loadData = async () => loadJSON(K.characters, null);
 // NB: il salvataggio dei personaggi è debounced dentro App (vedi flushSave):
 // riserializzare tutti i PG (ritratti base64 inclusi) a ogni battitura è sprecato.
 
@@ -156,7 +151,7 @@ function EquipmentSearch({ onAdd, onClose }) {
   const [dbSource, setDbSource] = useState("all"); // "equip" | "magic" | "all"
 
   const importedItems = React.useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_items")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.importedItems, []); } catch { return []; }
   }, []);
 
   const allItems = [...EQUIPMENT_DB, ...MAGIC_ITEMS_DB, ...importedItems];
@@ -331,7 +326,7 @@ function SpellSearch({ onAdd, onClose }) {
 
   // Carica gli importati una sola volta (evita di ri-parsare ~1MB a ogni tasto)
   const importedSpells = React.useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.importedSpells, []); } catch { return []; }
   }, []);
   const allSpells = React.useMemo(() => {
     const map = new Map();
@@ -1321,7 +1316,7 @@ function computeSlots(cls, level) {
 function RacePicker({ currentRace, onApply, onClose }) {
   const importedRaces = React.useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem(userKey("dnd_imported_races")) || "[]")
+      return loadJSON(K.importedRaces, [])
         .map(ir => ({
           slug: ir.slug,
           name: ir.name,
@@ -1422,7 +1417,7 @@ function RacePicker({ currentRace, onApply, onClose }) {
 function ClassPicker({ currentClass, currentLevel, onApply, onClose }) {
   const importedClasses = React.useMemo(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]");
+      const raw = loadJSON(K.importedClasses, []);
       // Deduplicate by name (keep last)
       const deduped = Object.values(Object.fromEntries(raw.map(c => [c.name, c])));
       return deduped.map(ic => ({
@@ -1586,7 +1581,7 @@ function ClassPicker({ currentClass, currentLevel, onApply, onClose }) {
 function BackgroundPicker({ currentBackground, onApply, onClose }) {
   const [query, setQuery] = React.useState("");
   const backgrounds = React.useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_backgrounds")) || "[]"); }
+    try { return loadJSON(K.importedBackgrounds, []); }
     catch { return []; }
   }, []);
   const [sel, setSel] = React.useState(
@@ -1695,7 +1690,7 @@ function SubclassPicker({ className, currentSubclass, onApply, onClose }) {
   const subclasses = React.useMemo(() => {
     // From imported classes
     const imported = (() => {
-      try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]"); } catch { return []; }
+      try { return loadJSON(K.importedClasses, []); } catch { return []; }
     })();
     const ic = imported.find(c => c.name === className);
     if (ic && ic.subclasses && ic.subclasses.length > 0) {
@@ -1717,7 +1712,7 @@ function SubclassPicker({ className, currentSubclass, onApply, onClose }) {
   // Load subclass features from imported classFeature data
   const subclassFeatures = React.useMemo(() => {
     try {
-      const imported = JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]");
+      const imported = loadJSON(K.importedClasses, []);
       const ic = imported.find(c => c.name === className);
       return (ic && ic.subclassFeaturesByLevel && typeof ic.subclassFeaturesByLevel === "object")
         ? ic.subclassFeaturesByLevel : {};
@@ -1730,7 +1725,7 @@ function SubclassPicker({ className, currentSubclass, onApply, onClose }) {
 
   const subclassTitle = React.useMemo(() => {
     try {
-      const imported = JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]");
+      const imported = loadJSON(K.importedClasses, []);
       return imported.find(c => c.name === className)?.subclassTitle || "Sottoclasse";
     } catch { return "Sottoclasse"; }
   }, [className]);
@@ -1954,7 +1949,7 @@ function CharacterSheet({ char, onChange, onDelete }) {
   const importedClass = React.useMemo(() => {
     if (!char.class) return null;
     try {
-      const arr = JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]");
+      const arr = loadJSON(K.importedClasses, []);
       return arr.find(c => c.name === char.class) || null;
     } catch { return null; }
   }, [char.class]);
@@ -3186,20 +3181,20 @@ function open5eToLocal(m) {
   };
 }
 
-const MONSTERS_STORAGE_KEY = "dnd_custom_monsters_v1";
+const MONSTERS_STORAGE_KEY = K.customMonsters;
 
 function MonstersPage({ onAddToCombat }) {
   // ── Persistent custom monsters ──────────────────────────────────────────
   const [customMonsters, setCustomMonsters] = React.useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey(MONSTERS_STORAGE_KEY)) || "[]"); } catch { return []; }
+    try { return loadJSON(MONSTERS_STORAGE_KEY, []); } catch { return []; }
   });
   React.useEffect(() => {
-    try { safeLsSet(userKey(MONSTERS_STORAGE_KEY), JSON.stringify(customMonsters)); } catch {}
+    saveJSON(MONSTERS_STORAGE_KEY, customMonsters);
   }, [customMonsters]);
   // Re-read when import happens from outside
   React.useEffect(() => {
     const refresh = () => {
-      try { setCustomMonsters(JSON.parse(localStorage.getItem(userKey(MONSTERS_STORAGE_KEY)) || "[]")); } catch {}
+      try { setCustomMonsters(loadJSON(MONSTERS_STORAGE_KEY, [])); } catch {}
     };
     window.addEventListener("dnd_monsters_updated", refresh);
     return () => window.removeEventListener("dnd_monsters_updated", refresh);
@@ -3835,15 +3830,15 @@ function QuickAddEnemy({ onAdd, onClose }) {
   );
 }
 
-const COMBAT_KEY = "dnd_combat_v2";
-const ENCOUNTERS_KEY = "dnd_encounters_v2";
+const COMBAT_KEY = K.combat;
+const ENCOUNTERS_KEY = K.encounters;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function loadLS(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(userKey(key)) || "null") ?? fallback; } catch { return fallback; }
+  return loadJSON(key, fallback);
 }
 function saveLS(key, val) {
-  try { safeLsSet(userKey(key), JSON.stringify(val)); } catch {}
+  saveJSON(key, val);
 }
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
@@ -5029,7 +5024,7 @@ function EncounterGeneratorPage({ onSendToTracker }) {
   const [saved,      setSaved]      = React.useState(false);
 
   const allMonsters = React.useMemo(()=>{
-    const imported = (()=>{ try{return JSON.parse(localStorage.getItem(userKey(MONSTERS_STORAGE_KEY))||"[]");}catch{return[];} })();
+    const imported = (()=>{ try{return loadJSON(MONSTERS_STORAGE_KEY, []);}catch{return[];} })();
     return [...MONSTERS_DB, ...imported];
   },[]);
 
@@ -5116,9 +5111,8 @@ function EncounterGeneratorPage({ onSendToTracker }) {
       hasReaction: true,
     }));
     const enc = { id: newId(), name: encName||"Scontro generato", notes:`Generato per gruppo di ${partySize} PG lv.${partyLevel} • ${terrain} • ${generated.difficulty.label} • XP: ${generated.adjustedXP}`, enemies };
-    const key = userKey("dnd_encounters_v2");
-    const existing = (()=>{ try{return JSON.parse(localStorage.getItem(key)||"[]");}catch{return[];} })();
-    safeLsSet(key, JSON.stringify([...existing, enc]));
+    const existing = loadJSON(K.encounters, []);
+    saveJSON(K.encounters, [...existing, enc]);
     setSaved(true);
     if (onSendToTracker) onSendToTracker(enc);
   }
@@ -5302,7 +5296,7 @@ function buildSearchEntries(importedSpells) {
 
   // Mostri: inline + custom/importati per-utente
   let customMonsters = [];
-  try { customMonsters = JSON.parse(localStorage.getItem(userKey("dnd_custom_monsters_v1")) || "[]"); } catch {}
+  try { customMonsters = loadJSON(K.customMonsters, []); } catch {}
   const monMap = new Map();
   for (const m of [...MONSTERS_DB, ...customMonsters]) {
     const k = m.slug || m.name;
@@ -5340,17 +5334,16 @@ function buildSearchEntries(importedSpells) {
   }
 
   // Dati personali: note di sessione, incontri salvati, nomi salvati
-  const loadLs = (key) => { try { return JSON.parse(localStorage.getItem(userKey(key)) || "[]"); } catch { return []; } };
-  for (const n of loadLs("dnd_session_notes")) {
+  for (const n of loadJSON(K.sessionNotes, [])) {
     const title = (n.testo || "").slice(0, 60) + ((n.testo || "").length > 60 ? "…" : "");
     push("note", n.id, title || "Nota", "", (n.tags || []).join(" · "), n, n.testo);
   }
-  for (const enc of loadLs("dnd_encounters_v2")) {
+  for (const enc of loadJSON(K.encounters, [])) {
     const sub = `${(enc.enemies || []).length} nemici`;
     push("encounter", enc.id, enc.name || "Scontro", "", sub, enc,
       [enc.notes, ...(enc.enemies || []).map(e => e.name)].join(" "));
   }
-  for (const sn of loadLs("dnd_saved_names")) {
+  for (const sn of loadJSON(K.savedNames, [])) {
     push("savedname", sn.id || sn.name, sn.name, "", sn.sub || "", sn, "");
   }
 
@@ -5369,17 +5362,17 @@ function App() {
   const [showBackup, setShowBackup] = useState(false);
   // Elementi pinnati per la sessione (dal 📌 nella palette di ricerca)
   const [pinned, setPinned] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_session_pins_v1")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.sessionPins, []); } catch { return []; }
   });
   // Cronologia tiri di dado (sopravvive a un reload accidentale in sessione)
   const [diceHistory, setDiceHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_dice_history_v1")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.diceHistory, []); } catch { return []; }
   });
   const [importedSpells, setImportedSpells] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.importedSpells, []); } catch { return []; }
   });
   const [importedItems, setImportedItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_items")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.importedItems, []); } catch { return []; }
   });
 
   useEffect(() => {
@@ -5475,24 +5468,24 @@ function App() {
       const exists = prev.some(p => p.id === entry.id);
       // _hay (testo di ricerca) non serve nel pin salvato
       const next = exists ? prev.filter(p => p.id !== entry.id) : [...prev, { ...entry, _hay: undefined }];
-      try { safeLsSet(userKey("dnd_session_pins_v1"), JSON.stringify(next)); } catch {}
+      try { saveJSON(K.sessionPins, (next)); } catch {}
       return next;
     });
   };
   const clearPins = () => {
     setPinned([]);
-    try { safeLsSet(userKey("dnd_session_pins_v1"), "[]"); } catch {}
+    try { saveJSON(K.sessionPins, []); } catch {}
   };
   const recordRoll = (r) => {
     setDiceHistory(prev => {
       const next = [r, ...prev].slice(0, 30);
-      try { safeLsSet(userKey("dnd_dice_history_v1"), JSON.stringify(next)); } catch {}
+      try { saveJSON(K.diceHistory, (next)); } catch {}
       return next;
     });
   };
   const clearRolls = () => {
     setDiceHistory([]);
-    try { safeLsSet(userKey("dnd_dice_history_v1"), "[]"); } catch {}
+    try { saveJSON(K.diceHistory, []); } catch {}
   };
 
   const addChar = () => {
@@ -5602,18 +5595,18 @@ function App() {
         <Import5eTools
           onClose={() => setShowImport(false)}
           onImportMonsters={(monsters) => {
-            const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_custom_monsters_v1")) || "[]"); } catch { return []; } })();
+            const existing = (() => { try { return loadJSON(K.customMonsters, []); } catch { return []; } })();
             const map = {}; for (const m of [...existing, ...monsters]) map[m.id || m.slug || m.name] = m;
-            try { safeLsSet(userKey("dnd_custom_monsters_v1"), JSON.stringify(Object.values(map))); } catch {}
+            try { saveJSON(K.customMonsters, (Object.values(map))); } catch {}
             window.dispatchEvent(new Event("dnd_monsters_updated"));
           }}
           onImportSpells={(spells) => {
             (() => {
               try {
-                const existing = JSON.parse(localStorage.getItem(userKey("dnd_imported_spells")) || "[]");
+                const existing = loadJSON(K.importedSpells, []);
                 const map = {};
                 for (const s of [...existing, ...spells]) map[s.slug || s.name] = s;
-                safeLsSet(userKey("dnd_imported_spells"), JSON.stringify(Object.values(map)));
+                saveJSON(K.importedSpells, (Object.values(map)));
               } catch {}
             })();
           }}
@@ -5622,31 +5615,31 @@ function App() {
               const map = {};
               for (const it of [...s, ...items]) map[it.slug || it.name] = it;
               const merged = Object.values(map);
-              try { safeLsSet(userKey("dnd_imported_items"), JSON.stringify(merged)); } catch {}
+              try { saveJSON(K.importedItems, (merged)); } catch {}
               return merged;
             });
           }}
           onImportClasses={(classes) => {
-            const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_classes")) || "[]"); } catch { return []; } })();
+            const existing = (() => { try { return loadJSON(K.importedClasses, []); } catch { return []; } })();
             // Deduplicate by name — new import replaces old entry with same name
             const nameMap = {};
             for (const c of [...existing, ...classes]) nameMap[c.name] = c;
-            try { safeLsSet(userKey("dnd_imported_classes"), JSON.stringify(Object.values(nameMap))); } catch {}
+            try { saveJSON(K.importedClasses, (Object.values(nameMap))); } catch {}
           }}
           onImportRaces={(races) => {
-            const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_races")) || "[]"); } catch { return []; } })();
+            const existing = (() => { try { return loadJSON(K.importedRaces, []); } catch { return []; } })();
             const map = {}; for (const r of [...existing, ...races]) map[r.slug || r.name] = r;
-            try { safeLsSet(userKey("dnd_imported_races"), JSON.stringify(Object.values(map))); } catch {}
+            try { saveJSON(K.importedRaces, (Object.values(map))); } catch {}
           }}
           onImportFeats={(feats) => {
-            const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_feats")) || "[]"); } catch { return []; } })();
+            const existing = (() => { try { return loadJSON(K.importedFeats, []); } catch { return []; } })();
             const map = {}; for (const f of [...existing, ...feats]) map[f.slug || f.name] = f;
-            try { safeLsSet(userKey("dnd_imported_feats"), JSON.stringify(Object.values(map))); } catch {}
+            try { saveJSON(K.importedFeats, (Object.values(map))); } catch {}
           }}
           onImportBackgrounds={(bgs) => {
-            const existing = (() => { try { return JSON.parse(localStorage.getItem(userKey("dnd_imported_backgrounds")) || "[]"); } catch { return []; } })();
+            const existing = (() => { try { return loadJSON(K.importedBackgrounds, []); } catch { return []; } })();
             const map = {}; for (const b of [...existing, ...bgs]) map[b.slug || b.name] = b;
-            try { safeLsSet(userKey("dnd_imported_backgrounds"), JSON.stringify(Object.values(map))); } catch {}
+            try { saveJSON(K.importedBackgrounds, (Object.values(map))); } catch {}
           }}
         />
       )}

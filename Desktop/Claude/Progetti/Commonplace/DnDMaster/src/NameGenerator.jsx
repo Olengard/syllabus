@@ -1,6 +1,6 @@
 import React from "react";
 import { NAMES_DB } from "./data/names.js";
-import { userKey, safeLsSet } from "./storage.js";
+import { K, loadJSON, saveJSON } from "./storage.js";
 import { hasFantasy, generateFantasyNames, generateSurname, generateSurnamesMixed, generateHouses, EXTRA_CATEGORIES } from "./nameForge.js";
 
 // ─── Name Generator ───────────────────────────────────────────────────────────
@@ -33,12 +33,12 @@ export default function NameGenerator() {
   // Catalogo curato = NAMES_DB inline + categorie extra (navi, cibi)
   const NAMEDATA = React.useMemo(() => ({ ...NAMES_DB, ...EXTRA_CATEGORIES }), []);
   const [saved, setSaved]     = React.useState(() => {
-    try { return JSON.parse(localStorage.getItem(userKey("dnd_saved_names")) || "[]"); } catch { return []; }
+    try { return loadJSON(K.savedNames, []); } catch { return []; }
   });
 
   // Persist saved names
   React.useEffect(() => {
-    try { safeLsSet(userKey("dnd_saved_names"), JSON.stringify(saved)); } catch {}
+    try { saveJSON(K.savedNames, (saved)); } catch {}
   }, [saved]);
 
   // Mescola in modo uniforme (Fisher-Yates)

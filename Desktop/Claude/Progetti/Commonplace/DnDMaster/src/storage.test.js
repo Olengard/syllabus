@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey } from "./storage.js";
+import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON } from "./storage.js";
 
 // Mock minimale di localStorage (ambiente node): Map + API Web Storage.
 function makeLocalStorage() {
@@ -72,6 +72,41 @@ describe("safeLsSet", () => {
     vi.runAllTimers();
     vi.useRealTimers();
     delete globalThis.document;
+  });
+});
+
+describe("loadJSON/saveJSON (API del layer, fase 2A)", () => {
+  it("roundtrip con prefisso utente", () => {
+    storeUser("Olengard");
+    saveJSON(K.diceHistory, [{ total: 12 }]);
+    expect(localStorage.getItem("Olengard__dnd_dice_history_v1")).toBe('[{"total":12}]');
+    expect(loadJSON(K.diceHistory, [])).toEqual([{ total: 12 }]);
+  });
+
+  it("fallback su chiave assente e su JSON corrotto", () => {
+    expect(loadJSON(K.campaign, [])).toEqual([]);
+    expect(loadJSON(K.gameClock, null)).toBeNull();
+    localStorage.setItem(userKey(K.campaign), "{rotto");
+    expect(loadJSON(K.campaign, [])).toEqual([]);
+  });
+
+  it("i valori falsy validi non cadono sul fallback", () => {
+    saveJSON(K.sessionCurrent, 0);
+    expect(loadJSON(K.sessionCurrent, 1)).toBe(0);
+    saveJSON(K.sessionCurrent, false);
+    expect(loadJSON(K.sessionCurrent, true)).toBe(false);
+  });
+
+  it("compat wire-format: numeri salvati come stringa dal vecchio codice", () => {
+    // il vecchio SessionNotesPage salvava String(3) → "3"
+    localStorage.setItem(userKey(K.sessionCurrent), "3");
+    expect(loadJSON(K.sessionCurrent, 1)).toBe(3);
+  });
+
+  it("il registro K è coerente (chiavi uniche, prefisso dnd_ o storica)", () => {
+    const values = Object.values(K);
+    expect(new Set(values).size).toBe(values.length);
+    for (const v of values) expect(/^dnd/.test(v) || v === "dnd5e-master-v1").toBe(true);
   });
 });
 
