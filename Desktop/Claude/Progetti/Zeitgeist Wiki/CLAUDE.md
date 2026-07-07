@@ -34,6 +34,12 @@ python _scripts/controlla.py
 # Estrarre mappe/immagini da un PDF in Master/_allegati/<sottocartella>/
 python _scripts/estrai_immagini.py "_fonti/ZG02_Skyseer.pdf" avv02
 python _scripts/estrai_immagini.py "_fonti/ZG02_Skyseer.pdf" avv02 --pagine 40-60 --min 200 --dry-run
+
+# Estrarre statblocchi 5e da un PDF in JSON 5e.tools, importabile in DnDMaster
+# (vedi sezione "Statblocchi → DnDMaster")
+python _scripts/estrai_statblocchi.py "_fonti/ZG03_Digging_For_Lies.pdf" --pagine 66-90 --out "_fonti/mostri.json"
+python _scripts/estrai_statblocchi.py "_fonti/ZG04_Always_On_Time.pdf" --out "_fonti/mostri.json" --aggiungi
+python _scripts/estrai_statblocchi.py "_fonti/ZG05_Caldron_Born.pdf" --dry-run
 ```
 Validi una modifica con `controlla.py` (convenzioni spoiler/formato) più, se serve, `export_players.py --dry-run` (conteggio pagine player-safe) e `genera_stub.py --dry-run` (link irrisolti). **Dopo una passata di rifinitura manuale alle pagine, esegui sempre `controlla.py`**: intercetta i segreti finiti per sbaglio fuori dai callout.
 
@@ -65,6 +71,16 @@ Conseguenza pratica: quando scrivi una pagina `player_safe: true`, **metti sempr
 - ⚠️ **ZG02/03/04 sono file COMPLETI** (Part One+Two+Three in un unico PDF), ma il **TOC incorporato si ferma alla Part One** e il frontespizio dice solo "Part One": non fidarsi, verificare con `grep -inE "^part (one|two|three)"` sul testo estratto. (Già costato un errore in una scheda.)
 - Per verificare fatti: estrai il testo nello scratchpad con marcatori `===== PAGINA N =====` (vedi Comandi), poi `grep -in` sul `.txt` — così i riscontri citano la pagina del PDF, da riportare in **Fonti** della scheda.
 
+## Statblocchi → DnDMaster
+`_scripts/estrai_statblocchi.py` converte gli statblocchi 5e di un PDF-avventura in un JSON **formato 5e.tools** (`{"monster": [...]}`) che si importa in **DnDMaster** (tab Mostri → Importa → file JSON → tipo *monster*; finisce nei mostri custom `dnd_custom_monsters_v1`, dedup per nome — reimportare non duplica). Già generato: `_fonti/zeitgeist_mostri_avv3-4.json` (50 statblocchi: ZG03 Atto 3 + ZG04 completa).
+
+Metodo e gotcha (dettagli nel docstring dello script):
+- Riconosce gli statblocchi dalla riga taglia/tipo ("Medium humanoid (human), neutral evil"), nome sulla riga sopra; poi campi standard e paragrafi "Nome. testo" per tratti/azioni.
+- **Le frasi meccaniche restano in inglese 5e** ("+7 to hit", "Hit: 14 (2d8+5) piercing damage"): `parse5eMonster` in DnDMaster estrae bonus/danni/gittata **via regex sull'inglese** — tradurle rompe l'import. Testo libero (tratti, note) può essere in qualsiasi lingua.
+- **Sbordo narrativo**: l'ultimo statblocco prima del testo di scena tende ad assorbire paragrafi spuri; le euristiche di stop coprono il grosso, i residui si fissano nei dizionari `DROP_FROM`/`MERGE_PREV`/`EXTRA` in testa allo script (es. *Jaime the Weevil*, spezzato in due da una sidebar in ZG04). Dopo ogni estrazione **leggere il riepilogo a video** riga per riga: azioni con nomi "da frase" = narrativa infiltrata.
+- L'auto-verifica finale replica le regex dell'app e segnala azioni d'attacco senza bonus/danno estraibili — alcuni avvisi sono legittimi (la rete di Jerrial, l'Ovipositor, il Golden Doppelganger "same as target").
+- Copyright: il JSON resta in **`_fonti/`** (git-ignored), come immagini e PDF.
+
 ## Tassonomia del Master (e perché)
 `00 Indici` (pagine-MOC di navigazione) · `01 Avventure` (1 scheda per avventura, con `data_in_gioco` in a.o.v., `livello_party`, atto, rivelazione, ganci) · `02 Personaggi` · `03 Fazioni` · `04 Luoghi` · `05 Misteri e Indizi` (tracker "cosa sa il party vs. cosa è vero") · `06 Cosmologia e Storia` · `07 Concetti e Regole` · `08 Oggetti e Reliquie` · `09 Sessioni` · `_template` (8 modelli, esclusi dagli script) · `_allegati` (mappe/immagini) · `_stub` (segnaposto generati, da riclassificare).
 
@@ -92,4 +108,4 @@ Le avventure si approfondiscono per livelli: **T0** sinossi · **T1** struttura 
 - **`controlla.py` vede solo i leak *strutturali*** (callout mancanti, frontmatter, pipe). I leak **semantici** — uno spoiler scritto in chiaro nel corpo di una pagina `player_safe: true` — non può coglierli: quando tocchi una pagina condivisibile, rileggi il testo *come lo leggerebbe un giocatore*. (È già successo: la vecchia scheda di Flint esportava ai giocatori il segreto del governatore.)
 - I tre script condividono convenzioni **duplicate** (`SECRET_FM_KEYS`, `SECRET_HEADINGS`, `ATTACH_EXTS`, gestione del pipe escapato): se ne modifichi una in `export_players.py`, allineala anche in `controlla.py` e `genera_stub.py`.
 - All'apertura del vault, Obsidian può creare una nota di benvenuto di default (`Benvenuto.md` con `[[crea un collegamento]]`): è rumore, si può cancellare.
-- Bonus futuro (binario separato): estrarre gli statblocchi dei mostri dai PDF → JSON importabili in **DnDMaster**. Serve prima lo schema mostri di quell'app.
+- `estrai_statblocchi.py` è indipendente dal vault (legge e scrive solo in `_fonti/`) ma dipende dal formato di import di **DnDMaster** (`parse5eMonster` in `src/App.jsx` di quell'app): se quel parser cambia, riverificare con un import di prova.
