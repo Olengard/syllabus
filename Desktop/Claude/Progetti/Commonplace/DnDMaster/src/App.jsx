@@ -105,9 +105,11 @@ const defaultChar = () => ({
   level: 1,
   background: "",
   alignment: "",
+  languages: "",
   xp: 0,
   maxHp: 10, currentHp: 10, tempHp: 0,
   armorClass: 10,
+  acAuto: true,   // CA calcolata da armatura+DES; un valore digitato a mano la disattiva
   speed: 30,
   initiative: 0,
   passivePerception: 10,
@@ -470,23 +472,24 @@ function SpellSearch({ onAdd, onClose }) {
 }
 
 // ─── Spell Slots Editor ───────────────────────────────────────────────────────
+// Niente slot di default: si impostano scegliendo una classe (computeSlots) o a
+// mano con ✎. (Prima c'era un fallback da full caster che dava slot a chiunque,
+// Rogue compreso.)
 function SpellSlotsPanel({ char, onChange }) {
-  const maxSlots = { 1:[0,2,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4], 2:[0,0,0,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3], 3:[0,0,0,0,0,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3], 4:[0,0,0,0,0,0,0,1,2,3,3,3,3,3,3,3,3,3,3,3], 5:[0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2], 6:[0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1], 7:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1], 8:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1], 9:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1] };
-  const lvl = Math.min(char.level, 20);
-  
+  const [editing, setEditing] = React.useState(false);
+  const levels = [1,2,3,4,5,6,7,8,9];
+  const anySlot = levels.some(sl => (char.spellSlots?.[sl] || 0) > 0);
+
   return (
     <div>
-      {[1,2,3,4,5,6,7,8,9].map(sl => {
-        const max = (char.spellSlots?.[sl] !== undefined) ? char.spellSlots[sl] : (maxSlots[sl]?.[lvl] || 0);
+      {levels.map(sl => {
+        const max = char.spellSlots?.[sl] || 0;
         if (max === 0) return null;
         const used = char.usedSpellSlots?.[sl] || 0;
         return (
           <div key={sl} style={{ marginBottom: 8 }}>
             <div style={{ fontSize: "0.7rem", color: "var(--text3)", fontFamily: "'Cinzel', serif", marginBottom: 4 }}>
               Slot {sl}° — {used}/{max} usati
-              <span style={{ marginLeft: 8 }}>
-                <input type="number" min={0} max={9} value={max} onChange={e => onChange({ spellSlots: { ...char.spellSlots, [sl]: +e.target.value } })} style={{ width: 40, padding: "1px 4px", fontSize: "0.7rem" }} />
-              </span>
             </div>
             <div className="slot-group">
               {Array.from({ length: max }, (_, i) => (
@@ -500,6 +503,27 @@ function SpellSlotsPanel({ char, onChange }) {
           </div>
         );
       })}
+      {!anySlot && !editing && (
+        <div style={{ fontSize: "0.72rem", color: "var(--text3)", marginBottom: 6 }}>
+          Nessuno slot incantesimo. Si impostano da soli scegliendo una classe dal catalogo, oppure a mano qui sotto.
+        </div>
+      )}
+      <div onClick={() => setEditing(v => !v)}
+        style={{ fontSize: "0.65rem", color: "var(--text3)", cursor: "pointer", textDecoration: "underline" }}>
+        {editing ? "✓ chiudi modifica" : "✎ imposta slot manualmente"}
+      </div>
+      {editing && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 4, marginTop: 6 }}>
+          {levels.map(sl => (
+            <div key={sl} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "0.6rem", color: "var(--text3)" }}>{sl}°</div>
+              <input type="number" min={0} max={9} value={char.spellSlots?.[sl] || 0}
+                onChange={e => onChange({ spellSlots: { ...char.spellSlots, [sl]: Math.max(0, +e.target.value) } })}
+                style={{ width: "100%", padding: "1px 2px", fontSize: "0.7rem", textAlign: "center" }} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -615,8 +639,8 @@ function EquipmentTab({ char, update }) {
     if (item.damage && item.category === "Arma") {
       const strMod = Math.floor(((char.abilities?.STR || 10) - 10) / 2);
       const dexMod = Math.floor(((char.abilities?.DEX || 10) - 10) / 2);
-      const isFinesse = (item.properties||[]).some(p => p.toLowerCase().includes("accurata"));
-      const isRanged = (item.subcategory||"").toLowerCase().includes("distanza");
+      const isFinesse = (item.properties||[]).some(p => /accurata|finesse/i.test(p));
+      const isRanged = /distanza|ranged/i.test(item.subcategory||"");
       const atkMod = isFinesse ? Math.max(strMod, dexMod) : isRanged ? dexMod : strMod;
       const profBonus = Math.ceil((char.level || 1) / 4) + 1;
       const atkBonus = (atkMod + profBonus >= 0 ? "+" : "") + (atkMod + profBonus);
@@ -1022,16 +1046,22 @@ function Import5eTools({ onImportMonsters, onImportSpells, onImportItems, onImpo
   const parse5eItem = (it) => {
     const rarityMap = {none:"Comune",common:"Comune",uncommon:"Non comune",rare:"Raro","very rare":"Molto raro",legendary:"Leggendario",artifact:"Artefatto",varies:"Varia",unknown:"Sconosciuta"};
     const typeMap = {S:"Arma",M:"Arma",R:"Arma",A:"Armatura",LA:"Armatura",MA:"Armatura",HA:"Armatura",S2:"Armatura",RD:"Bacchetta",ST:"Bastone",RG:"Anello",SC:"Pergamena",P:"Pozione",W:"Oggetto Meraviglioso",G:"Avventura",AT:"Strumento",MNT:"Cavalcatura"};
+    // Codici proprietà arma 5e.tools → nomi IT del DB inline (così l'auto-attacco
+    // riconosce "Accurata" ecc. anche sugli importati). I codici possono avere
+    // suffisso fonte ("AF|DMG"): si guarda solo la sigla.
+    const propMap = {F:"Accurata",L:"Leggera",H:"Pesante",R:"Portata",T:"Lanciabile",V:"Versatile","2H":"A Due Mani",A:"Munizioni",AF:"Munizioni",LD:"Caricamento",S:"Speciale",RLD:"Ricarica"};
+    const baseType = String(it.type||"").split("|")[0];
     return {
       slug: (it.name||"").toLowerCase().replace(/[^a-z0-9]/g,"-"),
       name: it.name || "?",
-      category: typeMap[it.type] || "Oggetto Meraviglioso",
-      subcategory: "Importato",
+      category: typeMap[baseType] || "Oggetto Meraviglioso",
+      subcategory: baseType === "R" ? "Distanza (import)" : (baseType === "M" || baseType === "S") ? "Mischia (import)" : "Importato",
       rarity: rarityMap[it.rarity] || it.rarity || "—",
       weight: it.weight || 0,
       cost: it.value ? `${it.value} mo` : "—",
       ac: it.ac || null,
       properties: [
+        ...(it.property||[]).map(c=>propMap[String(c).split("|")[0]]).filter(Boolean),
         it.reqAttune && (it.reqAttune === true ? "Richiede sintonia" : `Richiede sintonia (${it.reqAttune})`),
         it.curse && "Maledetto",
       ].filter(Boolean),
@@ -1923,6 +1953,30 @@ function CharacterPortrait({ portrait, onSet }) {
   );
 }
 
+// CA automatica: 10+DES senza armatura, altrimenti la migliore armatura
+// posseduta (leggera +DES, media +DES max 2, pesante fissa) + il miglior scudo.
+// Per armature importate senza tier riconoscibile, stima dal valore base
+// (≤12 leggera, 13–15 media, ≥16 pesante). Un valore digitato a mano nella
+// scheda disattiva il calcolo (char.acAuto = false).
+function computeArmorClass(char) {
+  const dex = Math.floor(((char.abilities?.DEX || 10) - 10) / 2);
+  const armors = (char.equipment || []).filter(i => i.category === "Armatura" && typeof i.ac === "number");
+  const isShield = i => /scudo|shield/i.test(`${i.subcategory || ""} ${i.name || ""}`);
+  let best = 10 + dex;
+  for (const it of armors.filter(i => !isShield(i))) {
+    const sub = (it.subcategory || "").toLowerCase();
+    const tier = /pesante|heavy/.test(sub) ? "P"
+      : /media|medium/.test(sub) ? "M"
+      : /legger|light/.test(sub) ? "L"
+      : it.ac >= 16 ? "P" : it.ac >= 13 ? "M" : "L";
+    const v = it.ac + (tier === "P" ? 0 : tier === "M" ? Math.min(dex, 2) : dex);
+    if (v > best) best = v;
+  }
+  const shields = armors.filter(isShield);
+  if (shields.length) best += Math.max(...shields.map(s => s.ac || 2));
+  return best;
+}
+
 // Autocompilazione attacco scegliendo un'arma del DB nel form (stessa logica
 // dell'auto-attacco da equipaggiamento: "accurata" → max(FOR,DES), a distanza
 // → DES, bonus competenza incluso). Il nome resta libero per attacchi custom.
@@ -1930,8 +1984,8 @@ const WEAPON_SUGGEST = EQUIPMENT_DB.filter(i => i.category === "Arma" && i.damag
 function weaponToAttack(item, char) {
   const strMod = Math.floor(((char.abilities?.STR || 10) - 10) / 2);
   const dexMod = Math.floor(((char.abilities?.DEX || 10) - 10) / 2);
-  const isFinesse = (item.properties || []).some(p => p.toLowerCase().includes("accurata"));
-  const isRanged = (item.subcategory || "").toLowerCase().includes("distanza");
+  const isFinesse = (item.properties || []).some(p => /accurata|finesse/i.test(p));
+  const isRanged = /distanza|ranged/i.test(item.subcategory || "");
   const atkMod = isFinesse ? Math.max(strMod, dexMod) : isRanged ? dexMod : strMod;
   const profBonus = Math.ceil((char.level || 1) / 4) + 1;
   return {
@@ -2037,9 +2091,21 @@ function CharacterSheet({ char, onChange, onDelete }) {
     patch.raceLanguages = raceData.languages;
     patch.raceResistances = raceData.resistances;
     patch.raceDarkvision = raceData.darkvision;
+    // Prefill del campo Linguaggi (solo se vuoto: non sovrascrive le scelte)
+    if (!char.languages) {
+      const langs = Array.isArray(raceData.languages) ? raceData.languages.join(", ")
+        : typeof raceData.languages === "string" ? raceData.languages : "";
+      if (langs) patch.languages = langs;
+    }
     update(patch);
     setShowRacePicker(false);
   };
+
+  // ── CA automatica: si riallinea quando cambiano DES o equipaggiamento ────
+  const autoAC = computeArmorClass(char);
+  React.useEffect(() => {
+    if (char.acAuto && char.armorClass !== autoAC) update({ armorClass: autoAC });
+  }, [char.acAuto, autoAC]);
 
   // ── Apply class from DB ─────────────────────────────────────────────────
   const applyClass = (classData) => {
@@ -2196,6 +2262,10 @@ function CharacterSheet({ char, onChange, onDelete }) {
                 {ALIGNMENTS.map(a => <option key={a} value={a} />)}
               </datalist>
             </div>
+            <div className="field"><label>Linguaggi</label>
+              <input value={char.languages || ""} onChange={e => update({ languages: e.target.value })}
+                placeholder={Array.isArray(char.raceLanguages) && char.raceLanguages.length ? char.raceLanguages.join(", ") : "es. Comune, Elfico"} />
+            </div>
 
             {/* Race/Class quick-info strip — works for DB picks AND manual entry */}
             {(() => {
@@ -2298,7 +2368,12 @@ function CharacterSheet({ char, onChange, onDelete }) {
 
                 <div className="grid-3" style={{ marginBottom: 12 }}>
                   <div className="stat-badge"><div className="stat-badge-label">CLASSE ARMATURA</div>
-                    <input type="number" value={char.armorClass} onChange={e => update({ armorClass: +e.target.value })} style={{ textAlign: "center", fontSize: "1.3rem", fontFamily: "'Cinzel', serif", fontWeight: 700, background: "transparent", border: "none" }} /></div>
+                    <input type="number" value={char.armorClass} onChange={e => update({ armorClass: +e.target.value, acAuto: false })} style={{ textAlign: "center", fontSize: "1.3rem", fontFamily: "'Cinzel', serif", fontWeight: 700, background: "transparent", border: "none" }} />
+                    <div onClick={() => update(char.acAuto ? { acAuto: false } : { acAuto: true, armorClass: autoAC })}
+                      title={char.acAuto ? "CA calcolata da armatura + DES (clicca per passare a manuale)" : `Clicca per calcolarla da armatura + DES (${autoAC})`}
+                      style={{ fontSize: "0.55rem", cursor: "pointer", color: char.acAuto ? "var(--gold)" : "var(--text3)", marginTop: 2 }}>
+                      {char.acAuto ? "⚙ auto" : `⚙ auto: ${autoAC}`}
+                    </div></div>
                   <div className="stat-badge"><div className="stat-badge-label">INIZIATIVA</div>
                     <div className="stat-badge-value">{modStr(char.abilities.DEX)}</div></div>
                   <div className="stat-badge"><div className="stat-badge-label">VELOCITÀ</div>
@@ -5406,6 +5481,9 @@ function App() {
           deathSaves:   { ...defaultChar().deathSaves,   ...(saved.deathSaves   || {}) },
           spellSlots:   saved.spellSlots    || {},
           usedSpellSlots: saved.usedSpellSlots || {},
+          // CA auto solo per i personaggi nuovi: sugli esistenti non si tocca
+          // la CA inserita a mano (si attiva col badge ⚙ nella scheda)
+          acAuto:       saved.acAuto ?? false,
           // Arrays default to [] if missing
           equipment:    saved.equipment    || [],
           spells:       saved.spells       || [],
