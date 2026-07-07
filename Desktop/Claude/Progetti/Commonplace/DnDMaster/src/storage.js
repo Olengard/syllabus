@@ -25,12 +25,29 @@ export const K = {
 };
 
 // ─── API JSON per-utente ─────────────────────────────────────────────────────
+// Il listener (registrato dal motore di sync, vedi sync.js) è avvisato a ogni
+// saveJSON: così ogni scrittura locale diventa una chiave "da pushare" senza
+// che i componenti sappiano nulla del backend.
+let _onSave = null;
+export function setSaveListener(fn) { _onSave = fn; }
+
 export function loadJSON(key, fallback = null) {
   try { return JSON.parse(localStorage.getItem(userKey(key)) || "null") ?? fallback; }
   catch { return fallback; }
 }
 export function saveJSON(key, value) {
   try { safeLsSet(userKey(key), JSON.stringify(value)); } catch {}
+  try { _onSave?.(key); } catch {}
+}
+
+// Accesso raw (stringa JSON) per il motore di sync: il pull scrive con
+// writeRaw per NON ri-marcare la chiave come sporca, readRaw serve a
+// confrontare il valore prima/dopo un push in volo.
+export function readRaw(key) {
+  try { return localStorage.getItem(userKey(key)); } catch { return null; }
+}
+export function writeRaw(key, str) {
+  safeLsSet(userKey(key), str);
 }
 export function getStoredUser() {
   try { return JSON.parse(localStorage.getItem("dnd_auth_user") || "null"); } catch { return null; }

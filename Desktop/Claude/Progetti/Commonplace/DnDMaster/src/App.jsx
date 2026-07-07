@@ -26,19 +26,34 @@ import ShopPage from "./ShopPage.jsx";
 import DescriptionsPage from "./DescriptionsPage.jsx";
 import CampaignPage, { loadCampaign } from "./CampaignPage.jsx";
 import { coherentWith, terrainAllows } from "./encounter.js";
+import { supabase } from "./supabaseClient.js";
+import { createSyncEngine } from "./sync.js";
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-const USERS = [
-  { username: "Olengard", hash: "f7ff028e544670d765042a31256bf6b59af47b9d929bb61708266cc7388653be" },
-  { username: "Manu",     hash: "fdf26eeafec45c09ba8465e3e8837a9042a9221304f2400226e0401b5d0077ff" },
-];
+// ─── Auth (Supabase, fase 2B) ─────────────────────────────────────────────────
+// L'account Supabase dà l'identità; il "profilo" è il prefisso localStorage
+// storico (Olengard__/Manu__): risolverlo dall'account preserva tutti i dati
+// locali esistenti senza migrarli.
+const CANONICAL_PROFILES = ["Olengard", "Manu"];
+const EMAIL_PROFILE = { "olengard@gmail.com": "Olengard" };
 
-const AUTO_LOGIN_USER = "Olengard"; // su questo device, login automatico
-
-async function hashPassword(password) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(password));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+function profileFromSession(session) {
+  const u = session?.user;
+  if (!u) return null;
+  const raw = u.user_metadata?.display_name
+    || EMAIL_PROFILE[(u.email || "").toLowerCase()]
+    || (u.email || "").split("@")[0]
+    || "Utente";
+  const canon = CANONICAL_PROFILES.find(p => p.toLowerCase() === String(raw).trim().toLowerCase());
+  return canon || String(raw).trim();
 }
+
+// Specchio locale dell'id utente Supabase: consente l'avvio offline (la
+// sessione cache può non essere ri-validabile senza rete).
+const AUTH_UID_KEY = "dnd_auth_uid";
+const getStoredUid = () => { try { return localStorage.getItem(AUTH_UID_KEY); } catch { return null; } };
+
+const sync = createSyncEngine(supabase);
+sync.attach();
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -5425,6 +5440,9 @@ function App() {
     pendingSave.current = { key: userKey(STORAGE_KEY), data: { characters, activeId } };
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(flushSave, 400);
+    // Sync: marcata qui (utente ancora loggato), non al flush — il push rilegge
+    // comunque il valore da localStorage al momento dell'invio.
+    sync.markDirty(STORAGE_KEY);
     return () => clearTimeout(saveTimer.current);
   }, [characters, activeId, loading, flushSave]);
 
@@ -5687,29 +5705,47 @@ function App() {
   );
 }
 
-// ─── LoginScreen ──────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }) {
-  const [username, setUsername] = React.useState("");
+// ─── AuthScreen (Supabase: login / registrazione / reset) ─────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode]         = React.useState("login"); // login | register | reset
+  const [nome, setNome]         = React.useState("");
+  const [email, setEmail]       = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [error, setError]       = React.useState("");
+  const [msg, setMsg]           = React.useState(null);
   const [loading, setLoading]   = React.useState(false);
 
-  async function handleLogin() {
-    setError(""); setLoading(true);
-    const user = USERS.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user) { setError("Utente non trovato."); setLoading(false); return; }
-    const hash = await hashPassword(password);
-    if (hash !== user.hash) { setError("Password errata."); setLoading(false); return; }
-    storeUser(user.username);
-    onLogin(user.username);
+  async function submit(e) {
+    e?.preventDefault();
+    setMsg(null); setLoading(true);
+    try {
+      if (mode === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) setMsg({ err: true, text: /invalid login/i.test(error.message) ? "Email o password errate." : error.message });
+        else onAuth(data.session);
+      } else if (mode === "register") {
+        const { data, error } = await supabase.auth.signUp({
+          email, password,
+          options: { data: { display_name: nome.trim() } },
+        });
+        if (error) setMsg({ err: true, text: error.message });
+        else if (data.session) onAuth(data.session);
+        else setMsg({ err: false, text: "Registrazione inviata: conferma dall'email che ti è arrivata, poi accedi." });
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        setMsg(error ? { err: true, text: error.message } : { err: false, text: "Email di reset inviata." });
+      }
+    } finally { setLoading(false); }
   }
+
+  const linkStyle = { background:"none", border:"none", color:"var(--text3)", cursor:"pointer",
+    fontSize:"0.72rem", textDecoration:"underline", padding:"2px 4px" };
 
   return (
     <div style={{
       display:"flex", alignItems:"center", justifyContent:"center",
       height:"100vh", background:"var(--bg)",
     }}>
-      <div style={{
+      <form onSubmit={submit} style={{
         background:"var(--surface)", border:"1px solid var(--border)",
         borderRadius:16, padding:"40px 36px", width:"100%", maxWidth:360,
         display:"flex", flexDirection:"column", gap:18,
@@ -5718,67 +5754,140 @@ function LoginScreen({ onLogin }) {
           <div style={{fontSize:"2rem", marginBottom:8}}>⚔</div>
           <div style={{fontFamily:"'Cinzel',serif", fontSize:"1.3rem",
             fontWeight:700, color:"var(--gold)"}}>D&D Master</div>
-          <div style={{fontSize:"0.78rem", color:"var(--text3)", marginTop:4}}>Accedi per continuare</div>
+          <div style={{fontSize:"0.78rem", color:"var(--text3)", marginTop:4}}>
+            {mode === "login" ? "Accedi per continuare" : mode === "register" ? "Crea il tuo account" : "Recupera la password"}
+          </div>
         </div>
 
         <div style={{display:"flex", flexDirection:"column", gap:10}}>
+          {mode === "register" && (
+            <input
+              placeholder="Nome (es. Olengard)"
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              required
+              style={{fontSize:"0.95rem", padding:"10px 12px"}}
+            />
+          )}
           <input
-            placeholder="Username"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             autoFocus
+            required
+            autoComplete="email"
             style={{fontSize:"0.95rem", padding:"10px 12px"}}
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            style={{fontSize:"0.95rem", padding:"10px 12px"}}
-          />
+          {mode !== "reset" && (
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              style={{fontSize:"0.95rem", padding:"10px 12px"}}
+            />
+          )}
         </div>
 
-        {error && (
-          <div style={{fontSize:"0.8rem", color:"var(--red2)", textAlign:"center"}}>{error}</div>
+        {msg && (
+          <div style={{fontSize:"0.8rem", color: msg.err ? "var(--red2)" : "var(--green2)", textAlign:"center"}}>
+            {msg.text}
+          </div>
         )}
 
-        <button className="btn btn-primary" onClick={handleLogin} disabled={loading || !username || !password}
+        <button type="submit" className="btn btn-primary" disabled={loading}
           style={{padding:"12px", fontSize:"1rem"}}>
-          {loading ? "…" : "Accedi"}
+          {loading ? "…" : mode === "login" ? "Accedi" : mode === "register" ? "Registrati" : "Invia email di reset"}
         </button>
-      </div>
+
+        <div style={{display:"flex", justifyContent:"center", gap:12, flexWrap:"wrap"}}>
+          {mode !== "login"    && <button type="button" style={linkStyle} onClick={() => { setMode("login"); setMsg(null); }}>Accedi</button>}
+          {mode !== "register" && <button type="button" style={linkStyle} onClick={() => { setMode("register"); setMsg(null); }}>Crea account</button>}
+          {mode !== "reset"    && <button type="button" style={linkStyle} onClick={() => { setMode("reset"); setMsg(null); }}>Password dimenticata</button>}
+        </div>
+      </form>
     </div>
   );
 }
 
-// ─── AppRoot — gestisce auth prima di montare App ─────────────────────────────
-
+// ─── AppRoot — auth + pull Supabase prima di montare App ─────────────────────
+const SYNC_DOT = {
+  ok:      { color: "var(--green2)", label: "Sincronizzato" },
+  idle:    { color: "var(--green2)", label: "Sincronizzato" },
+  pending: { color: "var(--gold)",   label: "Modifiche da sincronizzare…" },
+  syncing: { color: "var(--gold)",   label: "Sincronizzazione in corso…" },
+  offline: { color: "var(--text3)",  label: "Offline — sincronizzerà al ritorno della rete" },
+  error:   { color: "var(--red2)",   label: "Errore di sincronizzazione — riprovo tra poco" },
+};
 
 const _OriginalApp = App;
 export default function AppRoot() {
-  const [user, setUser] = React.useState(() => {
-    // Login automatico se configurato e nessun utente già loggato
-    const stored = getStoredUser();
-    if (stored) return stored;
-    if (AUTO_LOGIN_USER) { storeUser(AUTO_LOGIN_USER); return AUTO_LOGIN_USER; }
-    return null;
-  });
+  const [phase, setPhase] = React.useState("boot"); // boot | login | sync | ready
+  const [user, setUser]   = React.useState(null);
+  const [syncStatus, setSyncStatus] = React.useState(sync.getStatus());
 
-  // Migrazione legacy → spazio utente. Gira nel corpo del componente (guardata da
-  // un ref) così avviene prima che App/MonstersPage leggano da localStorage.
-  const migrated = React.useRef(false);
-  if (user && !migrated.current) {
-    migrated.current = true;
-    migrateLegacyKey(STORAGE_KEY);                       // personaggi
-    migrateLegacyKey(MONSTERS_STORAGE_KEY, { merge: true }); // mostri custom + importati
+  // Entra nell'app: profilo (= prefisso localStorage storico), migrazione
+  // legacy, poi pull remoto PRIMA del mount — App legge localStorage al mount.
+  const enter = React.useCallback(async (session) => {
+    const profile = profileFromSession(session);
+    storeUser(profile);
+    safeLsSet(AUTH_UID_KEY, session.user.id);
+    sync.setUser(session.user.id);
+    migrateLegacyKey(STORAGE_KEY);                            // personaggi
+    migrateLegacyKey(MONSTERS_STORAGE_KEY, { merge: true });  // mostri custom + importati
+    setUser(profile);
+    setPhase("sync");
+    try { await sync.pullAll(); }
+    catch { /* offline o errore rete: si parte dalla cache locale, la coda resta */ }
+    setPhase("ready");
+  }, []);
+
+  React.useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user) { enter(data.session); return; }
+      // Avvio offline: la sessione può non essere ri-validabile senza rete,
+      // ma utente e dati sono in cache locale → l'app resta usabile.
+      const cachedUser = getStoredUser();
+      const cachedUid  = getStoredUid();
+      if (cachedUser && cachedUid && typeof navigator !== "undefined" && navigator.onLine === false) {
+        sync.setUser(cachedUid);
+        setUser(cachedUser);
+        setPhase("ready");
+        return;
+      }
+      setPhase("login");
+    })();
+    return sync.subscribe(setSyncStatus);
+  }, [enter]);
+
+  async function logout() {
+    try { await sync.flush(); } catch {}       // spinge le ultime modifiche
+    try { await supabase.auth.signOut(); } catch {}
+    sync.clearUser();
+    clearUser();
+    try { localStorage.removeItem(AUTH_UID_KEY); } catch {}
+    setUser(null);
+    setPhase("login");
   }
 
-  if (!user) {
-    return <LoginScreen onLogin={u => setUser(u)} />;
+  if (phase === "boot" || phase === "sync") {
+    return (
+      <div style={{display:"flex", alignItems:"center", justifyContent:"center",
+        height:"100vh", background:"var(--bg)", color:"var(--text3)",
+        flexDirection:"column", gap:12}}>
+        <div style={{fontSize:"2rem"}}>⚔</div>
+        <div style={{fontSize:"0.85rem"}}>{phase === "sync" ? "Sincronizzazione…" : "…"}</div>
+      </div>
+    );
   }
 
+  if (phase === "login") return <AuthScreen onAuth={enter} />;
+
+  const dot = SYNC_DOT[syncStatus] || SYNC_DOT.ok;
   return (
     <>
       <_OriginalApp />
@@ -5787,9 +5896,10 @@ export default function AppRoot() {
         fontSize:"0.62rem", color:"var(--text3)",
         display:"flex", alignItems:"center", gap:8,
       }}>
+        <span title={dot.label} style={{color:dot.color, fontSize:"0.55rem"}}>●</span>
         <span>👤 {user}</span>
         <button
-          onClick={() => { clearUser(); setUser(null); }}
+          onClick={logout}
           style={{background:"none", border:"none", color:"var(--text3)",
             cursor:"pointer", fontSize:"0.62rem", padding:"2px 4px",
             textDecoration:"underline"}}>

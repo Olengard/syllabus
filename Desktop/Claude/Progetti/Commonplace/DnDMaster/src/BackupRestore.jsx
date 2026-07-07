@@ -1,4 +1,5 @@
 import React from "react";
+import { markAllForPush, SYNC_STATE_KEYS } from "./sync.js";
 
 // Backup/ripristino di TUTTI i dati locali dell'utente corrente (personaggi,
 // mostri custom, import 5e.tools, combattimento, incontri, note, nomi salvati…).
@@ -39,7 +40,8 @@ export default function BackupModal({ user, onClose }) {
       const k = localStorage.key(i);
       if (prefix && !k.startsWith(prefix)) continue;
       const plain = prefix ? k.slice(prefix.length) : k;
-      if (plain === "dnd_auth_user") continue; // l'auth è globale: mai nel backup
+      if (plain === "dnd_auth_user" || plain === "dnd_auth_uid") continue; // l'auth è globale: mai nel backup
+      if (SYNC_STATE_KEYS.includes(plain)) continue; // stato di sync: locale al device
       data[plain] = localStorage.getItem(k);
     }
     return data;
@@ -99,10 +101,14 @@ export default function BackupModal({ user, onClose }) {
       if (!ok) return;
       try {
         for (const [plain, value] of Object.entries(parsed.data)) {
-          if (plain === "dnd_auth_user") continue;
+          if (plain === "dnd_auth_user" || plain === "dnd_auth_uid") continue;
+          if (SYNC_STATE_KEYS.includes(plain)) continue;
           if (typeof value !== "string") continue;
           localStorage.setItem(prefix + plain, value);
         }
+        // I dati ripristinati diventano la verità: vanno ri-pushati tutti, e il
+        // pull al reload non deve sovrascriverli (azzera la memoria di sync).
+        markAllForPush();
       } catch {
         setMsg({ type: "err", text: "Errore nel ripristino (forse spazio locale insufficiente)." });
         return;

@@ -1,17 +1,19 @@
 # DnDMaster — Gestionale per Dungeon Master (D&D 5e)
 
-App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: persistenza su `localStorage` (prefissata per-utente). Offline-first, pensata per tablet.
+App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-first**: cache `localStorage` (prefissata per-utente) + **sync Supabase** (tabella `dnd_saves` sul progetto Commonplace condiviso, auth email+password). Pensata per tablet.
 
 ## Avvio / build / test
 - `npm run dev` — Vite, porta 5175 (incrementa se occupata). Oppure doppio click su `avvia-gestionale.bat`.
 - `npm run build` — genera `dist/` (PWA con service worker).
-- `npm test` — Vitest (51 test sulle funzioni pure: dadi, norm/deSlug, storage). **Lancialo dopo ogni modifica a `DiceTray`, `GlobalSearch`, `storage`** — e aggiungi test se estrai altre funzioni pure (config in `vitest.config.js`, separata da vite.config.js).
+- `npm test` — Vitest (116 test sulle funzioni pure: dadi, norm/deSlug, storage, sync). **Lancialo dopo ogni modifica a `DiceTray`, `GlobalSearch`, `storage`, `sync`** — e aggiungi test se estrai altre funzioni pure (config in `vitest.config.js`, separata da vite.config.js).
 
 ## Struttura file
 - `src/App.jsx` — **cuore dell'app (~5.5k righe)**: App/AppRoot/LoginScreen, CharacterSheet (+ picker razza/classe/sottoclasse, equipaggiamento, incantesimi del PG), CombatTracker (+ DiceRoller, incontri), MonstersPage (+ statblock, form, Open5e), EncounterGeneratorPage, Import5eTools (parser 5e.tools), `buildSearchEntries()`.
 - `src/data/` — **DB di gioco puri** (export const, zero logica): `spells` (180), `monsters` (37), `equipment`, `magicItems`, `names`, `races`, `classes`, `details`, `shop`, `rules`.
 - `src/styles.js` — il CSS globale (template string iniettata da App).
-- `src/storage.js` — **helper di persistenza** (`userKey`, `safeLsSet`, `getStoredUser`/`storeUser`/`clearUser`, `migrateLegacyKey`): è il seme del futuro layer Supabase — ogni nuova lettura/scrittura localStorage deve passare da qui.
+- `src/storage.js` — **layer di persistenza locale** (`K`, `loadJSON`/`saveJSON`, `userKey`, `safeLsSet`, `readRaw`/`writeRaw`, auth mirror, `migrateLegacyKey`, `setSaveListener`): ogni lettura/scrittura localStorage deve passare da qui. `saveJSON` avvisa il motore di sync via listener.
+- `src/sync.js` — **motore di sync Supabase** (`createSyncEngine`, testato): pull completo al login (prima del mount di App), push debounced (2.5s) delle chiavi sporche, coda persistita per-utente (`dnd_sync_dirty_v1`) + memoria `updated_at` (`dnd_sync_meta_v1`). Conflitti: last-write-wins **per chiave**; una chiave sporca in locale vince sul remoto. `markAllForPush()` per il post-restore. Offline: si lavora sulla cache, la coda riparte all'evento `online`/al riavvio.
+- `src/supabaseClient.js` — client Supabase (progetto Commonplace condiviso `pchldmiavycxzpkzochn`, chiave publishable, tabella `dnd_saves` con RLS owner-only: `user_id, key, value jsonb, updated_at`, PK composta).
 - Pagine autonome: `src/NameGenerator.jsx`, `RulesModal.jsx`, `SessionNotesPage.jsx`, `SpellsPage.jsx`, `ShopPage.jsx`, `DescriptionsPage.jsx`, `CampaignPage.jsx`.
 - `src/campaign.js` — **registro Campagna** (puro, testato): parser delle schede markdown della wiki Obsidian (frontmatter YAML → voce con riassunto/campi/sezioni). Il tab 🗺 Campagna importa i `.md` (multi-selezione), le voci finiscono in ⌘K (tipi 🎭/🏰/🏛/🗺) e nei pin di Sessione. Chiave `dnd_campaign_v1`. Whitelist `IMPORT_TIPI`; le voci `manual: true` non vengono sovrascritte dagli import.
 - La palette ⌘K indicizza anche i **dati personali**: note di sessione (📓), incontri salvati (⚡), nomi salvati (🏷) — letti da localStorage in `buildSearchEntries` a ogni apertura.
@@ -39,12 +41,15 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 
 ## Backup
 - 💾 Backup esporta tutte le chiavi localStorage dell'utente **senza prefisso** (così un backup è ripristinabile in un altro account); riepilogo leggibile in cima.
-- Import: valida `app:"DnDMaster"`, **chiede conferma** (sovrascrive le chiavi omonime), poi `window.location.reload()`.
-- Esclusi: `dnd_auth_user` (auth globale) e la cache IndexedDB del catalogo/indice mostri (rigenerabile, sarebbe decine di MB).
+- Import: valida `app:"DnDMaster"`, **chiede conferma** (sovrascrive le chiavi omonime), poi chiama `markAllForPush()` (il restore diventa la verità: tutto ri-pushato, il pull al reload non lo sovrascrive) e `window.location.reload()`.
+- Esclusi: `dnd_auth_user`/`dnd_auth_uid` (auth globale), le chiavi di stato sync (`SYNC_STATE_KEYS`, locali al device) e la cache IndexedDB del catalogo/indice mostri (rigenerabile, sarebbe decine di MB).
 
-## Persistenza (localStorage)
+## Persistenza (localStorage + Supabase)
 - Chiavi **prefissate per utente** via `userKey(key)` → `${user}__${key}`. `safeLsSet` gestisce il quota-exceeded (toast).
-- Utenti app: **Olengard** (auto-login) e **Manu**. Auth *cosmetica* (hash SHA-256 nel sorgente + auto-login).
+- **Auth vera Supabase** (email+password, AuthScreen con login/registrati/reset). Il "profilo" (= prefisso localStorage storico) si risolve dall'account: `display_name` dei metadati → mappa `EMAIL_PROFILE` (olengard@gmail.com → Olengard) → parte locale dell'email, normalizzato sui canonici `Olengard`/`Manu`. La sessione persiste (niente più auto-login hardcoded); avvio **offline** possibile via specchi locali `dnd_auth_user`/`dnd_auth_uid`.
+- Flusso all'avvio (AppRoot): sessione → profilo → `migrateLegacyKey` → **pull remoto** → mount di App (che legge localStorage al mount). Badge in basso a destra: pallino stato sync (verde ok, oro in corso, grigio offline, rosso errore) + utente + logout (flush prima di uscire).
+- `loadJSON`/`saveJSON` restano **sincroni** sulla cache locale: i componenti non sanno nulla del backend. Solo le chiavi del registro `K` sincronizzano.
+- I personaggi (debounce 400ms, `flushSave` con chiave catturata alla modifica) marcano la chiave sporca **alla modifica** (`sync.markDirty` nell'effect), non al flush; il push rilegge comunque il valore corrente e il confronto raw pre/post upsert evita di perdere scritture in volo.
 - Chiavi principali: `STORAGE_KEY` (personaggi), `dnd_custom_monsters_v1` (mostri), `dnd_imported_*` (catalogo), `dnd_combat_v2`, `dnd_encounters_v2`, `dnd_session_notes`, `dnd_saved_names`, `dnd_session_pins_v1` (pin Sessione), `dnd_dice_history_v1` (tiri).
 - Migrazione legacy → spazio utente in `migrateLegacyKey` (in `AppRoot`).
 - **Salvataggio personaggi debounced (400ms)** in `App` (`flushSave`): flush immediato su pagehide/visibilitychange/unmount; la chiave utente è catturata **alla modifica**, non al flush (evita scritture su chiave sbagliata durante il logout). Non tornare al salvataggio sincrono per-keystroke.
@@ -71,5 +76,5 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. **Nessun backend**: pers
 - I **dati importati vecchi** possono avere forme diverse da quelle attese (es. razze con `abilityScoreIncrease` stringa invece di `abilityBonuses` oggetto): quando cambi un parser, aggiungi la conversione di compatibilità nel punto di lettura (vedi `parseAsiLegacy`) e normalizza alla forma dei dati inline.
 - Il bump tablet (`@media max-width:1400px`) imposta padding/min-height dei `.btn` con `!important`: gli stili inline compatti nei componenti vengono scavalcati — serve una regola CSS con specificità maggiore (vedi `.dice-tray .btn`).
 
-## Roadmap (prossimo grande step)
-**Supabase**: introdurre un **layer di persistenza unico** (oggi incapsula localStorage, domani Supabase) → sync cross-device + isolamento utente reale + auth vera. Vedi memoria `dnd-master-roadmap`.
+## Roadmap
+**Supabase fase 2B: FATTA (2026-07-07)** — auth vera + sync cross-device via `dnd_saves`. Limite noto e accettato: conflitti last-write-wins per chiave intera (es. tutti i PG in un blob) — se servisse, spezzare `characters` in una riga per PG senza cambiare l'API. Vedi memoria `dnd-master-roadmap`.
