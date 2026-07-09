@@ -24,8 +24,9 @@ tags: [oggetto, obscurati, colosso]
 ## Cronologia
 - **[[02 - The Dying Skyseer|Avv. 2]]** — i **tremori** su Flint sono causati (segretamente) dalla sua costruzione.
 - **[[05 - Cauldron-Born|Avv. 5]]** — si **libera e va in furia**, emergendo nel mondo reale; il re lo bandisce nel [[The Dreaming]].
-- **[[08 - Diaspora|Avv. 8]]** — segue intuitivamente il viaggio di Kasvarina e rientra nel reale a Methia.
-- **[[13 - Avatar of Revolution|Avv. 13]]** — posta in gioco del finale: può essere **convertito** con un dibattito d'idee.
+- **[[08 - Diaspora|Avv. 8]]** — segue intuitivamente il viaggio di Kasvarina e rientra nel reale a Methia; il party può tentare (invano) di prenderne il controllo, poi gli Ob lo riprendono.
+- **[[09 - The Last Starry Sky|Avv. 9]]** — "off-screen": resta **criticamente danneggiato su [[Axis Island]]**.
+- **[[13 - Avatar of Revolution|Avv. 13]]** — posta in gioco del finale, conteso tra party e Ob: può essere **convertito** con un dibattito d'idee.
 
 ## Fonti
-- `_fonti/ZG_Campaign_guide.pdf` (pp. 8, 13, 20–22)
+- `_fonti/ZG_Campaign_guide.pdf` (pp. 8, 13, 20–22, 24)

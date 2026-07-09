@@ -19,13 +19,19 @@ Il party è bloccato nel [[The Dreaming]] e scopre che l'[[Unseen Court]] è in 
 
 Corsi a Flint, scoprono che la magia sta fluttuando, come se un grande mutamento attraversasse il mondo. Sfondano un blocco navale dell'isola del governatore e trovano **[[Roland Stanfield]]**, capo della [[Colossus Cell]], ai comandi di una macchina eldritch. Mentre le stelle piovono dal cielo, il party deve fermare il rituale prima che tutta Risur cada sotto il controllo Ob. Il re è probabilmente ferito a morte e **passa la corona al più degno tra i PG**.
 
+> [!segreto-dm]
+> - **Stanfield è a prova di anticipo:** se viene smascherato o perfino ucciso prima del tempo, **si reincarna** e torna comunque come villain climatico di questa avventura (per questo la CG lo tiene nascosto fino a qui; non indossa mai il suo anello Ob).
+> - **"Off-screen"**: gli eventi di questa avventura lasciano [[Borne]] **criticamente danneggiato su [[Axis Island]]** — è lì che gli Ob hanno aperto il sigillo vero.
+> - **Ponte verso l'Atto III:** dopo l'apertura dell'[[Axis Seal]], [[Han Jierre]] infonde sé stesso e alcuni luogotenenti fidati con gli **spiriti del Ghost Council**, diventando avversari all'altezza di PG epici. E da qui **[[Benedict Pemberton]]** — capito che gli Ob sono una minaccia anche per lui — comincia a dare una mano al party.
+
 ## Rivelazione chiave
 Il vero nucleo del rituale **non era a [[Flint]], ma sulla lontana [[Axis Island]]**. A questo punto il party può proteggere Risur, ma **gran parte del mondo cade sotto il controllo degli [[Obscurati]]**.
 
 ## PNG coinvolti
-- [[Roland Stanfield]] — capo Colossus Cell, antagonista qui.
+- [[Roland Stanfield]] — capo Colossus Cell, antagonista climatico (reincarnante).
 - [[King Aodhan]] — catturato; cede la corona a un PG.
 - Un fey titano alleato (a scelta del party).
+- [[Benedict Pemberton]] — inizia a offrire aiuto (svolta del suo arco).
 
 ## Luoghi
 - [[The Dreaming]] · capitale di Risur · [[Flint]] · isola del governatore
@@ -36,3 +42,4 @@ Il vero nucleo del rituale **non era a [[Flint]], ma sulla lontana [[Axis Island
 
 ## Fonti
 - PDF: *(non ancora disponibile — ZG_9)*
+- `_fonti/ZG_Campaign_guide.pdf` (p. 22 sinossi; p. 13 rivelazione; p. 24 Stanfield/Han/Borne; p. 12 arco di Pemberton)

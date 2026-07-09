@@ -4,7 +4,7 @@ numero: 10
 titolo: Godmind
 atto: "Atto III: Age of Reason"
 autore: Thurston Hillman
-data_in_gioco: 
+data_in_gioco: n/d (dopo il rituale — la notte infinita)
 livello_party: 18
 player_safe: false
 tags: [avventura, atto-3]
@@ -22,6 +22,8 @@ Il rituale per rimettere tutto a posto richiede **3 componenti**: una mappa accu
 
 ## PNG coinvolti
 - Alleati "svegli" sparsi per il mondo (da definire dal PDF).
+- [[Han Jierre]] — infuso (con luogotenenti fidati) degli **spiriti del Ghost Council**: gli avversari "epici" del nuovo ordine.
+- [[Benedict Pemberton]] — negli ultimi quattro capitoli cerca di **unirsi al party**, con l'intesa che a vittoria ottenuta avrà diritto a un **paese suo**.
 
 ## Luoghi
 - [[Risur]] resistente · il mondo sotto il nuovo ordine
@@ -31,3 +33,4 @@ Il rituale per rimettere tutto a posto richiede **3 componenti**: una mappa accu
 
 ## Fonti
 - PDF: *(non ancora disponibile — ZG_10)*
+- `_fonti/ZG_Campaign_guide.pdf` (p. 22 sinossi; p. 13 rivelazione; p. 24 Han Jierre; p. 12 Pemberton)

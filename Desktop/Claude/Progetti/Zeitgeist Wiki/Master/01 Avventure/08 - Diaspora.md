@@ -23,14 +23,18 @@ La pista porta al primo incontro di Kasvarina con [[Nicodemus the Gnostic]], e i
 
 Raggiunto l'ex centro della [[The Clergy]], dove Kasvarina e Nicodemus furono responsabili della **[[The Great Malice]]**, la reliquia manifesta un passato in cui qui la magia funzionava, dando al party modo di respingere gli eserciti. A seconda di come l'hanno trattata, Kasvarina può decidere che le sue scelte furono sbagliate e schierarsi col party — ma più probabilmente conclude di aver scelto giusto. I suoi ricordi rivelano che il piano Ob è **troppo esteso e prossimo al compimento** per fermarlo del tutto, ma c'è modo di tenere [[Risur]] fuori dal loro controllo. Completato il rituale che causò la Grande Malizia, il party è scaraventato in **un altro mondo**, mentre la cospirazione riprende il controllo del colosso.
 
+> [!segreto-dm]
+> **Il bivio di Kasvarina** (la CG lo marca come snodo): conquistarla costa un grande sforzo, ma se riesce il suo tradimento **manda Nicodemus su tutte le furie** — e lei diventa un'alleata poderosa; se fallisce, **aiuta Nicodemus a uccidere i PG**. In questa avventura il party può anche infliggere a Nicodemus una **sconfitta temporanea** (la definitiva è solo in Avv. 13), e può tentare — invano — di **prendere il controllo di [[Borne]]**.
+
 ## Rivelazione chiave
 Kasvarina e Nicodemus furono **responsabili della [[The Great Malice]]**. Gli Obscurati pianificano di **assassinare il re di [[Risur]]** e fare un rituale a [[Flint]].
 
 ## PNG coinvolti
-- [[Kasvarina Varal]] — protagonista emotiva dell'avventura.
+- [[Kasvarina Varal]] — protagonista emotiva dell'avventura; il **bivio di lealtà** è lo snodo.
 - [[Asrabey Varal]] — suo protettore/marito.
-- [[Ashima-Shimtu]] — riappare nei ricordi/cripta.
-- [[Nicodemus the Gnostic]] — nei ricordi del passato.
+- [[Ashima-Shimtu]] — riappare nei ricordi/cripta (e il legame di sangue dell'Avv. 4 può pesare).
+- [[Nicodemus the Gnostic]] — nei ricordi del passato; possibile **sconfitta temporanea**.
+- [[Borne]] — segue Kasvarina dal [[The Dreaming]] ed entra nel reale a Methia.
 
 ## Luoghi
 - [[Elfaivar]] · Methia · cripta di Ashima-Shimtu · [[The Dreaming]] (colosso)
@@ -41,3 +45,4 @@ Kasvarina e Nicodemus furono **responsabili della [[The Great Malice]]**. Gli Ob
 
 ## Fonti
 - PDF: *(non ancora disponibile — ZG_8)*
+- `_fonti/ZG_Campaign_guide.pdf` (pp. 21-22 sinossi; p. 13 rivelazione; p. 24 bivio di Kasvarina, Nicodemus, Borne)

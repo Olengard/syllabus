@@ -33,6 +33,14 @@ Vista "regista" del mistero: **cosa il manuale prevede venga svelato, e quando.*
 - **Il nome "[[Nicodemus the Gnostic]]"** non dovrebbe arrivare ai giocatori prima dell'**Avventura 5**.
 - La sua **vera identità** (l'essere [[William Miller]]) va tenuta nascosta almeno fino all'**Avventura 8**.
 - L'identità di [[Benedict Pemberton]] come il drago **Gradiax** emerge nell'**Avventura 6**.
+- **[[Roland Stanfield]]** resta insospettabile fino all'**Avventura 9** — e se viene smascherato o ucciso prima, **si reincarna** e torna comunque (non indossa mai il suo anello Ob).
+
+## Traiettorie dei villain (quando appare chi, dalla CG p. 24)
+- **[[Nicodemus the Gnostic]]** — Avv. 2: ospite anonimo da [[Reed Macbannin|Macbannin]] · Avv. 4: voce via *needlewire* (non può combattere) · Avv. 7: si presenta di persona, corpo a lungo termine · Avv. 8: possibile **sconfitta temporanea** · Avv. 13: **distruzione definitiva** dello spirito. In ogni corpo: fuma.
+- **[[Vicemi Terio]]** — dietro le quinte fino all'Avv. 7; lì appare e con ogni probabilità viene ucciso.
+- **[[Han Jierre]]** — Avv. 5: incontro al summit di pace · Avv. 7: avvistabile alla convocazione · dopo l'apertura dell'[[Axis Seal]]: si infonde (con luogotenenti) degli **spiriti del Ghost Council** → antagonisti dell'Atto III.
+- **[[Kasvarina Varal]]** — Avv. 8: il **bivio di lealtà** (conquistata = alleata poderosa che fa infuriare Nicodemus; persa = aiuta Nicodemus a uccidere i PG).
+- **[[Borne]]** — Avv. 2: [[Alexander Grappa|Grappa]] gli ruba la memoria · Avv. 5: liberato, furia su Flint · Avv. 8: tentativo (destinato a fallire) di controllarlo · Avv. 9: criticamente danneggiato su [[Axis Island]] (off-screen) · Avv. 13: conteso tra party e Ob.
 
 ## Principio di pacing del manuale
 Se il party intuisce qualcosa in anticipo, **non rovina la campagna**: ogni rivelazione è legata a una minaccia esistenziale concreta. Sapere che costruiscono un colosso nel Bleak Gate non basta — serve attaccarlo, e per farlo servono prove e alleati. Vedi [[Cronologia della Campagna]].

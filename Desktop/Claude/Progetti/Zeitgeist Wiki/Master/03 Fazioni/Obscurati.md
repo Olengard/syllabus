@@ -43,7 +43,7 @@ Competenze rare, esposti solo a frammenti del progetto: [[Margaret Saxby]] (insa
 Manodopera ignara: credono di lavorare per un ricco mecenate riservato.
 
 ## Tecnologia e codici
-- **Anelli a codice Obscurati**: tre parole con iniziali **O.B.**; il numero di lettere della terza parola = tier; il materiale = cella (oro→Golden, argento→Lantern, bronzo→Colossus). I riti separano l'identità dalla carica e **schermano dalla divinazione** (Arcana DC 34). Es.: Lya "One Bested Four"→"One Betters All"; Macbannin "Overcome Black Arts"; Saxby "Opportunity Begets Glory".
+- **Anelli a codice Obscurati**: tre parole con iniziali **O.B.**; il numero di lettere della terza parola = tier; il materiale = cella (oro→Golden, argento→Lantern, bronzo→Colossus). I riti separano l'identità dalla carica e **schermano dalla divinazione** (Arcana DC 34). Es.: Lya "One Bested Four"→"One Betters All"; Macbannin "Overcome Black Arts"; Saxby "Opportunity Begets Glory"; Caius "Old Bergeron Gold"; Finona "Original Brave Ideas"; Bree "Oathkeeper Bree's Sword"; Ottavia "Orthodoxy Bolsters Gods". [[Roland Stanfield]] non indossa mai il suo.
 - **Needlewire**: composto che permette a [[Nicodemus the Gnostic]] di possedere a distanza un soggetto e ricevere rapporti.
 - **[[Witchoil]]**: fluido che intrappola anime; carburante del colosso.
 - **[[Wayfarer Lantern]]**: macchina eldritch per facilitare/forzare la transizione planare.

@@ -21,16 +21,22 @@ La stessa magia permette al party di **impossessarsi dei corpi dei capi-cella** 
 
 In due giorni il party apprende **l'intero piano**, ma nota crepe interne. Quando Nicodemus indìce un voto su come plasmare il mondo a venire, la cospirazione si **spacca in due fazioni**. Il party può votare, ma conta poco: Nicodemus usa **repliche del [[Wayfarer Lantern]]** per ammansire i dissenzienti, e intende uccidere i PG per tenere solo chi ha il giusto mix di idealismo e pragmatismo.
 
+È qui che Nicodemus **si presenta per la prima volta di persona** (finora: ospite anonimo da Macbannin in Avv. 2, voce via *needlewire* in Avv. 4): ha scelto un **corpo a lungo termine**, e fuma — un vizio che si porta dietro da cinque secoli, in qualunque corpo. Alla convocazione è presente anche **[[Vicemi Terio]]**, capo della [[Lantern Cell]], alla sua prima (e con ogni probabilità ultima) apparizione in scena; **[[Han Jierre]]** può essere avvistato tra i big.
+
 A quel punto **[[Benedict Pemberton]]**, infiltratosi sostituendo un cospiratore con un duplicante, ringrazia Nicodemus per aver rivelato tutto, poi fa **esplodere una bomba**: libera la fazione avversa dalla magia del lantern e scatena una battaglia caotica tra le due parti, col party in mezzo.
 
 ## Rivelazione chiave
 Il piano ultimo è **alterare il tessuto della realtà**; molti nella cospirazione dissentono da [[Nicodemus the Gnostic]]. **[[Kasvarina Varal]]** ne fu co-leader e potrebbe unire gli Obscurati contro Nicodemus.
 
 ## PNG coinvolti
-- [[Nicodemus the Gnostic]] — appare di persona; nome ormai noto.
+- [[Nicodemus the Gnostic]] — prima presentazione "ufficiale", in un corpo scelto a lungo termine.
 - [[Alexander Grappa]] — riprende corpo (quello di Quital).
+- [[Leone Quital]] — la sua anima viene **distrutta** dalla magia proibita di Grappa.
 - [[Reed Macbannin]] — ora fantasma del Ghost Council.
-- [[Benedict Pemberton]] — infiltrato che fa saltare il banco.
+- [[Vicemi Terio]] — capo [[Lantern Cell]]: appare qui e probabilmente viene ucciso dai PG.
+- [[Han Jierre]] — avvistabile alla convocazione.
+- [[Benedict Pemberton]] — infiltrato (duplicante) che fa saltare il banco.
+- [[Kasvarina Varal]] — assente, ma rivelata come ex co-leader e possibile fulcro anti-Nicodemus.
 
 ## Luoghi
 - Fenditura glaciale (giganti del gelo) · isola di **Mutravir**
@@ -41,3 +47,4 @@ Il piano ultimo è **alterare il tessuto della realtà**; molti nella cospirazio
 
 ## Fonti
 - PDF: *(non ancora disponibile — ZG_7)*
+- `_fonti/ZG_Campaign_guide.pdf` (p. 21 sinossi; p. 13 rivelazione; p. 24 traiettorie di Nicodemus/Terio/Han)
