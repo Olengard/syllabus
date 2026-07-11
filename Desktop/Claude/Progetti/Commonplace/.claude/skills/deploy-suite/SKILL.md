@@ -26,7 +26,7 @@ anche se non ti viene chiesto nulla, chiudi sempre con:
 | NoteS | Vercel (build Vite) | nessuno script: `npm run build` + `npx vercel --prod` dalla cartella |
 | Footnote, ListenS, Marginalia | Vercel (file statici) | `deploya.bat` nella cartella |
 | Home, Dashboard | Vercel (file statici) | `Home/deploy_home.bat`, `Dashboard/deploy_dashboard.bat` |
-| DnDMaster | Netlify (`dnd.commonplaceapp.org`) | ⚠️ canale NON documentato (nessuno script né netlify.toml nella cartella): chiedi a Stefano come deployare prima di provare |
+| DnDMaster | Netlify (`dnd.commonplaceapp.org`) | `npm run build`, poi `npx netlify deploy --prod --dir dist` dalla cartella — sito già linkato via `.netlify/state.json` (verificato 2026-07-11: bundle dist = bundle live) |
 | Digest | Render (autodeploy) | `git push` del repo annidato `Digest/` (il push è già un deploy: serve autorizzazione) |
 
 ## Chi ha il service worker (verificato 2026-07-11)

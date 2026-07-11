@@ -5,6 +5,7 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-fi
 ## Avvio / build / test
 - `npm run dev` — Vite, porta 5175 (incrementa se occupata). Oppure doppio click su `avvia-gestionale.bat`.
 - `npm run build` — genera `dist/` (PWA con service worker).
+- Deploy (solo su autorizzazione esplicita): `npm run build`, poi `npx netlify deploy --prod --dir dist` da questa cartella — il sito è già linkato via `.netlify/state.json` → `dnd.commonplaceapp.org`. Il SW è gestito da vite-plugin-pwa (`autoUpdate`): nessun bump manuale; `sw.js` a radice è un residuo non registrato.
 - `npm test` — Vitest (116 test sulle funzioni pure: dadi, norm/deSlug, storage, sync). **Lancialo dopo ogni modifica a `DiceTray`, `GlobalSearch`, `storage`, `sync`** — e aggiungi test se estrai altre funzioni pure (config in `vitest.config.js`, separata da vite.config.js).
 
 ## Struttura file

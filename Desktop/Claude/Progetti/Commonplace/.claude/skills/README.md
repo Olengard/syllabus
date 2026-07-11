@@ -1,8 +1,8 @@
-# Libreria skill Commonplace — staging
+# Libreria skill Commonplace
 
 Skill operative per la suite Commonplace, scritte dall'operatore uscente (Fable 5, luglio 2026)
-per Opus 4.8 e modelli di classe Sonnet. Sono in `_staging/` finché non superano il collaudo
-(Fase 3); una volta promosse vanno spostate in `.claude/skills/<nome>/`.
+per Opus 4.8 e modelli di classe Sonnet. Revisionate (verifica fattuale, usabilità, sicurezza)
+e approvate da Stefano il 2026-07-11.
 
 ## Indice
 
