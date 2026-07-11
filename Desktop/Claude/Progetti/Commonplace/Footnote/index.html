@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(function(regs){
-    if(regs.length>0){
-      Promise.all(regs.map(function(r){return r.unregister();})).then(function(){
-        window.location.reload();
-      });
-    }
-  });
-}
-</script>
-
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Footnote</title>
@@ -48,6 +36,9 @@ input,textarea,select,button{font-family:'Crimson Pro',serif;outline:none}
 <script type="text/babel">
 const {useState,useEffect,useRef} = React;
 const API_URL = "/api/claude"; // Vercel serverless function (stesso dominio, nessun limite Railway)
+// Modelli: Opus per le schede (qualità massima, si genera una volta sola), Sonnet per la chat (veloce ed economico)
+const MODEL_CARD = "claude-opus-4-8";
+const MODEL_CHAT = "claude-sonnet-4-6";
 
 const LIGHT = {
   bg:"#F7F3ED",bgCard:"#FDFAF6",bgAlt:"#EFE9E0",
@@ -163,12 +154,12 @@ function AuthScreen({t}) {
   );
 }
 
-async function claude(messages, system, maxTokens) {
+async function claude(messages, system, maxTokens, model) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
+      model: model || MODEL_CHAT,
       max_tokens: maxTokens || 800,
       system: system,
       messages: messages,
@@ -205,6 +196,39 @@ function fixJson(raw) {
   if (s >= 0 && e > s) text = text.slice(s, e + 1);
   if (window.jsonrepair) return window.jsonrepair(text);
   return text; // fallback: return as-is and let JSON.parse throw
+}
+
+// Chiamata AI che deve restituire JSON: parse robusto + 1 retry automatico se il parse fallisce
+async function claudeJson(messages, system, maxTokens, model) {
+  try {
+    const raw = await claude(messages, system, maxTokens, model);
+    return JSON.parse(fixJson(raw));
+  } catch (e1) {
+    // Retry: stesso prompt + istruzione correttiva esplicita
+    const retryMsgs = [...messages, {role:'user', content:'Your previous reply was not valid parseable JSON or was cut off. Respond again with ONLY the complete, valid JSON object — no markdown fences, no commentary.'}];
+    const raw2 = await claude(retryMsgs, system, maxTokens, model);
+    return JSON.parse(fixJson(raw2));
+  }
+}
+
+// Garantisce che la scheda abbia sempre tutti i campi (mai card monche che rompono il render)
+function fillCardDefaults(d) {
+  d = d || {};
+  d.overview = d.overview || '';
+  d.context = d.context || '';
+  d.keyChapters = Array.isArray(d.keyChapters) ? d.keyChapters : [];
+  d.keyConcepts = Array.isArray(d.keyConcepts) ? d.keyConcepts : [];
+  d.keyPassages = Array.isArray(d.keyPassages) ? d.keyPassages : [];
+  d.glossary = Array.isArray(d.glossary) ? d.glossary : [];
+  d.readingGuide = d.readingGuide || '';
+  d.focusQuestions = Array.isArray(d.focusQuestions) ? d.focusQuestions : [];
+  d.controversies = d.controversies || '';
+  d.readingJournal = Array.isArray(d.readingJournal) ? d.readingJournal : [];
+  d.related = d.related || {};
+  d.related.podcasts = Array.isArray(d.related.podcasts) ? d.related.podcasts : [];
+  d.related.books = Array.isArray(d.related.books) ? d.related.books : [];
+  d.related.films = Array.isArray(d.related.films) ? d.related.films : [];
+  return d;
 }
 
 async function extractEpub(file) {
@@ -363,7 +387,8 @@ function sysPrompt(book, includeData=false) {
   const readerProfile = getReaderProfile();
   let prompt = `You are a sophisticated literary companion. Book: "${book.title}" by ${book.author}${book.edition?', '+book.edition:''}.
 Respond in: ${book.language||'italiano'}.
-Personality: erudite but warm. For structured generation respond ONLY with valid JSON, no markdown. For chat use natural prose — be focused and concise, 2-3 paragraphs per reply unless the user explicitly asks for more detail.`;
+Personality: erudite but warm. For structured generation respond ONLY with valid JSON, no markdown. For chat use natural prose — be focused and concise, 2-3 paragraphs per reply unless the user explicitly asks for more detail.
+Quality standards: be specific, never generic. Ground every claim in the actual content of this book — its arguments, scenes, characters, structure. Recommend ONLY works that really exist (verify author/title pairings carefully; if unsure of an exact episode, name the show and topic). Prefer precise, illuminating connections over obvious ones. When recommending media, mix international and Italian-language resources when good Italian ones exist.`;
   if (readerProfile) prompt += readerProfile;
   if (includeData && book.data) {
     const d = book.data;
@@ -377,21 +402,95 @@ Personality: erudite but warm. For structured generation respond ONLY with valid
   }
   return prompt;
 }
-function initPrompt() {
-  // Full single-call prompt (used when no file is attached)
-  return `Generate a reading companion. The "related" object must always contain exactly: 2 podcasts, 3 books, 2 films or documentaries — never empty arrays. Return ONLY this JSON:
-{"overview":"2-3 paragraph overview with historical/cultural context","context":"why this book matters today","keyChapters":["ch1","ch2"],"keyConcepts":["c1","c2"],"readingGuide":"how to approach this book","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on what divides readers or scholars about this book — contested interpretations, polarising aspects, unresolved debates","readingJournal":["question to ask yourself during ch1-2","question for the middle","question near the end","final reflection question"],"related":{"podcasts":["Show Name — episode or topic: reason","Show Name — episode or topic: reason"],"books":["Author - Title: reason","Author - Title: reason","Author - Title: reason"],"films":["Title (year): reason","Title (year): reason"]}}`;
-}
 function initPrompt1() {
-  // Call 1 (with file): overview, context, chapters, concepts only
-  return `Generate a reading companion (part 1). Return ONLY this JSON:
-{"overview":"2-3 paragraphs covering historical context, author's intellectual background, and central argument","context":"why this book still matters today — 2-3 sentences","keyChapters":["chapter or section title","chapter or section title","chapter or section title"],"keyConcepts":["concept","concept","concept","concept","concept"]}`;
+  // Call 1: overview, context, chapters, concepts, key passages, glossary
+  return `Generate part 1 of a rich reading companion. Be substantive and specific to THIS book — no filler, no generalities that could apply to any book. Return ONLY this JSON:
+{"overview":"3-4 dense paragraphs: historical and cultural context, the author's intellectual or artistic trajectory, the book's central argument or narrative arc, its place in the author's oeuvre and in its genre","context":"why this book matters today — 3-4 sentences connecting it to current debates, sensibilities or events","keyChapters":["5-7 pivotal chapters or sections, each with a 3-6 word hint of why it matters"],"keyConcepts":["6-8 central concepts, ideas or motifs"],"keyPassages":["4-5 entries — passages, scenes or arguments not to miss: where they are in the book and why they are decisive, one line each"],"glossary":["5-8 entries 'Term: concise definition' — technical terms, historical references, recurring symbols or untranslated words a reader will encounter"]}`;
 }
-function initPrompt2(d) {
-  // Call 2 (no file): reading guide, questions, resources — uses data from call 1 as context
-  const ctx = `Overview: "${(d.overview||'').slice(0,300)}" | Key concepts: ${(d.keyConcepts||[]).slice(0,5).join(', ')}`;
-  return `${ctx}\n\nGenerate a reading companion (part 2). The "related" object must always contain exactly: 2 podcasts, 3 books, 2 films or documentaries — never empty arrays. Return ONLY this JSON:
-{"readingGuide":"2-3 paragraphs: how to approach this book, what reading strategy works best, what to pay attention to as you read","focusQuestions":["q1","q2","q3","q4","q5"],"controversies":"1-2 sentences on contested interpretations, polarising aspects, or unresolved scholarly debates about this book","readingJournal":["reflective question for the opening chapters","question for the middle of the book","question approaching the final chapters","final synthesis question after finishing"],"related":{"podcasts":["Show Name — episode or topic: reason","Show Name — episode or topic: reason"],"books":["Author - Title: one-line reason","Author - Title: one-line reason","Author - Title: one-line reason"],"films":["Title (year): one-line reason","Title (year): one-line reason"]}}`;
+// Contesto condiviso per le chiamate parziali (parte 2 spezzata in 3 chiamate piccole e parallele:
+// output brevi = niente troncamenti, l'origine storica delle sezioni vuote o tagliate a metà)
+function cardCtx(book, d) {
+  return `Book: "${book.title}" by ${book.author}. Key concepts: ${(d.keyConcepts||[]).slice(0,8).join(', ')}. Overview excerpt: "${(d.overview||'').slice(0,350)}"`;
+}
+function guidePrompt(book, d) {
+  return `${cardCtx(book,d)}\n\nGenerate ONLY these two fields of the reading companion. Return ONLY this JSON:\n{"readingGuide":"3-4 paragraphs: how to approach this book, what reading strategy suits its structure, what to pay attention to, common misreadings to avoid, how fast or slow to read which parts","controversies":"3-4 sentences on contested interpretations, polarising aspects, scholarly or public debates around this book and its author"}`;
+}
+function questionsPrompt(book, d) {
+  return `${cardCtx(book,d)}\n\nGenerate ONLY these two fields of the reading companion. "focusQuestions" exactly 8, "readingJournal" exactly 6 — never fewer. Return ONLY this JSON:\n{"focusQuestions":["8 questions that probe the book's arguments, tensions and blind spots — mix interpretive, critical and personal questions","...x8"],"readingJournal":["6 reflective prompts following the arc of reading: two for the opening chapters, two for the middle, one approaching the end, one final synthesis after finishing","...x6"]}`;
+}
+function relatedPrompt(book, d) {
+  return `${cardCtx(book,d)}\n\nGenerate ONLY the related-resources object for this book. Exactly 4 podcasts, 6 books, 4 films or documentaries — all really existing, each with the SPECIFIC connection to this book in one line (a shared theme, a counter-argument, a different medium treating the same question). Avoid the most obvious choices in favour of precise, illuminating ones, but include an obvious one when truly essential. Return ONLY this JSON:\n{"podcasts":["Show Name — specific episode or topic: specific connection","...x4"],"books":["Author - Title: specific connection","...x6"],"films":["Title (year): specific connection","...x4"]}`;
+}
+
+// Se le risorse correlate sono vuote o scarse, le rigenera con una chiamata dedicata
+async function ensureRelated(data, book) {
+  const r = data.related || {};
+  const total = (r.podcasts?.length||0) + (r.books?.length||0) + (r.films?.length||0);
+  if (total >= 8) return data; // abbastanza materiale, ok
+  try {
+    const rel = await claudeJson([{role:'user',content:relatedPrompt(book, data)}], sysPrompt(book), 3500, MODEL_CARD);
+    data.related = {
+      podcasts: Array.isArray(rel.podcasts) && rel.podcasts.length ? rel.podcasts : (r.podcasts||[]),
+      books:    Array.isArray(rel.books)    && rel.books.length    ? rel.books    : (r.books||[]),
+      films:    Array.isArray(rel.films)    && rel.films.length    ? rel.films    : (r.films||[]),
+    };
+  } catch(e) { /* teniamo quello che c'è: meglio una scheda con poche risorse che un errore */ }
+  return data;
+}
+
+// Un testo "tronco" non finisce con punteggiatura terminale (segno tipico di risposta tagliata)
+function looksTruncated(s) {
+  s = (s||'').trim();
+  return s.length > 0 && !/[.!?…»”")\]]$/.test(s);
+}
+// La scheda ha sezioni vuote, tronche o sotto le quantità attese?
+function cardNeedsRepair(d) {
+  if (!d) return false;
+  const r = d.related||{};
+  const tot = (r.podcasts?.length||0)+(r.books?.length||0)+(r.films?.length||0);
+  return !d.overview || looksTruncated(d.overview)
+    || !d.readingGuide || looksTruncated(d.readingGuide)
+    || !d.controversies || looksTruncated(d.controversies)
+    || (d.focusQuestions?.length||0) < 6
+    || (d.readingJournal?.length||0) < 4
+    || tot < 8;
+}
+// Ripara SOLO i gruppi di campi incompleti, con chiamate piccole e mirate
+async function repairCard(data, book) {
+  const sys = sysPrompt(book);
+  // Gruppo 1: overview, contesto, capitoli, concetti, passi, glossario
+  if (!data.overview || looksTruncated(data.overview) || !data.context
+      || (data.keyChapters?.length||0)<3 || (data.keyConcepts?.length||0)<4
+      || (data.keyPassages?.length||0)<3 || (data.glossary?.length||0)<4) {
+    try {
+      const f = fillCardDefaults(await claudeJson([{role:'user',content:initPrompt1()}], sys, 6000, MODEL_CARD));
+      if (!data.overview || looksTruncated(data.overview)) data.overview = f.overview || data.overview;
+      if (!data.context || looksTruncated(data.context)) data.context = f.context || data.context;
+      if ((data.keyChapters?.length||0)<3 && f.keyChapters.length) data.keyChapters = f.keyChapters;
+      if ((data.keyConcepts?.length||0)<4 && f.keyConcepts.length) data.keyConcepts = f.keyConcepts;
+      if ((data.keyPassages?.length||0)<3 && f.keyPassages.length) data.keyPassages = f.keyPassages;
+      if ((data.glossary?.length||0)<4 && f.glossary.length) data.glossary = f.glossary;
+    } catch(e) {}
+  }
+  // Gruppo 2: guida di lettura + controversie
+  if (!data.readingGuide || looksTruncated(data.readingGuide) || !data.controversies || looksTruncated(data.controversies)) {
+    try {
+      const f = await claudeJson([{role:'user',content:guidePrompt(book,data)}], sys, 3000, MODEL_CARD);
+      if (f.readingGuide && (!data.readingGuide || looksTruncated(data.readingGuide))) data.readingGuide = f.readingGuide;
+      if (f.controversies && (!data.controversies || looksTruncated(data.controversies))) data.controversies = f.controversies;
+    } catch(e) {}
+  }
+  // Gruppo 3: domande + diario di lettura
+  if ((data.focusQuestions?.length||0)<6 || (data.readingJournal?.length||0)<4) {
+    try {
+      const f = await claudeJson([{role:'user',content:questionsPrompt(book,data)}], sys, 3500, MODEL_CARD);
+      if (Array.isArray(f.focusQuestions) && f.focusQuestions.length > (data.focusQuestions?.length||0)) data.focusQuestions = f.focusQuestions;
+      if (Array.isArray(f.readingJournal) && f.readingJournal.length > (data.readingJournal?.length||0)) data.readingJournal = f.readingJournal;
+    } catch(e) {}
+  }
+  // Gruppo 4: risorse correlate
+  await ensureRelated(data, book);
+  return data;
 }
 
 function Dots({color}) {
@@ -468,32 +567,37 @@ function BookForm({t, onDone, onCancel}) {
     }
     const book = {...form, id:LS.id(), addedAt:new Date().toISOString(), hasFile:!!file};
     try {
-      let data;
-      if (file) {
-        // ── Call 1: with file — overview, context, chapters, concepts ──
-        setMsg('Analizzo il testo…');
-        let messages1;
-        if (pdfB64) {
-          messages1 = [{role:'user',content:[
-            {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
-            {type:'text',text:initPrompt1()}
-          ]}];
-        } else {
-          messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
-        }
-        const raw1 = await claude(messages1, sysPrompt(book), 4500);
-        const data1 = JSON.parse(fixJson(raw1));
-        // ── Call 2: no file — reading guide, questions, resources ──
-        setMsg('Genero la guida di lettura…');
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 8000);
-        const data2 = JSON.parse(fixJson(raw2));
-        data = {...data1, ...data2};
+      // ── Flusso unificato a due chiamate (con o senza file): più materiale, meno troncamenti ──
+      // Call 1: overview, contesto, capitoli, concetti, passi chiave, glossario
+      setMsg(file ? 'Analizzo il testo…' : 'Analizzo il libro…');
+      let messages1;
+      if (pdfB64) {
+        messages1 = [{role:'user',content:[
+          {type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},
+          {type:'text',text:initPrompt1()}
+        ]}];
+      } else if (fileText) {
+        messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
       } else {
-        // No file: single call is fine
-        setMsg('Genero la scheda…');
-        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 8000);
-        data = JSON.parse(fixJson(raw));
+        messages1 = [{role:'user',content:initPrompt1()}];
       }
+      const sys = sysPrompt(book);
+      const data1 = await claudeJson(messages1, sys, 6000, MODEL_CARD);
+      // Calls 2a-2c in parallelo: output piccoli = niente troncamenti
+      setMsg('Genero guida, domande e risorse…');
+      const [g,q,rel] = await Promise.allSettled([
+        claudeJson([{role:'user',content:guidePrompt(book,data1)}], sys, 3000, MODEL_CARD),
+        claudeJson([{role:'user',content:questionsPrompt(book,data1)}], sys, 3500, MODEL_CARD),
+        claudeJson([{role:'user',content:relatedPrompt(book,data1)}], sys, 3500, MODEL_CARD),
+      ]);
+      const data = fillCardDefaults({
+        ...data1,
+        ...(g.status==='fulfilled'?g.value:{}),
+        ...(q.status==='fulfilled'?q.value:{}),
+        related: rel.status==='fulfilled'?rel.value:{},
+      });
+      setMsg('Controllo completezza…');
+      await repairCard(data, book);
       onDone({...book, data, chat:[], collectionIds:[]});
     } catch(e) { setErr('Errore: '+e.message); }
     setLoading(false);
@@ -663,7 +767,7 @@ function Chat({t, sys, sessions, onSaveSessions}) {
     } else if (msgs.length >= 2) {
       contextPart = ` Abbiamo appena parlato di: "${msgs[msgs.length-1]?.content?.slice(0,120)}".`;
     }
-    const prompt = `In base a questo libro${contextPart} suggeriscimi 2-3 libri, 1-2 podcast e 1 film o documentario strettamente pertinenti. Per ognuno spiega in una riga il collegamento specifico. Sii selettivo e preciso, non generico.`;
+    const prompt = `In base a questo libro${contextPart} suggeriscimi 3-4 libri, 2 podcast e 1-2 film o documentari strettamente pertinenti. Solo opere realmente esistenti. Per ognuno spiega in una riga il collegamento specifico (tema condiviso, contro-argomento, stesso problema in un altro medium). Sii selettivo e preciso, non generico: evita le scelte più ovvie a meno che non siano davvero essenziali.`;
     const next = [...msgs,{role:'user',content:prompt}];
     setMsgs(next); setSuggCtx(''); setBusy(true);
     try {
@@ -857,7 +961,12 @@ function exportCardToPdf(book) {
   if (d.overview) lines.push(sec('◈','Overview & Contesto', p(d.overview)+(d.context?p(d.context):'')
     +(d.keyChapters?.length?`<p style="font-size:11px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px">Capitoli chiave</p><div>${d.keyChapters.map(tag).join('')}</div>`:'')
     +(d.keyConcepts?.length?`<p style="font-size:11px;color:#9E8E7E;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px">Concetti chiave</p><div>${d.keyConcepts.map(tag).join('')}</div>`:'')));
+  if (d.keyPassages?.length) lines.push(sec('❡','Passi da non perdere',
+    `<ul style="padding-left:18px;margin:0">${d.keyPassages.map(x=>`<li style="font-size:14px;line-height:1.75;color:#2C2416;margin-bottom:5px">${x}</li>`).join('')}</ul>`));
   if (d.readingGuide) lines.push(sec('◎','Guida di Lettura', p(d.readingGuide)));
+  if (d.glossary?.length) lines.push(sec('✣','Piccolo Glossario',
+    d.glossary.map(x=>{const ci=x.indexOf(':');const term=ci>0?x.slice(0,ci):'';const def=ci>0?x.slice(ci+1).trim():x;
+      return `<p style="font-size:13px;line-height:1.7;color:#2C2416;margin:0 0 5px">${term?`<strong style="color:#8B4513">${term}:</strong> `:''}${def}</p>`;}).join('')));
   if (d.focusQuestions?.length) lines.push(sec('◇','Domande di Riflessione',
     `<ol style="padding-left:20px;margin:0">${d.focusQuestions.map(q=>`<li style="font-size:14px;line-height:1.75;color:#2C2416;margin-bottom:6px">${q}</li>`).join('')}</ol>`));
   if (d.controversies) lines.push(sec('⚡','Controversie & Dibattiti', p(d.controversies)));
@@ -964,6 +1073,26 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
   const mine = (collections||[]).filter(c=>(book.collectionIds||[]).includes(c.id));
   const [bsMsg, setBsMsg] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [relBusy, setRelBusy] = useState(false);
+  async function regenRelated() {
+    setRelBusy(true);
+    try {
+      const nd = fillCardDefaults({...book.data});
+      await ensureRelated(nd, book);
+      onUpdate({...book, data: nd});
+    } catch(e) { alert('Errore: '+e.message); }
+    setRelBusy(false);
+  }
+  // Ripara tutte le sezioni vuote/tronche della scheda (senza toccare quelle sane)
+  async function repairExisting() {
+    setRelBusy(true);
+    try {
+      const nd = fillCardDefaults({...book.data});
+      await repairCard(nd, book);
+      onUpdate({...book, data: nd});
+    } catch(e) { alert('Errore: '+e.message); }
+    setRelBusy(false);
+  }
   async function handleExportBS() {
     setBsMsg('…');
     const result = await exportToBookShelf(book, user);
@@ -974,10 +1103,9 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
     if (file && file.size > 3 * 1024 * 1024) { alert('File troppo grande (max 3 MB). Prova con un file più piccolo.'); return; }
     setGenerating(true);
     try {
-      let data;
+      // ── Flusso unificato a due chiamate (con o senza file) ──
+      let messages1 = [{role:'user',content:initPrompt1()}];
       if (file) {
-        // ── Call 1: with file ──
-        let messages1;
         if (file.name.toLowerCase().endsWith('.epub')) {
           const fileText = await extractEpub(file);
           messages1 = [{role:'user',content:'Book text:\n\n'+fileText+'\n\n---\n\n'+initPrompt1()}];
@@ -990,16 +1118,21 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
             {type:'text',text:initPrompt1()}
           ]}];
         }
-        const raw1 = await claude(messages1, sysPrompt(book), 4500);
-        const data1 = JSON.parse(fixJson(raw1));
-        // ── Call 2: no file ──
-        const raw2 = await claude([{role:'user',content:initPrompt2(data1)}], sysPrompt(book), 8000);
-        const data2 = JSON.parse(fixJson(raw2));
-        data = {...data1, ...data2};
-      } else {
-        const raw = await claude([{role:'user',content:initPrompt()}], sysPrompt(book), 8000);
-        data = JSON.parse(fixJson(raw));
       }
+      const sys = sysPrompt(book);
+      const data1 = await claudeJson(messages1, sys, 6000, MODEL_CARD);
+      const [g,q,rel] = await Promise.allSettled([
+        claudeJson([{role:'user',content:guidePrompt(book,data1)}], sys, 3000, MODEL_CARD),
+        claudeJson([{role:'user',content:questionsPrompt(book,data1)}], sys, 3500, MODEL_CARD),
+        claudeJson([{role:'user',content:relatedPrompt(book,data1)}], sys, 3500, MODEL_CARD),
+      ]);
+      const data = fillCardDefaults({
+        ...data1,
+        ...(g.status==='fulfilled'?g.value:{}),
+        ...(q.status==='fulfilled'?q.value:{}),
+        related: rel.status==='fulfilled'?rel.value:{},
+      });
+      await repairCard(data, book);
       onUpdate({...book, data, chat:[]});
     } catch(e) { alert('Errore: '+e.message); }
     setGenerating(false);
@@ -1022,6 +1155,11 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
             {book.data&&<button onClick={()=>exportCardToPdf(book)} style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:'pointer'}}>
               📄 Esporta PDF
             </button>}
+            {book.data&&cardNeedsRepair(book.data)&&<button onClick={repairExisting} disabled={relBusy||generating}
+              title="Rigenera solo le sezioni vuote o tagliate a metà"
+              style={{padding:'6px 13px',background:t.accentBg,border:`1px solid ${t.accent}`,borderRadius:8,color:t.accent,fontSize:13,cursor:relBusy?'default':'pointer',opacity:relBusy?0.5:1}}>
+              {relBusy?'⏳ Riparo…':'🩹 Completa scheda'}
+            </button>}
             {book.data&&<button onClick={()=>{ if(confirm('Rigenerare la scheda? Il contenuto attuale verrà sostituito.')) generateCard(null); }} disabled={generating}
               style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:generating?'default':'pointer',opacity:generating?0.5:1}}>
               {generating?'⏳ Generando…':'↺ Rigenera'}
@@ -1041,7 +1179,18 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
           {d.keyChapters?.length>0&&<><p style={sl}>Capitoli chiave</p><div>{d.keyChapters.map((c,i)=><Tag key={i} label={c} t={t}/>)}</div></>}
           {d.keyConcepts?.length>0&&<><p style={sl}>Concetti chiave</p><div>{d.keyConcepts.map((c,i)=><Tag key={i} label={c} t={t}/>)}</div></>}
         </Card>
+        {d.keyPassages?.length>0&&<Card icon="❡" title="Passi da non perdere" t={t} delay={.08}>
+          <ul style={{paddingLeft:20}}>{d.keyPassages.map((x,i)=><li key={i} style={{...p,marginBottom:8,paddingLeft:3}}>{x}</li>)}</ul>
+        </Card>}
         <Card icon="◎" title="Guida di Lettura" t={t} delay={.1}><p style={p}>{d.readingGuide}</p></Card>
+        {d.glossary?.length>0&&<Card icon="✣" title="Piccolo Glossario" t={t} delay={.12}>
+          {d.glossary.map((x,i)=>{
+            const ci = x.indexOf(':');
+            const term = ci>0 ? x.slice(0,ci) : '';
+            const def = ci>0 ? x.slice(ci+1).trim() : x;
+            return <p key={i} style={{...p,fontSize:15,marginBottom:7}}>{term&&<strong style={{color:t.accent}}>{term}: </strong>}{def}</p>;
+          })}
+        </Card>}
         <Card icon="◇" title="Domande di Riflessione" t={t} delay={.15}>
           <ol style={{paddingLeft:20}}>{d.focusQuestions?.map((q,i)=><li key={i} style={{...p,marginBottom:9,paddingLeft:3}}>{q}</li>)}</ol>
         </Card>
@@ -1059,6 +1208,14 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
             <ul style={{paddingLeft:18}}>{d.related.films.map((x,i)=><li key={i} style={{fontSize:15,color:t.text,lineHeight:1.6,marginBottom:3}}>{x}</li>)}</ul>
           </div>}
           {d.related?.podcasts?.length>0&&<RelatedPodcasts podcasts={d.related.podcasts} sourceBook={book} t={t} sl={sl} user={user}/>}
+          {((d.related?.podcasts?.length||0)+(d.related?.books?.length||0)+(d.related?.films?.length||0))<8&&(
+            relBusy
+              ? <p style={{color:t.textSec,fontSize:14,fontStyle:'italic',textAlign:'center',padding:'6px 0'}}><Dots color={t.accent}/> Cerco risorse correlate…</p>
+              : <button onClick={regenRelated}
+                  style={{width:'100%',padding:'9px',background:t.accentBg,border:`1px dashed ${t.accent}`,borderRadius:8,color:t.accent,fontSize:14,cursor:'pointer',fontFamily:"'Playfair Display',serif"}}>
+                  ✦ Completa le risorse correlate
+                </button>
+          )}
         </Card>
         <BookNotes t={t} book={book} onUpdate={onUpdate}/>
         <Chat t={t} sys={sys} sessions={book.sessions||(book.chat?.length?[{id:LS.id(),title:'Sessione 1',createdAt:book.addedAt||new Date().toISOString(),messages:book.chat}]:[])} onSaveSessions={sessions=>onUpdate({...book,sessions,chat:undefined})}/>
@@ -1083,11 +1240,10 @@ function CollectionsPanel({t, collections, books, currentBookId, onSave, onClose
     if (cb.length<2) { alert('Servono almeno 2 libri.'); return; }
     setLoadingId(coll.id);
     const sum = cb.map(b=>`"${b.title}" di ${b.author}: ${b.data?.overview||''} | Concetti: ${(b.data?.keyConcepts||[]).join(', ')}`).join('\n---\n');
-    const sys = `Sei un critico letterario. Rispondi in ${cb[0].language||'italiano'}.`;
-    const prompt = `Analizza questi libri della collezione "${coll.name}":\n${sum}\n\nRispondi SOLO con questo JSON:\n{"commonThemes":["t1","t2","t3"],"comparativeQuestions":["q1","q2","q3","q4"],"synthesis":"2-3 paragrafi sulle connessioni e tensioni intellettuali"}`;
+    const sys = `Sei un critico letterario raffinato. Rispondi in ${cb[0].language||'italiano'}. Sii specifico: ogni osservazione deve nascere dal contenuto reale di questi libri, mai genericità applicabili a qualsiasi raccolta.`;
+    const prompt = `Analizza questi libri della collezione "${coll.name}":\n${sum}\n\nRispondi SOLO con questo JSON:\n{"commonThemes":["4-5 temi comuni, precisi e non ovvi"],"comparativeQuestions":["5 domande comparative che mettono i libri in tensione tra loro — dove si contraddicono, dove si completano"],"synthesis":"3-4 paragrafi sulle connessioni e tensioni intellettuali: cosa emerge leggendo questi libri insieme che nessuno di essi dice da solo"}`;
     try {
-      const raw = await claude([{role:'user',content:prompt}], sys, 2000);
-      const data = JSON.parse(fixJson(raw));
+      const data = await claudeJson([{role:'user',content:prompt}], sys, 4000, MODEL_CARD);
       onSave(collections.map(c=>c.id===coll.id?{...c,crossAnalysis:data}:c));
     } catch(e) { alert('Errore analisi: '+e.message); }
     setLoadingId(null);
@@ -1384,7 +1540,26 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[ErrorBoundary]', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {
+        style: { minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#0f0e0b', color:'#e8e0d4', fontFamily:'Georgia,serif', padding:'2rem', textAlign:'center', gap:'1rem' }
+      },
+        React.createElement('div', { style:{fontSize:'2.5rem'} }, '\u26a0\ufe0f'),
+        React.createElement('h2', { style:{color:'#c8903a',margin:0} }, 'Qualcosa \u00e8 andato storto'),
+        React.createElement('p', { style:{color:'#7a6e64',fontSize:'0.9rem',maxWidth:'480px'} }, this.state.error?.message || 'Errore sconosciuto'),
+        React.createElement('button', { onClick: () => this.setState({ hasError: false, error: null }), style: { marginTop:'1rem', padding:'0.6rem 1.4rem', background:'transparent', color:'#c8903a', border:'1px solid #c8903a', borderRadius:'4px', cursor:'pointer', fontFamily:'Georgia,serif', fontSize:'0.9rem' } }, 'Riprova')
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(ErrorBoundary, null, React.createElement(App, null)));
 </script>
 <script>
   if ('serviceWorker' in navigator) {
