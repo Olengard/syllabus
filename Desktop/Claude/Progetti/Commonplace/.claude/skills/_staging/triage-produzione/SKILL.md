@@ -21,7 +21,9 @@ root cause e può peggiorare (SW, env var).
 
 1. **L'app risponde?** `curl -sI https://app.commonplaceapp.org/` — codice HTTP:
    - **403 con header Vercel** → Deployment Protection riattivata da sola (gotcha storico):
-     vercel.com → Team Settings → Security → Deployment Protection → Disabled. (Azione di Stefano.)
+     vercel.com → Team Settings → Security → Deployment Protection → Disabled. (Azione di
+     Stefano.) Nota: DnDMaster sta su **Netlify** e Digest su **Render** — questo check
+     vale solo per le app Vercel.
    - **404/DNS** → dominio/alias Vercel scollegato dal progetto giusto (successo a Syllabus:
      dominio che puntava a un deployment vecchio).
 2. **Versione live vs locale** (pagina bianca o "modifica che non si vede"):

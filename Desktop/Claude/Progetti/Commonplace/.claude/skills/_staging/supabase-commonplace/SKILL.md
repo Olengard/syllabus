@@ -11,7 +11,7 @@ description: Lavorare con i database Supabase della suite. Usa per qualsiasi lav
 |---|---|---|
 | `pchldmiavycxzpkzochn` ("NoteS") | **Progetto principale della suite** | `bs_*` (BookShelf), `fn_books` (Footnote), `ls_*` (ListenS), `sl_*` (Syllabus), `dnd_saves` (DnDMaster), `cp_items`/`cp_log`/`cp_quotes` (layer unificato + Marginalia), tabelle NoteS |
 | `llvqoiyvzloloobjiloe` | Platea + cp legacy + Dashboard v2 | ⚠️ Va in pausa (free tier) e **a luglio 2026 non risultava tra i progetti dell'account MCP**: stato da chiarire con Stefano prima di usarlo |
-| `bogavweypmgyxwmdpsqm` | Ledger (verifica con `list_tables` prima di assumerlo) | tabelle finanza |
+| `bogavweypmgyxwmdpsqm` | **Ledger** (verificato 2026-07-11 via MCP) | `accounts`, `transactions`, `transfers`, `budgets`, `categories`, `payment_methods`, `recurring_transactions`, `meal_voucher_usages`, `benefit_*`, `investment_updates` |
 
 Auth: email+password unificata sulla suite (stesso account su `pchld…`). RLS attiva ovunque
 con policy `user_id = auth.uid()`.

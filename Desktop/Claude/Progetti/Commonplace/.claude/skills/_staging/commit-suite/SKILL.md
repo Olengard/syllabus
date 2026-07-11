@@ -10,7 +10,9 @@ description: Committare in sicurezza nel workspace Commonplace. Usa per QUALSIAS
 **La radice del repo esterno è `C:\Users\Test` — l'intero profilo Windows.** Nei diff i path
 iniziano con `Desktop/Claude/...`. Dentro Commonplace vivono inoltre **repo git annidati e
 indipendenti**: `Dashboard/`, `Digest/`, `Ledger/`, `NoteS/`, `Syllabus/app/`.
-`Syllabus/app` è registrato nel repo esterno come gitlink (submodule di fatto).
+Verificato 2026-07-11: il repo esterno **non traccia affatto** Dashboard/Digest/Ledger/NoteS
+(risultano solo cartelle untracked — non aggiungerle mai); solo `Syllabus/app` è registrato
+come gitlink (submodule di fatto), quindi è l'unico che richiede il doppio commit.
 
 ## Quando NON usare questa skill
 

@@ -18,27 +18,41 @@ anche se non ti viene chiesto nulla, chiudi sempre con:
   improvvisare, chiedi.
 - Se l'autorizzazione non è arrivata in QUESTA conversazione: chiedila, non presumerla.
 
-## Mappa dei canali di deploy
+## Mappa dei canali di deploy (verificata 2026-07-11)
 
 | App | Canale | Comando |
 |---|---|---|
-| BookShelf, NoteS, Ledger, Syllabus | Vercel (build Vite) | `deploya.bat` nella cartella, o `npm run build` + `npx vercel --prod` |
-| Footnote, ListenS, Marginalia, Dashboard, Home | Vercel (file statici) | `deploya.bat` / `npx vercel --prod` dalla cartella |
-| DnDMaster | Netlify (`dnd.commonplaceapp.org`) | `npm run build`, poi deploy Netlify (canale documentato nel suo CLAUDE.md; in dubbio chiedi) |
+| BookShelf, Ledger, Syllabus | Vercel (build Vite) | `BookShelf/deploya.bat`; Ledger e Syllabus: `npm run build` + `npx vercel --prod` dalla cartella (Syllabus: da `Syllabus/app/`) |
+| NoteS | Vercel (build Vite) | nessuno script: `npm run build` + `npx vercel --prod` dalla cartella |
+| Footnote, ListenS, Marginalia | Vercel (file statici) | `deploya.bat` nella cartella |
+| Home, Dashboard | Vercel (file statici) | `Home/deploy_home.bat`, `Dashboard/deploy_dashboard.bat` |
+| DnDMaster | Netlify (`dnd.commonplaceapp.org`) | ⚠️ canale NON documentato (nessuno script né netlify.toml nella cartella): chiedi a Stefano come deployare prima di provare |
 | Digest | Render (autodeploy) | `git push` del repo annidato `Digest/` (il push è già un deploy: serve autorizzazione) |
+
+## Chi ha il service worker (verificato 2026-07-11)
+
+- **Bump manuale obbligatorio** in `sw.js` prima del deploy: **Footnote** (`Footnote/sw.js`),
+  **ListenS** (`ListenS/sw.js`), **Marginalia** (`Marginalia/sw.js`),
+  **BookShelf** (`BookShelf/public/sw.js`), **Syllabus** (`Syllabus/app/public/sw.js`).
+- **Nessun bump manuale**: NoteS, Ledger, DnDMaster usano `vite-plugin-pwa` con
+  `registerType: autoUpdate` (i client si aggiornano dopo 1-2 reload). Il file
+  `DnDMaster/sw.js` a radice è un residuo NON registrato: ignoralo, non bumparlo.
+- **Nessun SW**: Home e Dashboard (pagine statiche semplici).
 
 ## Procedura
 
 1. Chiedi autorizzazione (o verifica di averla per QUESTO deploy).
-2. **App con service worker** (Footnote, ListenS, Marginalia, BookShelf, Syllabus, Dashboard se ce l'ha):
-   **bumpa la versione cache in `sw.js`** (`footnote-v27` → `v28`) PRIMA del deploy.
-   Senza bump i client installati continuano a servire la versione vecchia.
+2. Se l'app è nella lista "bump manuale obbligatorio": **bumpa la versione cache in `sw.js`**
+   (`footnote-v27` → `v28`) PRIMA del deploy. Senza bump i client installati continuano
+   a servire la versione vecchia.
 3. App Vite: `npm run build` deve passare. Se fallisce, il deploy è annullato.
 4. Esegui il deploy dal canale giusto (tabella sopra).
 5. **Verifica live** (vedi comandi): il deploy non è finito finché non l'hai osservato online.
 6. Annota il deploy nella voce di sessione di `Commonplace.md` (skill `diario-di-sessione`).
 
 ## Comandi
+
+Tutti i path sono relativi a `C:\Users\Test\Desktop\Claude\Progetti\Commonplace`.
 
 ```bash
 # bump SW (esempio Footnote) — controlla il numero attuale, incrementa di 1

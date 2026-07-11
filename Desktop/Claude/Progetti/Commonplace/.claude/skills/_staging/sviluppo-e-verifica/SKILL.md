@@ -29,8 +29,10 @@ proprio: si aprono come file o si servono staticamente.
 
 **MAI due dev server Vite sulla stessa cartella.** Se la porta risponde già (Stefano usa i
 `.bat` di avvio), usa quel server: due watcher confliggono e il perdente serve **moduli
-stantii con status 200** — il bug più subdolo del workspace. Se un server è in stato zombie
-(watcher morto), chiedi a Stefano di chiuderlo o killalo tu, poi avviane UNO.
+stantii con status 200** — il bug più subdolo del workspace. Se sospetti un server zombie
+(watcher morto), **NON killare processi di tua iniziativa**: i server attivi li ha spesso
+avviati Stefano coi suoi `.bat`. Segnala, chiedi, e solo con il suo ok si chiude e se ne
+riavvia UNO.
 
 ## Procedura
 

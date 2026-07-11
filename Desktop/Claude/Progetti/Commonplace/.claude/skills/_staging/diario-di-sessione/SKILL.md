@@ -67,7 +67,8 @@ grep -n "^## 20" "Progetti/Commonplace/Commonplace.md" | head -10
 
 - Scrivere solo COSA si è fatto senza il PERCHÉ (la root cause è la parte che vale).
 - Lasciare "⚠️ da fare" già fatti: se hai verificato che un'azione pendente è stata
-  eseguita (es. una migration), aggiorna la voce vecchia con un ✅ e la data di verifica.
+  eseguita (es. una migration), **aggiungi accanto** una nota `✅ verificato AAAA-MM-GG`
+  senza cancellare né riscrivere il testo originale (il log resta log).
 - Fidarsi del diario come fotografia dello stato: è un log storico. Chi legge deve
   verificare empiricamente; chi scrive deve datare tutto per rendere possibile la verifica.
 - Dimenticare il file: il lavoro "si vede" in git, ma il contesto vive solo qui.

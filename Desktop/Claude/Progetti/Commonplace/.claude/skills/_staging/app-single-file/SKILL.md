@@ -1,26 +1,30 @@
 ---
 name: app-single-file
-description: Modificare le app monolitiche della suite - Footnote, ListenS, Marginalia, Dashboard, Home. Usa quando il lavoro tocca uno dei loro index.html (1500+ righe con React inline), i loro sw.js o le loro Vercel Function in api/. Attivazione esatta - il file da modificare è un index.html sotto una di queste cinque cartelle.
+description: Modificare le app monolitiche della suite - Footnote, ListenS, Marginalia (React inline via babel, 1500+ righe) e Home, Dashboard (HTML/JS statici). Usa quando il lavoro tocca uno dei loro index.html, i loro sw.js o le loro Vercel Function in api/. Attivazione esatta - il file da modificare sta sotto una di queste cinque cartelle.
 ---
 
 # App single-file (Footnote, ListenS, Marginalia, Dashboard, Home)
 
-## Anatomia
+## Anatomia (verificata 2026-07-11)
 
-Tutta l'app vive in **un solo `index.html`**: CSS, componenti React e logica inline,
-trasformati nel browser da **`@babel/standalone` pinnato alla major 7** (CDN). Niente
-bundler, niente `node_modules`. Accanto: `sw.js` (service worker con cache versionata,
-es. `footnote-v27`), `manifest.json`, eventuale `api/` con Vercel Function
-(`claude.js` proxy AI in Footnote, `feed.js` proxy RSS in ListenS).
-Marginalia segue il "pattern Footnote". Home e Dashboard sono le più semplici.
+Tutta l'app vive in **un solo `index.html`**, ma le cinque non sono uguali:
+
+- **Footnote, ListenS, Marginalia** — React inline in `<script type="text/babel">`,
+  trasformato nel browser da **`@babel/standalone` pinnato alla major 7** (CDN). Niente
+  bundler, niente `node_modules`. Accanto: `sw.js` (cache versionata, es. `footnote-v27`),
+  `manifest.json`, eventuale `api/` con Vercel Function (`claude.js` proxy AI in Footnote,
+  `feed.js` proxy RSS in ListenS). Marginalia segue il "pattern Footnote".
+- **Home e Dashboard** — HTML/JS statici semplici, **niente React, niente babel,
+  niente service worker**: rischio molto più basso, ma stessa disciplina single-file.
 
 ## Quando NON usare questa skill
 
 - BookShelf, NoteS, Ledger, DnDMaster, Syllabus: sono app Vite con src/ — mondo diverso.
 - `BookShelf/public/listens.html`: NON è il sorgente di ListenS — è una COPIA.
   Il sorgente vero è `ListenS/index.html`; `Suite/sync_listens.bat` copia
-  **ListenS → BookShelf/public** (la direzione fu invertita nel 2026-06 dopo che per mesi
-  rischiava di cancellare il lavoro copiando al contrario). Non modificare mai la copia.
+  **ListenS → BookShelf/public** (direzione invertita il 2026-06-11 e verificata nel .bat
+  il 2026-07-11: prima copiava al contrario e avrebbe cancellato mesi di lavoro).
+  Non modificare mai la copia.
 
 ## Procedura
 
@@ -29,10 +33,12 @@ Marginalia segue il "pattern Footnote". Home e Dashboard sono le più semplici.
    storicamente `edit_block` **corrompe i caratteri accentati UTF-8** in alcuni file
    (caso documentato: `Syllabus generate.js`). Se il testo da inserire contiene accenti
    e usi DC, passa da PowerShell o verifica i byte dopo.
-3. Attento alla sintassi: JSX dentro `<script type="text/babel">` — un errore di parsing
-   Babel = **schermata bianca totale** senza stack utile. Modifiche piccole e verificate.
-4. Ogni modifica destinata al deploy richiede il **bump della versione cache in `sw.js`**
-   (vedi `deploy-suite`).
+3. Attento alla sintassi (Footnote/ListenS/Marginalia): JSX dentro `<script type="text/babel">`
+   — un errore di parsing Babel = **schermata bianca totale** senza stack utile.
+   Modifiche piccole e verificate.
+4. Per Footnote/ListenS/Marginalia, ogni modifica destinata al deploy richiede il
+   **bump della versione cache in `sw.js`** (vedi `deploy-suite`). Home e Dashboard
+   non hanno SW: si deployano e basta.
 5. Se tocchi ListenS: dopo la modifica esegui `Suite/sync_listens.bat` (o copia manuale
    ListenS → BookShelf/public) per riallineare la copia della Suite locale.
 6. Verifica nel browser (browser pane): apri l'app, controlla console (zero errori) e
