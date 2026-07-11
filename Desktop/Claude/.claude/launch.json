@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dndmaster",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "Progetti/Commonplace/DnDMaster"],
+      "port": 5175
+    },
+    {
+      "name": "ledger",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "Progetti/Commonplace/Ledger"],
+      "port": 5177
+    },
+    {
+      "name": "digestv-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5180", "--directory", "Progetti/Commonplace/DigestV"],
+      "port": 5180
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "api/digest.js":   { "maxDuration": 120 },
+    "api/articles.js": { "maxDuration": 60 },
+    "api/feeds.js":    { "maxDuration": 60 },
+    "api/memoria.js":  { "maxDuration": 30 },
+    "api/claude.js":   { "maxDuration": 60 }
+  },
+  "headers": [
+    { "source": "/sw.js", "headers": [ { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" } ] }
+  ]
+}

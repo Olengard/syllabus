@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digest — Il tuo lettore di feed</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1a1a1a">
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  window.supabase = { createClient };
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a; --paper: #f5f0e8; --cream: #ede8dc;
+    --gold: #c8963e; --gold-light: #e8b96a; --rust: #c0522a;
+    --muted: #7a7060; --border: #d4cfc4;
+    --card-bg: #faf7f2; --read-bg: #f0ece4; --read-text: #a09888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; }
+  header { background: var(--ink); color: var(--paper); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--gold); height: 56px; }
+  .masthead { font-family: 'Playfair Display', serif; font-size: 1.4rem; letter-spacing: 0.02em; }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; }
+  .btn { padding: 0.35rem 0.85rem; border: 1.5px solid var(--gold); background: transparent; color: var(--paper); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; cursor: pointer; letter-spacing: 0.04em; transition: all 0.15s; }
+  .btn:hover { background: var(--gold); color: var(--ink); }
+  .btn.primary { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .btn.primary:hover { background: var(--gold-light); }
+  .btn.sm { padding: 0.25rem 0.6rem; font-size: 0.72rem; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .status-dot.ok { background: #5a9a5a; }
+  .status-dot.err { background: #c0522a; }
+  #server-status { font-size: 0.7rem; color: var(--gold-light); font-family: 'DM Mono', monospace; }
+  #date-display { font-size: 0.72rem; color: #a09070; font-family: 'DM Mono', monospace; }
+  .layout { display: flex; height: calc(100vh - 56px); }
+
+  /* ── SIDEBAR ── */
+  .sidebar { width: 240px; flex-shrink: 0; background: var(--cream); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem 0; }
+  .sidebar-stats { padding: 0 1rem 1rem; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem; }
+  .sidebar-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.5rem; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.25rem; }
+  .stat-num { font-family: 'DM Mono', monospace; color: var(--gold); }
+
+  /* feed item "Tutti" */
+  .feed-all { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem; cursor: pointer; font-size: 0.82rem; transition: background 0.1s; }
+  .feed-all:hover { background: var(--border); }
+  .feed-all.active { background: var(--ink); color: var(--paper); }
+  .feed-all .feed-count { margin-left: auto; font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .feed-all.active .feed-count { color: #a09070; }
+
+  /* category group */
+  .cat-group { border-top: 1px solid var(--border); }
+  .cat-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.45rem 1rem; cursor: pointer; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); user-select: none; transition: background 0.1s; }
+  .cat-header:hover { background: var(--border); color: var(--ink); }
+  .cat-arrow { font-size: 0.6rem; margin-left: auto; transition: transform 0.2s; }
+  .cat-group.collapsed .cat-arrow { transform: rotate(-90deg); }
+  .cat-body { overflow: hidden; }
+  .cat-group.collapsed .cat-body { display: none; }
+  .cat-count { font-family: 'DM Mono', monospace; font-size: 0.68rem; }
+
+  /* feed item inside category */
+  .feed-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 1rem 0.35rem 1.6rem; cursor: pointer; font-size: 0.8rem; transition: background 0.1s; }
+  .feed-item:hover { background: var(--border); }
+  .feed-item.active { background: var(--ink); color: var(--paper); }
+  .feed-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .feed-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .feed-count { font-size: 0.68rem; color: var(--muted); font-family: 'DM Mono', monospace; flex-shrink: 0; }
+  .feed-item.active .feed-count { color: #a09070; }
+  .feed-del { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 0.65rem; opacity: 0; padding: 0 0.2rem; }
+  .feed-item:hover .feed-del { opacity: 1; }
+  .feed-item.active .feed-del { color: #a09070; opacity: 1; }
+
+  /* add feed */
+  .sidebar-add { padding: 0.75rem 1rem 0; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+  .add-feed-form input { width: 100%; padding: 0.4rem; border: 1px solid var(--border); background: var(--paper); font-size: 0.78rem; font-family: 'DM Sans', sans-serif; color: var(--ink); outline: none; margin-bottom: 0.4rem; }
+  .add-feed-form select { width: 100%; padding: 0.4rem; border: 1px solid var(--border); background: var(--paper); font-size: 0.78rem; font-family: 'DM Sans', sans-serif; color: var(--ink); outline: none; margin-bottom: 0.4rem; }
+  .add-feed-form button { width: 100%; background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .add-feed-form button:hover { background: #3a3a3a; border-color: #3a3a3a; color: var(--paper); }
+
+  /* ── MAIN ── */
+  .main { flex: 1; overflow-y: auto; }
+  .toolbar { padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; background: var(--paper); position: sticky; top: 0; z-index: 10; }
+  #view-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; flex: 1; }
+  #filter-input { padding: 0.35rem 0.6rem; border: 1px solid var(--border); background: var(--cream); font-size: 0.8rem; font-family: 'DM Sans', sans-serif; color: var(--ink); outline: none; width: 200px; }
+  #error-container { padding: 0 1.5rem; }
+  .error-box { background: #fff3f0; border: 1px solid #e8c0b0; padding: 0.6rem 1rem; font-size: 0.78rem; margin: 0.75rem 0 0; color: var(--rust); }
+  .error-box summary { cursor: pointer; }
+  #articles-container { padding: 1rem 1.5rem; }
+  .article-card { background: var(--card-bg); border: 1px solid var(--border); border-left: 3px solid var(--gold); padding: 0.9rem 1rem; margin-bottom: 0.6rem; }
+  .article-card.read { background: var(--read-bg); border-left-color: var(--border); }
+  .article-meta { font-size: 0.7rem; color: var(--muted); font-family: 'DM Mono', monospace; display: flex; gap: 0.75rem; margin-bottom: 0.35rem; align-items: center; }
+  .feed-badge { padding: 0.1rem 0.4rem; font-size: 0.65rem; color: white; }
+  .article-title { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 0.35rem; line-height: 1.4; }
+  .article-title a { color: var(--ink); text-decoration: none; }
+  .article-title a:hover { color: var(--rust); }
+  .article-card.read .article-title a { color: var(--read-text); }
+  .article-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+  .article-actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+  .ai-btn { padding: 0.2rem 0.6rem; border: 1px solid var(--border); background: transparent; font-size: 0.7rem; cursor: pointer; color: var(--muted); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .ai-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .ai-summary { margin-top: 0.6rem; padding: 0.6rem 0.8rem; background: var(--cream); border-left: 2px solid var(--gold); font-size: 0.82rem; line-height: 1.6; display: none; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+  .empty p { font-style: italic; }
+
+  /* ── MODALS ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--paper); padding: 2rem; width: 480px; max-height: 85vh; overflow-y: auto; position: relative; border-top: 3px solid var(--gold); }
+  .modal h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; margin-bottom: 1.2rem; }
+  .modal label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); display: block; }
+  .modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--muted); }
+  #server-banner { background: #fff3e0; border-bottom: 1px solid #e8c87a; padding: 0.5rem 1.5rem; font-size: 0.8rem; color: #7a5a10; display: none; }
+  #server-banner.show { display: block; }
+  .ai-digest-body { font-size: 0.92rem; line-height: 1.75; }
+  .ai-digest-body p { margin: 0 0 1rem; }
+  .ai-digest-body a { color: var(--rust); text-decoration: none; border-bottom: 1px solid var(--border); }
+  .notif { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--ink); color: var(--paper); padding: 0.6rem 1.2rem; font-size: 0.82rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; }
+  .notif.show { opacity: 1; }
+
+  /* ── MOBILE ── */
+  .hamburger { display: none; background: none; border: none; color: var(--paper); font-size: 1.3rem; cursor: pointer; padding: 0 0.25rem; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 49; }
+  .sidebar-overlay.open { display: block; }
+
+  .btn-short { display: none; }
+
+  @media (max-width: 680px) {
+    header { padding: 0 1rem; gap: 0.5rem; }
+    #date-display { display: none; }
+    .header-right { gap: 0.4rem; }
+    .btn { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+    #server-status { display: none; }
+    #pref-status { display: none !important; }
+    .hamburger { display: block; }
+    .btn-full { display: none; }
+    .btn-short { display: inline; }
+
+    .layout { height: calc(100vh - 56px); position: relative; }
+
+    .sidebar {
+      position: fixed; top: 56px; left: 0; bottom: 0;
+      width: 280px; z-index: 50;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .main { width: 100%; }
+    .toolbar { padding: 0.6rem 1rem; gap: 0.6rem; }
+    #filter-input { width: 120px; }
+    #articles-container { padding: 0.75rem 1rem; }
+
+    .modal { width: calc(100vw - 2rem) !important; max-width: 480px; padding: 1.5rem 1.2rem; }
+    .digest-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .digest-card { padding: 0.8rem 0.6rem; }
+    .digest-card-icon { font-size: 1.4rem; }
+    .settings-tabs { flex-wrap: wrap; }
+    .settings-tab { font-size: 0.72rem; padding: 0.4rem 0.6rem; }
+  }
+
+  @media (max-width: 380px) {
+    .digest-grid { grid-template-columns: 1fr; }
+    #filter-input { width: 90px; font-size: 0.75rem; }
+  }
+
+  /* login */
+  #login-screen { position: fixed; inset: 0; background: var(--paper); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  #login-screen.visible { display: flex; }
+  #login-screen.hidden { display: none; }
+  .login-box { width: 340px; text-align: center; }
+  .login-box h1 { font-family: 'Playfair Display', serif; font-size: 2rem; margin-bottom: 0.3rem; }
+  .login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .login-box input { width: 100%; padding: 0.6rem 0.8rem; border: 1.5px solid var(--border); background: var(--cream); font-size: 0.9rem; font-family: 'DM Sans', sans-serif; outline: none; margin-bottom: 0.75rem; text-align: center; letter-spacing: 0.1em; }
+  .login-box input:focus { border-color: var(--gold); }
+  .login-box button { width: 100%; padding: 0.6rem; background: var(--ink); color: var(--paper); border: none; font-family: 'DM Sans', sans-serif; font-size: 0.85rem; cursor: pointer; letter-spacing: 0.05em; transition: background 0.15s; }
+  .login-box button:hover { background: #3a3a3a; }
+  .login-error { color: var(--rust); font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.2rem; }
+
+  /* digest chooser */
+  .digest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .digest-card { border: 2px solid var(--border); padding: 1.2rem 1rem; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .digest-card:hover { border-color: var(--gold); }
+  .digest-card.selected { border-color: var(--gold); background: var(--cream); }
+  .digest-card-icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .digest-card-title { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 0.3rem; }
+  .digest-card-desc { font-size: 0.73rem; color: var(--muted); line-height: 1.4; }
+  .digest-card-period { font-size: 0.65rem; font-family: 'DM Mono', monospace; color: var(--gold); margin-top: 0.4rem; }
+
+  /* settings tabs */
+  .settings-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.2rem; gap: 0; flex-wrap: wrap; }
+  .settings-tab { padding: 0.5rem 0.9rem; font-size: 0.78rem; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'DM Sans', sans-serif; }
+  .settings-tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+  .settings-panel { display: none; }
+  .settings-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div id="login-screen">
+  <div class="login-box">
+    <div style="font-size:2.5rem;margin-bottom:0.5rem;">✦</div>
+    <h1>Digest</h1>
+    <p>Accedi con l'account della suite</p>
+    <input type="email" id="login-email" placeholder="email" onkeydown="if(event.key==='Enter') doLogin()">
+    <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+    <button onclick="doLogin()">Accedi</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<header>
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <div class="masthead">✦ Digest</div>
+  <div id="date-display"></div>
+  <div class="header-right">
+    <span class="status-dot err" id="server-dot"></span>
+    <span id="server-status">offline</span>
+    <span id="pref-status" style="font-size:0.68rem;color:#a09070;font-family:'DM Mono',monospace;display:none;">✓ salvato</span>
+    <button class="btn" onclick="loadAll()"><span class="btn-full">↻ Aggiorna</span><span class="btn-short">↻</span></button>
+    <button class="btn" onclick="openModal('digest-chooser-modal')"><span class="btn-full">✦ Digest AI</span><span class="btn-short">✦</span></button>
+    <button class="btn" onclick="openModal('settings-modal')"><span class="btn-full">⚙ Impostazioni</span><span class="btn-short">⚙</span></button>
+  </div>
+</header>
+
+<div id="server-banner">⚠ API non raggiungibili — controlla la connessione e ricarica la pagina.</div>
+
+<div class="layout">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-stats">
+      <div class="sidebar-title">Statistiche</div>
+      <div class="stat-row"><span>Oggi</span><span class="stat-num" id="stat-today">0</span></div>
+      <div class="stat-row"><span>Da leggere</span><span class="stat-num" id="stat-unread">0</span></div>
+      <div class="stat-row"><span>Aggiornato</span><span class="stat-num" id="last-refresh">—</span></div>
+    </div>
+
+    <!-- Tutti -->
+    <div class="feed-all active" id="feed-all-item" onclick="selectFeed('all')">
+      <div class="feed-dot" style="background:var(--gold)"></div>
+      <span style="flex:1">Tutti gli articoli</span>
+      <span class="feed-count" id="all-count">0</span>
+    </div>
+
+    <!-- Category groups -->
+    <div id="cat-groups"></div>
+
+    <!-- Aggiungi feed -->
+    <div class="sidebar-add">
+      <div class="sidebar-title" style="margin-bottom:0.6rem;">Aggiungi Feed</div>
+      <div class="add-feed-form">
+        <input type="text" id="new-feed-url" placeholder="https://example.com/feed" onkeydown="if(event.key==='Enter') addFeed()">
+        <input type="text" id="new-feed-name" placeholder="Nome (opzionale)" onkeydown="if(event.key==='Enter') addFeed()">
+        <select id="new-feed-cat">
+          <option value="news">News & Attualità</option>
+          <option value="culture">Arte & Cultura</option>
+          <option value="tech">Scienza & Tech</option>
+        </select>
+        <button class="btn" onclick="addFeed()">+ Aggiungi</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="toolbar">
+      <span id="view-title">Tutti gli articoli</span>
+      <input type="text" id="filter-input" placeholder="Filtra articoli…" oninput="renderArticles()">
+      <button class="btn sm" onclick="markAllRead()">✓ Segna tutti letti</button>
+    </div>
+    <div id="memoria-container" style="padding:0 1.5rem;"></div>
+    <div id="error-container"></div>
+    <div id="articles-container">
+      <div class="empty"><div class="spinner" style="margin:0 auto 1rem;"></div><p>Caricamento…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Digest Chooser -->
+<div class="modal-overlay" id="digest-chooser-modal">
+  <div class="modal" style="width:620px;">
+    <button class="modal-close" onclick="closeModal('digest-chooser-modal')">✕</button>
+    <h2>✦ Scegli il Digest</h2>
+    <div class="digest-grid">
+      <div class="digest-card selected" id="card-general" onclick="selectDigestType('general')">
+        <div class="digest-card-icon">🌍</div>
+        <div class="digest-card-title">Generalista</div>
+        <div class="digest-card-desc">Attualità, politica, economia, mondo</div>
+        <div class="digest-card-period">ultime 48 ore</div>
+      </div>
+      <div class="digest-card" id="card-culture" onclick="selectDigestType('culture')">
+        <div class="digest-card-icon">🎨</div>
+        <div class="digest-card-title">Arte e Cultura</div>
+        <div class="digest-card-desc">Letteratura, musica, cinema, mostre, libri</div>
+        <div class="digest-card-period">ultima settimana</div>
+      </div>
+      <div class="digest-card" id="card-science" onclick="selectDigestType('science')">
+        <div class="digest-card-icon">🔬</div>
+        <div class="digest-card-title">Scienza e Tech</div>
+        <div class="digest-card-desc">Ricerca, AI, innovazione, spazio, medicina</div>
+        <div class="digest-card-period">ultima settimana</div>
+      </div>
+      <div class="digest-card" id="card-italy" onclick="selectDigestType('italy')">
+        <div class="digest-card-icon">🇮🇹</div>
+        <div class="digest-card-title">Notizie Italiane</div>
+        <div class="digest-card-desc">Politica, economia, cronaca e società italiana</div>
+        <div class="digest-card-period">ultime 48 ore</div>
+      </div>
+    </div>
+    <button class="btn primary" style="width:100%;padding:0.6rem;" onclick="generateAIDigest()">Genera Digest ✦</button>
+    <button class="btn" style="width:100%;padding:0.5rem;margin-top:0.5rem;color:var(--ink);" onclick="showLastDigest()">↺ Rivedi l'ultimo digest salvato (gratis)</button>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal" style="width:640px;">
+    <button class="modal-close" onclick="closeModal('settings-modal')">✕</button>
+    <h2>Impostazioni</h2>
+    <div class="settings-tabs">
+      <button class="settings-tab active" onclick="switchTab(event,'general-settings')">Generale</button>
+      <button class="settings-tab" onclick="switchTab(event,'cat-settings')">Categorie feed</button>
+      <button class="settings-tab" onclick="switchTab(event,'digest-general')">🌍 Generalista</button>
+      <button class="settings-tab" onclick="switchTab(event,'digest-culture')">🎨 Arte</button>
+      <button class="settings-tab" onclick="switchTab(event,'digest-science')">🔬 Scienza</button>
+      <button class="settings-tab" onclick="switchTab(event,'digest-italy')">🇮🇹 Italia</button>
+    </div>
+
+    <div class="settings-panel active" id="panel-general-settings">
+      <label>Account</label>
+      <p style="font-size:0.82rem;margin:0.4rem 0 0.6rem;">Connesso come <span id="account-email" style="font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--gold);">—</span></p>
+      <button class="btn sm" onclick="doLogout()" style="color:var(--ink);">↩ Esci</button>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:0.6rem;">Stesso account di BookShelf, Footnote, ListenS e Marginalia. La chiave AI vive nelle variabili d'ambiente del server: qui non serve nulla.</p>
+      <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border);">
+        <label style="margin-bottom:0.6rem;">Importa / Esporta Feed</label>
+        <p style="font-size:0.75rem;color:var(--muted);margin:0.4rem 0 0.8rem;">Esporta i feed come file JSON per backup o per importarli su un altro dispositivo.</p>
+        <div style="display:flex;gap:0.6rem;">
+          <button class="btn sm" onclick="exportFeeds()" style="background:var(--ink);color:var(--paper);border-color:var(--ink);">⬇ Esporta feeds.json</button>
+          <label class="btn sm" style="background:var(--ink);color:var(--paper);border-color:var(--ink);cursor:pointer;">
+            ⬆ Importa feeds.json
+            <input type="file" accept=".json" onchange="importFeeds(event)" style="display:none;">
+          </label>
+        </div>
+        <div id="import-status" style="font-size:0.75rem;margin-top:0.6rem;min-height:1rem;color:var(--muted);"></div>
+      </div>
+    </div>
+
+    <div class="settings-panel" id="panel-cat-settings">
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Assegna ogni feed a una categoria. Le modifiche sono immediate.</p>
+      <div id="cat-assignment-list"></div>
+    </div>
+
+    <div class="settings-panel" id="panel-digest-general">
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Feed prioritari per il digest Generalista.</p>
+      <div id="pf-general" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+    </div>
+    <div class="settings-panel" id="panel-digest-culture">
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Feed prioritari per il digest Arte e Cultura.</p>
+      <div id="pf-culture" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+    </div>
+    <div class="settings-panel" id="panel-digest-science">
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Feed prioritari per il digest Scienza e Tech.</p>
+      <div id="pf-science" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+    </div>
+    <div class="settings-panel" id="panel-digest-italy">
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Feed prioritari per il digest Notizie Italiane.</p>
+      <div id="pf-italy" style="display:flex;flex-wrap:wrap;gap:0.4rem;"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- AI Digest Result -->
+<div class="modal-overlay" id="ai-digest-modal">
+  <div class="modal" style="width:720px;max-height:85vh;">
+    <button class="modal-close" onclick="closeModal('ai-digest-modal')">✕</button>
+    <div id="ai-digest-content"></div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ── Auth Supabase (stesso account della suite) + API helpers ──────
+var SB_URL = 'https://pchldmiavycxzpkzochn.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjaGxkbWlhdnljeHpwa3pvY2huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjk5MDAsImV4cCI6MjA4NzIwNTkwMH0.bVhCJfeCMnPcR5Ub4hLqNSmVdST5P6cT6T_2kzdKGYM';
+var sb = null;        // creato al DOMContentLoaded (il modulo esm.sh carica prima)
+var sbSession = null; // sessione corrente, aggiornata da onAuthStateChange
+
+function apiFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({'Content-Type': 'application/json'}, opts.headers || {});
+  if (sbSession) opts.headers['Authorization'] = 'Bearer ' + sbSession.access_token;
+  return fetch(url, opts);
+}
+
+var CATS = {
+  news:    { label: 'News & Attualità', icon: '📰' },
+  culture: { label: 'Arte & Cultura',   icon: '🎨' },
+  tech:    { label: 'Scienza & Tech',   icon: '🔬' },
+};
+
+var DIGEST_TYPES = {
+  general: { label: 'Generalista',     icon: '🌍' },
+  culture: { label: 'Arte e Cultura',  icon: '🎨' },
+  science: { label: 'Scienza e Tech',  icon: '🔬' },
+  italy:   { label: 'Notizie Italiane',icon: '🇮🇹' },
+};
+
+// State
+var feeds = [];
+var articles = [];
+var readIds = new Set(JSON.parse(localStorage.getItem('digest_read') || '[]'));
+var summaries = JSON.parse(localStorage.getItem('digest_summaries') || '{}');
+var currentFeed = 'all';
+var currentCat = null;
+var selectedDigestType = 'general';
+var collapsedCats = {};
+
+// Categoria feed: è una colonna di dg_feeds (non più in preferences)
+function getFeedCat(feedId) {
+  var f = feeds.find(function(f){return f.id === feedId;});
+  return (f && f.category) || 'news';
+}
+async function setFeedCat(feedId, cat) {
+  var f = feeds.find(function(f){return f.id === feedId;});
+  if (f) f.category = cat;
+  try {
+    var r = await apiFetch('/api/feeds', {method:'PATCH', body: JSON.stringify({id: feedId, category: cat})});
+    if (!r.ok) notify('Errore nel salvataggio della categoria');
+  } catch(e) { notify('Errore di rete'); }
+}
+
+// ── MOBILE SIDEBAR ────────────────────────────────────────────────
+function toggleSidebar() {
+  var s = document.getElementById('sidebar');
+  var o = document.getElementById('sidebar-overlay');
+  s.classList.toggle('open');
+  o.classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ── PREFERENCES (server-backed) ───────────────────────────────────
+var prefs = {}; // cache locale
+var prefsSaveTimer = null;
+
+async function loadPreferences() {
+  try {
+    var r = await apiFetch('/api/preferences');
+    if (r.ok) {
+      prefs = await r.json();
+    } else {
+      console.warn('loadPreferences: risposta non OK', r.status);
+    }
+  } catch(e) { console.warn('loadPreferences error:', e); }
+  collapsedCats = prefs['digest_collapsed_cats'] || {};
+}
+
+async function savePreferences() {
+  try {
+    var r = await apiFetch('/api/preferences', {
+      method: 'POST',
+      body: JSON.stringify(prefs)
+    });
+    if (!r.ok) {
+      console.warn('savePreferences: risposta non OK', r.status);
+      return false;
+    }
+    // Mostra indicatore "salvato"
+    var el = document.getElementById('pref-status');
+    if (el) {
+      el.style.display = 'inline';
+      clearTimeout(el._t);
+      el._t = setTimeout(function(){ el.style.display = 'none'; }, 2000);
+    }
+    return true;
+  } catch(e) {
+    console.warn('savePreferences error:', e);
+    return false;
+  }
+}
+
+// Salvataggio con debounce — evita troppe chiamate ravvicinate
+function schedulePreferencesSave() {
+  if (prefsSaveTimer) clearTimeout(prefsSaveTimer);
+  prefsSaveTimer = setTimeout(function() { savePreferences(); }, 500);
+}
+async function checkAuth() {
+  try {
+    var res = await sb.auth.getSession();
+    sbSession = res.data.session;
+    if (sbSession) return true;
+  } catch(_) {}
+  document.getElementById('login-screen').classList.add('visible');
+  return false;
+}
+
+async function doLogin() {
+  var email = document.getElementById('login-email').value.trim();
+  var pw = document.getElementById('login-password').value;
+  var errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!email || !pw) { errEl.textContent = 'Email e password richieste.'; return; }
+  try {
+    var res = await sb.auth.signInWithPassword({email: email, password: pw});
+    if (res.error) {
+      errEl.textContent = res.error.message === 'Invalid login credentials' ? 'Credenziali errate.' : res.error.message;
+      document.getElementById('login-password').value = '';
+      return;
+    }
+    sbSession = res.data.session;
+    document.getElementById('login-screen').classList.remove('visible');
+    showAccountEmail();
+    await loadPreferences();
+    loadAll();
+  } catch(e) { errEl.textContent = 'Errore di connessione.'; }
+}
+
+async function doLogout() {
+  if (!confirm('Disconnettersi?')) return;
+  try { await sb.auth.signOut(); } catch(_) {}
+  location.reload();
+}
+
+function showAccountEmail() {
+  var el = document.getElementById('account-email');
+  if (el && sbSession && sbSession.user) el.textContent = sbSession.user.email || '—';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async function() {
+  var d = new Date();
+  document.getElementById('date-display').innerHTML =
+    '<strong>' + d.toLocaleDateString('it-IT', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) + '</strong>';
+  sb = window.supabase.createClient(SB_URL, SB_KEY);
+  sb.auth.onAuthStateChange(function(_e, s) { sbSession = s; }); // tiene fresco il token dopo il refresh
+  var authed = await checkAuth();
+  if (authed) {
+    showAccountEmail();
+    await loadPreferences();
+    checkServer().then(function() { loadAll(); });
+  }
+});
+
+async function checkServer() {
+  try {
+    var r = await apiFetch('/api/feeds', {signal: AbortSignal.timeout(3000)});
+    if (r.ok || r.status === 401) { setServerStatus(true); return true; }
+  } catch(_) {}
+  setServerStatus(false); return false;
+}
+function setServerStatus(ok) {
+  document.getElementById('server-dot').className = 'status-dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('server-status').textContent = ok ? 'online' : 'offline';
+  document.getElementById('server-banner').classList.toggle('show', !ok);
+}
+
+// ── LOAD ──────────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('articles-container').innerHTML =
+    '<div class="empty"><div class="spinner" style="margin:0 auto 1rem;"></div><p>Caricamento…</p></div>';
+  try {
+    var feedsRes  = await apiFetch('/api/feeds').then(function(r){return r.json();});
+    var artRes    = await apiFetch('/api/articles').then(function(r){return r.json();});
+    feeds    = feedsRes;
+    articles = artRes.articles;
+    var errContainer = document.getElementById('error-container');
+    if (artRes.errors && artRes.errors.length) {
+      errContainer.innerHTML = '<details class="error-box"><summary>⚠ ' + artRes.errors.length +
+        ' feed con errori</summary><ul style="margin-top:0.5rem;padding-left:1.2rem;">' +
+        artRes.errors.map(function(e){return '<li>'+e+'</li>';}).join('') + '</ul></details>';
+    } else { errContainer.innerHTML = ''; }
+    setServerStatus(true);
+    document.getElementById('last-refresh').textContent =
+      new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+    renderSidebar();
+    renderArticles();
+    renderAllPriorityLists();
+    renderCatAssignmentList();
+    loadMemoria();
+    notify('Feed aggiornati ✓');
+  } catch(e) {
+    setServerStatus(false);
+    document.getElementById('articles-container').innerHTML =
+      '<div class="empty"><p>API non raggiungibili — controlla la connessione.</p>' +
+      '<button class="btn sm" onclick="loadAll()" style="margin-top:1rem;color:var(--ink);">↺ Riprova ora</button></div>';
+  }
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────
+function renderSidebar() {
+  var allUnread = articles.filter(function(a){return !readIds.has(a.id);}).length;
+  document.getElementById('all-count').textContent = allUnread + '/' + articles.length;
+  document.getElementById('feed-all-item').className = 'feed-all' + (currentFeed === 'all' && !currentCat ? ' active' : '');
+
+  var container = document.getElementById('cat-groups');
+  var html = '';
+  Object.keys(CATS).forEach(function(catKey) {
+    var cat = CATS[catKey];
+    var catFeeds = feeds.filter(function(f){ return getFeedCat(f.id) === catKey; });
+    var catArticles = articles.filter(function(a){
+      var f = feeds.find(function(f){return f.id === a.feedId;});
+      return f && getFeedCat(f.id) === catKey;
+    });
+    var catUnread = catArticles.filter(function(a){return !readIds.has(a.id);}).length;
+    var collapsed = collapsedCats[catKey];
+
+    html += '<div class="cat-group' + (collapsed ? ' collapsed' : '') + '" id="catg-' + catKey + '">';
+    html += '<div class="cat-header" onclick="toggleCat(\'' + catKey + '\')">' +
+      '<span>' + cat.icon + '</span>' +
+      '<span style="flex:1">' + cat.label + '</span>' +
+      '<span class="cat-count">' + catUnread + '/' + catArticles.length + '</span>' +
+      '<span class="cat-arrow">▾</span>' +
+      '</div>';
+    html += '<div class="cat-body">';
+
+    // "Tutti [categoria]" shortcut
+    html += '<div class="feed-item' + (currentCat === catKey && currentFeed === 'all' ? ' active' : '') +
+      '" onclick="selectCat(\'' + catKey + '\')" style="font-style:italic;color:var(--muted);padding-left:1.8rem;">' +
+      '<span class="feed-name">Tutti ' + cat.label + '</span>' +
+      '<span class="feed-count">' + catUnread + '/' + catArticles.length + '</span>' +
+      '</div>';
+
+    catFeeds.forEach(function(f) {
+      var fa = articles.filter(function(a){return a.feedId === f.id;});
+      var fu = fa.filter(function(a){return !readIds.has(a.id);}).length;
+      html += '<div class="feed-item' + (currentFeed === f.id ? ' active' : '') +
+        '" onclick="selectFeed(\'' + f.id + '\')">' +
+        '<div class="feed-dot" style="background:' + f.color + '"></div>' +
+        '<span class="feed-name">' + f.name + '</span>' +
+        '<span class="feed-count">' + fu + '/' + fa.length + '</span>' +
+        '<button class="feed-del" onclick="event.stopPropagation();deleteFeed(\'' + f.id + '\')" title="Rimuovi">✕</button>' +
+        '</div>';
+    });
+
+    if (!catFeeds.length) {
+      html += '<div style="padding:0.3rem 1rem 0.3rem 1.8rem;font-size:0.75rem;color:var(--muted);font-style:italic;">Nessun feed</div>';
+    }
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+  updateStats();
+}
+
+async function toggleCat(catKey) {
+  collapsedCats[catKey] = !collapsedCats[catKey];
+  prefs['digest_collapsed_cats'] = collapsedCats;
+  await savePreferences();
+  renderSidebar();
+}
+
+function selectFeed(id) {
+  currentFeed = id; currentCat = null;
+  var f = feeds.find(function(f){return f.id === id;});
+  document.getElementById('view-title').textContent = f ? f.name : '';
+  renderSidebar(); renderArticles();
+  closeSidebar();
+}
+
+function selectCat(cat) {
+  currentFeed = 'all'; currentCat = cat;
+  document.getElementById('view-title').textContent = CATS[cat].icon + ' ' + CATS[cat].label;
+  renderSidebar(); renderArticles();
+  closeSidebar();
+}
+
+function selectAllFeeds() {
+  currentFeed = 'all'; currentCat = null;
+  document.getElementById('view-title').textContent = 'Tutti gli articoli';
+  renderSidebar(); renderArticles();
+  closeSidebar();
+}
+
+// patch the onclick on the "Tutti" row
+document.getElementById('feed-all-item').onclick = selectAllFeeds;
+
+function updateStats() {
+  var today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('stat-today').textContent = articles.filter(function(a){return new Date(a.date)>=today;}).length;
+  document.getElementById('stat-unread').textContent = articles.filter(function(a){return !readIds.has(a.id);}).length;
+}
+
+// ── ARTICLES ──────────────────────────────────────────────────────
+function renderArticles() {
+  var filter = document.getElementById('filter-input').value.toLowerCase();
+  var list = articles.filter(function(a) {
+    if (currentCat) {
+      var f = feeds.find(function(f){return f.id === a.feedId;});
+      if (!f || getFeedCat(f.id) !== currentCat) return false;
+    } else if (currentFeed !== 'all') {
+      if (a.feedId !== currentFeed) return false;
+    }
+    if (!filter) return true;
+    return (a.title+' '+a.desc+' '+a.feedName).toLowerCase().includes(filter);
+  });
+  if (!list.length) {
+    document.getElementById('articles-container').innerHTML = '<div class="empty"><p>Nessun articolo trovato.</p></div>';
+    return;
+  }
+  document.getElementById('articles-container').innerHTML = list.map(function(a) {
+    var isRead = readIds.has(a.id);
+    var date = new Date(a.date).toLocaleDateString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    var sum = summaries[a.id]
+      ? '<div class="ai-summary" id="sum-'+a.id+'" style="display:block">'+summaries[a.id]+'</div>'
+      : '<div class="ai-summary" id="sum-'+a.id+'"></div>';
+    return '<div class="article-card'+(isRead?' read':'')+'" id="card-'+a.id+'">' +
+      '<div class="article-meta">' +
+      '<span class="feed-badge" style="background:'+a.feedColor+'">'+a.feedName+'</span>' +
+      '<span>'+date+'</span></div>' +
+      '<div class="article-title"><a href="'+a.link+'" target="_blank" rel="noopener" onclick="markRead(\''+a.id+'\')">'+a.title+'</a></div>' +
+      (a.desc ? '<div class="article-desc">'+a.desc+'</div>' : '') +
+      '<div class="article-actions">' +
+      '<button class="ai-btn" onclick="markRead(\''+a.id+'\')">'+(isRead?'● letto':'○ segna letto')+'</button>' +
+      '<button class="ai-btn" onclick="getAISummary(\''+a.id+'\')" data-title="'+encodeURIComponent(a.title)+'" data-desc="'+encodeURIComponent(a.desc)+'" id="ai-btn-'+a.id+'">✦ Riassunto AI</button>' +
+      '</div>'+sum+'</div>';
+  }).join('');
+}
+
+// ── FEED ACTIONS ──────────────────────────────────────────────────
+async function addFeed() {
+  var url  = document.getElementById('new-feed-url').value.trim();
+  var name = document.getElementById('new-feed-name').value.trim();
+  var cat  = document.getElementById('new-feed-cat').value;
+  if (!url) return;
+  notify('Aggiunta in corso…');
+  try {
+    var r = await apiFetch('/api/feeds', {
+      method:'POST',
+      body: JSON.stringify({url:url,name:name,category:cat})
+    });
+    var data = await r.json();
+    if (data.error) { notify('Errore: '+data.error); return; }
+    document.getElementById('new-feed-url').value = '';
+    document.getElementById('new-feed-name').value = '';
+    notify('Feed aggiunto: '+data.name);
+    loadAll();
+  } catch(e) { notify('Errore di rete'); }
+}
+
+async function deleteFeed(id) {
+  if (!confirm('Rimuovere questo feed?')) return;
+  await apiFetch('/api/feeds?id='+encodeURIComponent(id), {method:'DELETE'});
+  if (currentFeed === id) { currentFeed = 'all'; currentCat = null; }
+  loadAll();
+}
+
+// ── READ ──────────────────────────────────────────────────────────
+function markRead(id) {
+  readIds.add(id);
+  localStorage.setItem('digest_read', JSON.stringify([...readIds]));
+  var card = document.getElementById('card-'+id);
+  if (card) { card.classList.add('read'); var btn = card.querySelector('.article-actions .ai-btn'); if (btn) btn.textContent = '● letto'; }
+  updateStats(); renderSidebar();
+}
+function markAllRead() {
+  articles.forEach(function(a){readIds.add(a.id);});
+  localStorage.setItem('digest_read', JSON.stringify([...readIds]));
+  renderArticles(); updateStats(); renderSidebar();
+  notify('Tutti gli articoli segnati come letti ✓');
+}
+
+// ── AI SUMMARY ────────────────────────────────────────────────────
+async function getAISummary(id) {
+  // Via proxy server: la chiamata diretta browser→Anthropic falliva
+  // (header CORS mancante, modello obsoleto) e esponeva la chiave.
+  var btn = document.getElementById('ai-btn-'+id);
+  var title = decodeURIComponent(btn ? (btn.dataset.title||'') : '');
+  var desc  = decodeURIComponent(btn ? (btn.dataset.desc||'') : '');
+  var sumDiv = document.getElementById('sum-'+id);
+  if (sumDiv && sumDiv.style.display === 'block') { sumDiv.style.display = 'none'; return; }
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    var resp = await apiFetch('/api/claude', {
+      method:'POST',
+      body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,
+        messages:[{role:'user',content:'Riassumi in 3-4 frasi in italiano, asciutte e informative, questo articolo. Se la descrizione è povera, limitati a ciò che sai con certezza dal titolo senza inventare dettagli:\nTitolo: '+title+'\nDescrizione: '+desc}]})
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    var text = data.text || 'Errore';
+    summaries[id] = text;
+    localStorage.setItem('digest_summaries', JSON.stringify(summaries));
+    if (sumDiv) { sumDiv.textContent = text; sumDiv.style.display = 'block'; }
+  } catch(e) { notify('Errore API: '+e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '✦ Riassunto AI'; } }
+}
+
+// ── DIGEST ────────────────────────────────────────────────────────
+function selectDigestType(type) {
+  selectedDigestType = type;
+  Object.keys(DIGEST_TYPES).forEach(function(t) {
+    var c = document.getElementById('card-'+t);
+    if (c) c.classList.toggle('selected', t === type);
+  });
+}
+
+function renderDigestResult(data, isCached) {
+  var dtype = DIGEST_TYPES[selectedDigestType];
+  var html = markdownToHTML(data.digest);
+  var date = data.generated_at
+    ? new Date(data.generated_at).toLocaleDateString('it-IT',{weekday:'long',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    : new Date().toLocaleDateString('it-IT',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var costInfo = '';
+  if (data.usage && data.cost_usd != null) {
+    costInfo = '<span style="font-family:\'DM Mono\',monospace;font-size:0.68rem;color:var(--muted);">' +
+      data.usage.input_tokens + '→' + data.usage.output_tokens + ' token · ~$' + Number(data.cost_usd).toFixed(3) + '</span>';
+  }
+  document.getElementById('ai-digest-content').innerHTML =
+    '<div style="border-bottom:2px solid var(--gold);padding-bottom:0.75rem;margin-bottom:1.5rem;display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;">' +
+    '<h2 style="font-family:\'Playfair Display\',serif;font-size:1.5rem;margin:0;">'+dtype.icon+' '+data.label+(isCached?' <span style="font-size:0.7rem;font-family:\'DM Mono\',monospace;color:var(--muted);">(salvato)</span>':'')+'</h2>' +
+    '<span style="font-family:\'DM Mono\',monospace;font-size:0.7rem;color:var(--muted);">'+date+' · '+data.article_count+' articoli</span></div>' +
+    '<div class="ai-digest-body">'+html+'</div>' +
+    '<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:1rem;">' +
+    '<button class="btn sm" onclick="exportAIDigest()" style="background:var(--ink);color:var(--paper);border-color:var(--ink);">⬇ Salva HTML</button>' +
+    costInfo + '</div>';
+  window._lastAIDigest = {html:html, date:date, count:data.article_count, label:data.label, icon:dtype.icon};
+}
+
+function showLastDigest() {
+  var data = prefs['digest_last_'+selectedDigestType];
+  if (!data || !data.digest) { notify('Nessun digest salvato per questo tipo — generane uno'); return; }
+  closeModal('digest-chooser-modal');
+  openModal('ai-digest-modal');
+  renderDigestResult(data, true);
+}
+
+async function generateAIDigest() {
+  // La chiave vive solo sul server (ANTHROPIC_API_KEY nelle env Vercel).
+  closeModal('digest-chooser-modal');
+  var dtype = DIGEST_TYPES[selectedDigestType];
+  var pids = prefs['digest_pf_'+selectedDigestType] || [];
+  var pnames = pids.map(function(id){ var f = feeds.find(function(f){return f.id===id;}); return f ? f.name : id; });
+  document.getElementById('ai-digest-content').innerHTML =
+    '<div style="text-align:center;padding:3rem;"><div class="spinner" style="margin:0 auto 1rem;"></div>' +
+    '<p style="color:var(--muted);font-style:italic;">Generazione digest '+dtype.icon+' '+dtype.label+'…<br><small>Circa 20-30 secondi</small></p></div>';
+  openModal('ai-digest-modal');
+  try {
+    var resp = await apiFetch('/api/digest', {
+      method:'POST',
+      body: JSON.stringify({digest_type:selectedDigestType, priority_feeds:pnames})
+    });
+    var data = await resp.json();
+    if (data.error) {
+      var errMsg = data.error;
+      if (errMsg.toLowerCase().includes('credit balance')) {
+        errMsg += ' \u2014 I crediti API Anthropic sono separati dall\'abbonamento Claude.ai.'
+               + ' Verifica: console.anthropic.com/settings/billing';
+      }
+      throw new Error(errMsg);
+    }
+    prefs['digest_last_'+selectedDigestType] = data; // cache locale allineata al server
+    renderDigestResult(data, false);
+  } catch(e) {
+    document.getElementById('ai-digest-content').innerHTML =
+      '<h2 style="font-family:\'Playfair Display\',serif;">Errore</h2><p style="color:var(--rust);">'+e.message+'</p>';
+  }
+}
+
+function markdownToHTML(md) {
+  return md
+    .replace(/^### (.+)$/gm,'<h3 style="font-family:\'Playfair Display\',serif;font-size:1.1rem;margin:1.5rem 0 0.5rem;border-bottom:1px solid var(--border);padding-bottom:0.3rem;">$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2 style="font-family:\'Playfair Display\',serif;font-size:1.3rem;margin:1.5rem 0 0.5rem;">$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1 style="font-family:\'Playfair Display\',serif;font-size:1.5rem;margin:0 0 0.5rem;">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener" style="color:var(--rust);text-decoration:none;border-bottom:1px solid var(--border);">$1</a>')
+    .replace(/\n\n/g,'</p><p style="line-height:1.75;margin:0 0 1rem;">')
+    .replace(/^/,'<p style="line-height:1.75;margin:0 0 1rem;">')
+    .replace(/$/,'</p>');
+}
+
+function exportAIDigest() {
+  if (!window._lastAIDigest) return;
+  var d = window._lastAIDigest;
+  var full = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+d.icon+' '+d.label+'</title>' +
+    '<style>body{font-family:Georgia,serif;max-width:680px;margin:2rem auto;padding:2rem;color:#1a1a1a;background:#f5f0e8;line-height:1.75;}h1,h2,h3{font-family:Georgia,serif;}a{color:#c0522a;}</style></head><body>' +
+    '<div style="border-bottom:3px solid #c8963e;padding-bottom:1rem;margin-bottom:2rem;">' +
+    '<h1 style="margin:0;">'+d.icon+' '+d.label+'</h1>' +
+    '<p style="color:#7a7060;margin:0.3rem 0 0;">'+d.date+' · '+d.count+' articoli analizzati</p></div>' +
+    '<div>'+d.html+'</div></body></html>';
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([full],{type:'text/html'}));
+  a.download = 'digest-'+selectedDigestType+'-'+new Date().toISOString().slice(0,10)+'.html';
+  a.click();
+  notify('Digest salvato ✓');
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────
+function switchTab(e, panelId) {
+  document.querySelectorAll('.settings-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.settings-tab').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('panel-'+panelId).classList.add('active');
+  e.target.classList.add('active');
+  var match = panelId.match(/^digest-(.+)$/);
+  if (match) renderPriorityFeedsFor(match[1]);
+  if (panelId === 'cat-settings') renderCatAssignmentList();
+}
+
+function renderCatAssignmentList() {
+  var container = document.getElementById('cat-assignment-list');
+  if (!container || !feeds.length) return;
+  container.innerHTML = feeds.map(function(f) {
+    var cur = getFeedCat(f.id);
+    return '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">' +
+      '<div style="width:10px;height:10px;border-radius:50%;background:'+f.color+';flex-shrink:0;"></div>' +
+      '<span style="flex:1;font-size:0.83rem;">'+f.name+'</span>' +
+      '<select onchange="setFeedCatAndRefresh(\''+f.id+'\',this.value)" style="padding:0.25rem 0.4rem;border:1px solid var(--border);background:var(--cream);font-size:0.78rem;font-family:\'DM Sans\',sans-serif;outline:none;">' +
+      Object.keys(CATS).map(function(k){
+        return '<option value="'+k+'"'+(cur===k?' selected':'')+'>'+CATS[k].label+'</option>';
+      }).join('') +
+      '</select></div>';
+  }).join('');
+}
+
+async function setFeedCatAndRefresh(id, cat) {
+  await setFeedCat(id, cat);
+  renderSidebar();
+}
+
+function renderAllPriorityLists() {
+  ['general','culture','science','italy'].forEach(renderPriorityFeedsFor);
+}
+
+function renderPriorityFeedsFor(type) {
+  var container = document.getElementById('pf-'+type);
+  if (!container) return;
+  var saved = prefs['digest_pf_'+type] || [];
+  container.innerHTML = feeds.map(function(f) {
+    var active = saved.indexOf(f.id) !== -1;
+    return '<button onclick="togglePriorityFeed(\''+type+'\',\''+f.id+'\')" style="' +
+      'padding:0.3rem 0.7rem;border:1.5px solid '+(active?f.color:'var(--border)')+';' +
+      'background:'+(active?f.color:'transparent')+';' +
+      'color:'+(active?'white':'var(--muted)')+';' +
+      'font-size:0.75rem;cursor:pointer;transition:all 0.15s;">' + f.name + '</button>';
+  }).join('');
+}
+
+async function togglePriorityFeed(type, id) {
+  var key = 'digest_pf_'+type;
+  var saved = (prefs[key] || []).slice();
+  var idx = saved.indexOf(id);
+  if (idx === -1) saved.push(id); else saved.splice(idx, 1);
+  prefs[key] = saved;
+  await savePreferences();
+  renderPriorityFeedsFor(type);
+}
+
+// ── IMPORT / EXPORT FEEDS ─────────────────────────────────────────
+function exportFeeds() {
+  var data = JSON.stringify(feeds, null, 2);
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], {type:'application/json'}));
+  a.download = 'feeds.json';
+  a.click();
+  notify('Feed esportati ✓');
+}
+
+async function importFeeds(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var statusEl = document.getElementById('import-status');
+  statusEl.textContent = 'Importazione in corso…';
+  try {
+    var text = await file.text();
+    var imported = JSON.parse(text);
+    if (!Array.isArray(imported)) throw new Error('Formato non valido');
+    var ok = 0, skip = 0, fail = 0;
+    for (var f of imported) {
+      if (!f.url) { fail++; continue; }
+      try {
+        var r = await apiFetch('/api/feeds', {
+          method: 'POST',
+          body: JSON.stringify({url: f.url, name: f.name || '', category: f.category || 'news'})
+        });
+        var data = await r.json();
+        if (data.ok) ok++;
+        else if (data.error && data.error.includes('già presente')) skip++;
+        else fail++;
+      } catch(_) { fail++; }
+    }
+    statusEl.textContent = '✓ Importati: ' + ok + '  |  Già presenti: ' + skip + (fail ? '  |  Errori: ' + fail : '');
+    if (ok > 0) loadAll();
+  } catch(e) {
+    statusEl.textContent = 'Errore: ' + e.message;
+  }
+  event.target.value = '';
+}
+
+// ── IMPORT / EXPORT FEEDS ─────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(function(m) {
+  m.addEventListener('click', function(e) { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ── MEMORIA: l'archivio che si ripropone ──────────────────────────
+async function loadMemoria() {
+  var box = document.getElementById('memoria-container');
+  if (!box) return;
+  try {
+    var r = await apiFetch('/api/memoria');
+    if (!r.ok) { box.innerHTML = ''; return; }
+    var data = await r.json();
+    if (!data.items || !data.items.length) { box.innerHTML = ''; return; }
+    var rows = data.items.map(function(it) {
+      if (it.kind === 'quote') {
+        return '<div style="margin-bottom:0.9rem;">' +
+          '<div style="font-family:\'Playfair Display\',serif;font-style:italic;font-size:1.05rem;line-height:1.6;color:var(--ink);">«' + it.text + '»</div>' +
+          '<div style="font-size:0.78rem;color:var(--muted);margin-top:0.25rem;">— ' + (it.author||'?') + (it.work ? ', <i>' + it.work + '</i>' : '') + '</div>' +
+          (it.comment ? '<div style="font-size:0.78rem;color:#7a5ea8;font-style:italic;margin-top:0.3rem;border-left:2px solid #d9c8f0;padding-left:0.6rem;">' + it.comment + '</div>' : '') +
+          '</div>';
+      }
+      if (it.kind === 'anniversary') {
+        return '<div style="font-size:0.82rem;margin-bottom:0.5rem;color:var(--ink);">📖 <b>' + it.years_ago + (it.years_ago===1?' anno fa':' anni fa') + '</b>, in questo mese, leggevi <i>' + it.title + '</i> di ' + it.author + (it.rating ? ' · ' + it.rating + '★' : '') + '</div>';
+      }
+      if (it.kind === 'rediscover') {
+        return '<div style="font-size:0.82rem;margin-bottom:0.5rem;color:var(--ink);">↻ Da rileggere? <i>' + it.title + '</i> di ' + it.author + ' (' + it.rating + '★ nel ' + it.read_year + ')</div>';
+      }
+      if (it.kind === 'wishlist') {
+        return '<div style="font-size:0.82rem;margin-bottom:0.5rem;color:var(--ink);">✦ In wishlist' + (it.months!=null ? ' da ' + it.months + ' mesi' : '') + ': <i>' + it.title + '</i>' + (it.author ? ' di ' + it.author : '') + '</div>';
+      }
+      if (it.kind === 'year_ago') {
+        var evs = it.events.map(function(e){
+          var verb = e.event==='finished'?'finivi':e.event==='started'?'iniziavi':e.event==='listened'?'ascoltavi':e.event==='watched'?'guardavi':e.event==='noted'?'annotavi':'';
+          return verb + ' <i>' + e.title + '</i>' + (e.creator ? ' ('+e.creator+')' : '');
+        }).join('; ');
+        return '<div style="font-size:0.82rem;margin-bottom:0.5rem;color:var(--ink);">🕰 Un anno fa: ' + evs + '</div>';
+      }
+      return '';
+    }).join('');
+    box.innerHTML =
+      '<details open style="background:var(--card-bg);border:1px solid var(--border);border-left:3px solid #7a5ea8;padding:0.8rem 1.1rem;margin:0.75rem 0 0;">' +
+      '<summary style="cursor:pointer;font-family:\'DM Mono\',monospace;font-size:0.68rem;letter-spacing:0.12em;color:var(--muted);margin-bottom:0.7rem;">✦ MEMORIA — ' + new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long'}) + '</summary>' +
+      rows + '</details>';
+  } catch(_) { box.innerHTML = ''; }
+}
+
+// ── NOTIF ─────────────────────────────────────────────────────────
+function notify(msg) {
+  var n = document.getElementById('notif');
+  n.textContent = msg; n.classList.add('show');
+  setTimeout(function(){n.classList.remove('show');}, 2500);
+}
+
+// ── SERVICE WORKER (network-first, vedi sw.js) ────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
