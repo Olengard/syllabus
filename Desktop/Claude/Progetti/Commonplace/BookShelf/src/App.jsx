@@ -434,6 +434,21 @@ function StatsView({ books, goals, initialYear }) {
   const avgRating = ratedBooks.length ? (ratedBooks.reduce((s,b)=>s+b.rating,0)/ratedBooks.length).toFixed(1) : null;
   const uniqueAuthors = new Set(allRead.map(b=>b.author).filter(Boolean)).size;
 
+  // ── Ritmo, proiezione e confronto anno precedente ──
+  const scopePagesTot = readBooks.reduce((s,b)=>s+(parseInt(b.pages)||0),0);
+  const monthsElapsed = isCurrentYear ? currentMonth : 12;
+  const projBooks = isCurrentYear && monthsElapsed>0 && readBooks.length>0
+    ? Math.round(readBooks.length / monthsElapsed * 12) : null;
+  const projPages = isCurrentYear && monthsElapsed>0 && scopePagesTot>0
+    ? Math.round(scopePagesTot / monthsElapsed * 12) : null;
+  const prevYearSameDate = books.filter(b=>(b.status==="letto"||!b.status)
+    && b.readYear===scopeYear-1 && (b.readMonth||12)<=monthsElapsed).length;
+  const prevYearHasData = books.some(b=>(b.status==="letto"||!b.status) && b.readYear===scopeYear-1);
+  const deltaPrev = readBooks.length - prevYearSameDate;
+  const withPages = allRead.filter(b=>parseInt(b.pages)>0);
+  const avgPagesBook = withPages.length ? Math.round(totalPages/withPages.length) : null;
+  const goalBooksYear = goals?.[scopeYear]?.books || 0;
+
   // ── Drilldown books ──
   const drillBooks = drillMonth !== null
     ? readBooks.filter(b=>b.readMonth===drillMonth)
@@ -729,13 +744,14 @@ function StatsView({ books, goals, initialYear }) {
   return (
     <div style={{maxWidth:900, margin:"0 auto", padding:"32px 40px", display:"flex", flexDirection:"column", gap:20}}>
 
-      {/* KPI riga in cima */}
-      <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12}}>
+      {/* KPI riga in cima — auto-fit per i display stretti */}
+      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px,1fr))", gap:12}}>
         {[
           {label:"LIBRI LETTI", value:allRead.length},
           {label:"PAGINE TOTALI", value:totalPages>0?totalPages.toLocaleString("it-IT"):"—"},
           {label:"MEDIA VOTI", value:avgRating?`${avgRating} ★`:"—"},
           {label:"AUTORI DISTINTI", value:uniqueAuthors},
+          ...(avgPagesBook?[{label:"MEDIA PAGINE/LIBRO", value:avgPagesBook.toLocaleString("it-IT")}]:[]),
         ].map(({label,value})=>(
           <div key={label} style={{background:palette.paper, border:`1px solid ${palette.border}`, padding:"16px 20px"}}>
             <div style={{fontFamily:"'DM Mono',monospace", fontSize:9, color:palette.inkLight, letterSpacing:"0.1em", marginBottom:8}}>{label}</div>
@@ -758,8 +774,52 @@ function StatsView({ books, goals, initialYear }) {
         </span>
       </div>
 
-      {/* Riga 1: due grafici a barre */}
-      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:20}}>
+      {/* Ritmo di lettura: proiezione e confronto con l'anno precedente */}
+      {(projBooks!==null || prevYearHasData) && card(<>
+        {sectionTitle(`RITMO DI LETTURA — ${scopeYear}`)}
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(170px,1fr))", gap:"12px 24px"}}>
+          {projBooks!==null && (
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif", fontSize:24, fontWeight:600, color:palette.ink}}>
+                ~{projBooks} <span style={{fontSize:13, fontWeight:400, color:palette.inkLight}}>libri</span>
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace", fontSize:9, color:palette.inkLight, letterSpacing:"0.08em", marginTop:4}}>
+                PROIEZIONE FINE ANNO{goalBooksYear>0 ? ` · OBIETTIVO ${goalBooksYear}` : ""}
+              </div>
+              {goalBooksYear>0 && (
+                <div style={{fontFamily:"'Lora',serif", fontStyle:"italic", fontSize:12, marginTop:3,
+                  color: projBooks>=goalBooksYear ? palette.green : palette.accent}}>
+                  {projBooks>=goalBooksYear ? "di questo passo l'obiettivo è raggiunto" : `di questo passo ne mancherebbero ${goalBooksYear-projBooks}`}
+                </div>
+              )}
+            </div>
+          )}
+          {projPages!==null && (
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif", fontSize:24, fontWeight:600, color:palette.ink}}>
+                ~{projPages.toLocaleString("it-IT")} <span style={{fontSize:13, fontWeight:400, color:palette.inkLight}}>pagine</span>
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace", fontSize:9, color:palette.inkLight, letterSpacing:"0.08em", marginTop:4}}>
+                PROIEZIONE FINE ANNO
+              </div>
+            </div>
+          )}
+          {prevYearHasData && (
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif", fontSize:24, fontWeight:600,
+                color: deltaPrev>0 ? palette.green : deltaPrev<0 ? palette.accent : palette.ink}}>
+                {deltaPrev>0?`+${deltaPrev}`:deltaPrev} <span style={{fontSize:13, fontWeight:400, color:palette.inkLight}}>libri</span>
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace", fontSize:9, color:palette.inkLight, letterSpacing:"0.08em", marginTop:4}}>
+                VS {scopeYear-1}{isCurrentYear?" ALLA STESSA DATA":""} ({prevYearSameDate})
+              </div>
+            </div>
+          )}
+        </div>
+      </>)}
+
+      {/* Riga 1: due grafici a barre — auto-fit per mobile */}
+      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px,1fr))", gap:20}}>
         {card(<>
           {sectionTitle(`LIBRI LETTI PER MESE — ${scopeYear}`)}
           {readBooks.length>0
@@ -798,8 +858,8 @@ function StatsView({ books, goals, initialYear }) {
         )}
       </>)}
 
-      {/* Riga 3: classifiche */}
-      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:20}}>
+      {/* Riga 3: classifiche — auto-fit per mobile */}
+      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px,1fr))", gap:20}}>
         {card(<>
           {sectionTitle("AUTORI PIÙ LETTI — TUTTI GLI ANNI")}
           {topAuthors.length>0
@@ -817,7 +877,7 @@ function StatsView({ books, goals, initialYear }) {
       {/* Riga 4: editori */}
       {topPublishers.length>0 && card(<>
         {sectionTitle("EDITORI PIÙ PRESENTI — TUTTI GLI ANNI")}
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 32px"}}>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px,1fr))", gap:"0 32px"}}>
           {topPublishers.map(([name,count])=><HBar key={name} label={name} value={count} maxVal={maxPub} color={palette.green}/>)}
         </div>
       </>)}
@@ -877,9 +937,6 @@ function BookCard({ book, onEdit, onDelete, compact=false, collections=[], onGoT
               style={{fontSize:11, color:"#9B59B6", flexShrink:0}}>&#128302;</span>}
           </div>
         </div>
-        <span style={{fontSize:11, color:palette.inkLight, flexShrink:0, opacity:0.4, userSelect:"none"}}>
-          {expanded ? "â–²" : "â–¼"}
-        </span>
       </div>
 
       {/* Expanded panel */}
@@ -951,24 +1008,10 @@ function BookCard({ book, onEdit, onDelete, compact=false, collections=[], onGoT
           <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
             <button onClick={e=>{
               e.stopPropagation();
-              try {
-                const rbBooks = JSON.parse(localStorage.getItem('rb_books')||'[]');
-                const already = rbBooks.find(b=>
-                  b.title.toLowerCase()===book.title.toLowerCase()&&
-                  b.author.toLowerCase()===book.author.toLowerCase()
-                );
-                if(!already){
-                  const newEntry = {
-                    id:'bs_'+book.id, title:book.title, author:book.author,
-                    edition:book.publisher||'', language:'italiano',
-                    addedAt:new Date().toISOString(), hasFile:false,
-                    _fromBookShelf:true, _bsStatus:book.status,
-                    data:null, chat:[], collectionIds:[]
-                  };
-                  safeLsSet('rb_books',JSON.stringify([newEntry,...rbBooks]));
-                }
-              } catch(err){}
-              window.open('https://footnote.commonplaceapp.org?book='+book.id,'_blank');
+              // Il deep-link basta: Footnote crea/trova il libro via Supabase.
+              // (La vecchia scrittura su localStorage rb_books era integrazione morta:
+              // localStorage non attraversa i sottodomini dal deploy su Vercel.)
+              window.open('https://footnote.commonplaceapp.org?book='+encodeURIComponent(book.id)+'&title='+encodeURIComponent(book.title||'')+'&author='+encodeURIComponent(book.author||''),'_blank');
             }} style={{...btnStyle("ghost"),fontSize:12,padding:"5px 12px"}}>Apri in FN</button>
             <button onClick={e=>{e.stopPropagation();onEdit(book);}}
               style={{...btnStyle("ghost"),fontSize:12,padding:"5px 12px"}}>Modifica</button>
@@ -1006,8 +1049,8 @@ function BookGridCard({ book, onEdit, onDelete, collections=[], onGoToCollection
     <div style={{background:palette.paper, border:`1px solid ${palette.border}`,
       borderTop:`3px solid ${borderColor}`, display:"flex", flexDirection:"column",
       transition:"box-shadow 0.2s", boxShadow:"0 1px 4px rgba(26,18,8,0.06)",
-      position:"relative", cursor: book.notes ? "pointer" : "default"}}
-      onClick={()=>{ if(book.notes) setShowNotes(s=>!s); }}>
+      position:"relative", cursor: "pointer"}}
+      onClick={()=>{ onEdit(book); }}>
 
       {/* Copertina */}
       <div style={{position:"relative", paddingTop:"145%", background:palette.tagBg, flexShrink:0}}>
@@ -1640,7 +1683,9 @@ export default function App() {
   async function loadFromSupabase(userId) {
     try {
       const [bR,gR,cR] = await Promise.all([
-        supabase.from("bs_books").select("*").eq("user_id",userId).is("deleted_at",null),
+        // ORDER BY esplicito: prima i libri arrivavano nell'ordine arbitrario del DB,
+        // quindi "ordine aggiunta" cambiava a ogni reload e il drag&drop era illusorio
+        supabase.from("bs_books").select("*").eq("user_id",userId).is("deleted_at",null).order("added_at",{ascending:false}),
         supabase.from("bs_goals").select("*").eq("user_id",userId),
         supabase.from("bs_collections").select("*").eq("user_id",userId),
       ]);
@@ -1698,31 +1743,28 @@ export default function App() {
 
   const allTags = [...new Set(books.flatMap(b=>b.tags))].sort();
 
-  // ── cp_items / cp_log / cp_tags live sync ──────────────────────────────────
+  // ── cp_items / cp_log live sync — SUL LAYER SUPABASE UNIFICATO ─────────────
+  // (prima scriveva su localStorage: un'isola che nessun'altra app leggeva,
+  // dato che localStorage non attraversa i sottodomini)
   function syncCpData(book, prevBook) {
-    if (!book?.id) return;
+    if (!book?.id || !user) return;
     const cpId = 'bs_' + book.id;
     const now  = new Date().toISOString();
     const m = parseInt(book.readMonth, 10), y = parseInt(book.readYear, 10);
     const finishedAt = (y > 1900) ? new Date(y, (m >= 1 && m <= 12 ? m - 1 : 11), 28).toISOString() : null;
     const STATUS_TO_CP = { 'letto':'finished','in corso':'in_progress','da leggere':'to_read','wishlist':'wishlist','abbandonato':'abandoned' };
-    const cpGet = k => { try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch { return []; } };
 
-    // 1. cp_items — aggiorna o crea
-    const items = cpGet('cp_items');
-    const idx = items.findIndex(i => i.id === cpId);
-    const cpItem = {
-      id: cpId, type: 'book', title: book.title || '', creator: book.author || '',
-      status: STATUS_TO_CP[book.status] || 'to_read',
-      started_at: null, finished_at: finishedAt,
-      rating: book.rating || null, source_app: 'bookshelf', source_id: book.id,
+    // 1. cp_items — upsert (fire-and-forget)
+    supabase.from('cp_items').upsert({
+      id: cpId, user_id: user.id, source_app: 'bookshelf', source_id: book.id,
+      type: 'book', title: book.title || '', creator: book.author || '',
       cover_url: book.cover || null,
-      created_at: idx >= 0 ? items[idx].created_at : now, updated_at: now,
-      _meta: { originalTitle: book.originalTitle||null, publisher: book.publisher||null,
-               year: book.year||null, pages: book.pages||null, isbn: book.isbn||null },
-    };
-    if (idx >= 0) items[idx] = cpItem; else items.unshift(cpItem);
-    safeLsSet('cp_items', JSON.stringify(items));
+      status: STATUS_TO_CP[book.status] || 'to_read',
+      rating: book.rating || null, tags: book.tags || [],
+      metadata: { originalTitle: book.originalTitle||null, publisher: book.publisher||null,
+                  year: book.year||null, pages: book.pages||null, isbn: book.isbn||null },
+      finished_at: finishedAt, updated_at: now,
+    }, { onConflict: 'id' }).then(({error})=>{ if(error) console.warn('[cp] items:', error.message); });
 
     // 2. cp_log — evento se status cambia
     const prevStatus = prevBook?.status, newStatus = book.status;
@@ -1731,17 +1773,15 @@ export default function App() {
         : (newStatus === 'in corso' && prevStatus !== 'in corso') ? 'started'
         : newStatus === 'abbandonato' ? 'abandoned' : null;
       if (eventType) {
-        const log = cpGet('cp_log');
-        const evId = 'bs_ev_' + book.id + '_' + eventType;
-        if (!log.find(e => e.id === evId)) {
-          log.push({ id: evId, item_id: cpId, event_type: eventType,
-                     date: finishedAt || now, meta: {}, source_app: 'bookshelf' });
-          safeLsSet('cp_log', JSON.stringify(log));
-        }
+        supabase.from('cp_log').upsert({
+          id: 'bs_ev_' + book.id + '_' + eventType, user_id: user.id,
+          item_id: cpId, source_app: 'bookshelf', event_type: eventType,
+          event_at: finishedAt || now, metadata: {},
+        }, { onConflict: 'id' }).then(({error})=>{ if(error) console.warn('[cp] log:', error.message); });
       }
     }
 
-    // 3. cp_tags — diff add/remove
+    // 3. cp_tags — registro locale dei suggerimenti (solo UI, resta com'è)
     if (window.CpTags) {
       const prevTags = prevBook?.tags || [], newTags = book.tags || [];
       newTags.filter(t => !prevTags.includes(t)).forEach(t => window.CpTags.addTag(cpId, t, 'bookshelf'));
@@ -1777,6 +1817,14 @@ export default function App() {
     if(confirm("Eliminare questo libro?")) {
       setBooks(p=>p.filter(b=>b.id!==id));
       if(user) supabase.from("bs_books").update({deleted_at:new Date().toISOString()}).eq("id",id).eq("user_id",user.id).then(()=>{});
+      if(user) supabase.from("cp_items").update({deleted_at:new Date().toISOString()}).eq("id","bs_"+id).then(()=>{});
+      // Ripulisci il libro dalle collezioni che lo contenevano (prima restava un id orfano)
+      setCollections(prev=>prev.map(c=>{
+        if(!c.bookIds?.includes(id)) return c;
+        const next={...c, bookIds:c.bookIds.filter(b=>b!==id)};
+        if(user) supabase.from("bs_collections").update({book_ids:next.bookIds,updated_at:new Date().toISOString()}).eq("id",c.id).eq("user_id",user.id).then(()=>{});
+        return next;
+      }));
     }
   }
 
@@ -1816,9 +1864,21 @@ export default function App() {
         const existingTitleAuthor = new Set(
           books.map(b => b.title.toLowerCase().trim() + '||' + (b.author||'').toLowerCase().trim())
         );
-        const newBooks = parsed.books.filter(b =>
+        // NORMALIZZAZIONE: un JSON con libri senza array tags (o senza id)
+        // prima mandava in crash l'intera libreria al primo filtro o render
+        const normalize = b => ({
+          ...emptyBook, ...b,
+          id: b.id || (Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+          title: String(b.title||"").trim(), author: String(b.author||"").trim(),
+          tags: Array.isArray(b.tags) ? b.tags.filter(t=>typeof t==="string") : [],
+          rating: Number(b.rating)||0,
+          status: STATUS_CONFIG[b.status] ? b.status : "da leggere",
+          addedAt: b.addedAt || new Date().toISOString(),
+        });
+        const newBooks = parsed.books.map(normalize).filter(b =>
+          b.title &&
           !existingIds.has(b.id) &&
-          !existingTitleAuthor.has((b.title||'').toLowerCase().trim() + '||' + (b.author||'').toLowerCase().trim())
+          !existingTitleAuthor.has(b.title.toLowerCase() + '||' + b.author.toLowerCase())
         );
         setBooks(prev => [...prev, ...newBooks]);
         // Supabase sync
@@ -1837,13 +1897,10 @@ export default function App() {
         msg.push(`${newBooks.length} libri importati`);
       }
       if (parsed.goals && Object.keys(parsed.goals).length) {
-        const mergedGoals = { ...parsed.goals, ...goals };
-        setGoals(mergedGoals);
-        // Supabase sync
-        if(user) {
-          const rows = Object.entries(mergedGoals).map(([year,g])=>({user_id:user.id,year:parseInt(year),target:g.target||0,updated_at:new Date().toISOString()}));
-          supabase.from("bs_goals").upsert(rows,{onConflict:"user_id,year"}).then(({error})=>{if(error)console.error("import goals upsert:",error);});
-        }
+        // setGoals fa scattare l'effect di sync che scrive goal_books/goal_pages.
+        // L'upsert esplicito che c'era qui scriveva una colonna "target" INESISTENTE:
+        // l'import degli obiettivi falliva in silenzio da sempre.
+        setGoals({ ...parsed.goals, ...goals });
         msg.push("obiettivi importati");
       }
       if (parsed.collections?.length) {
@@ -1944,8 +2001,8 @@ export default function App() {
       <div style={{minHeight:"100vh", background:palette.bg}}>
 
         {/* Header */}
-        <div style={{borderBottom:`2px solid ${palette.ink}`, background:palette.paper, padding:"0 40px"}}>
-          <div style={{maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", height:72}}>
+        <div style={{borderBottom:`2px solid ${palette.ink}`, background:palette.paper, padding:"0 12px"}}>
+          <div style={{maxWidth:900, margin:"0 auto", display:"flex", alignItems:"center", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch", minHeight:52}}>
             <div style={{display:"flex", alignItems:"center", gap:0, overflowX:"auto", WebkitOverflowScrolling:"touch"}}>
               <div style={{fontFamily:"'Playfair Display', serif", fontSize:22, fontWeight:700, color:palette.ink, letterSpacing:"-0.01em", marginRight:32, flexShrink:0}}>
                 BookShelf
@@ -1962,7 +2019,7 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div style={{display:"flex", gap:8}}>
+            <div style={{display:"flex", gap:6, marginLeft:"auto", flexShrink:0, alignItems:"center"}}>
               {view==="library" && <>
                 <div style={{position:"relative"}} ref={exportRef}>
                   <button style={btnStyle("outline")} onClick={()=>setShowExport(v=>!v)}>↓ Esporta / Importa</button>
@@ -1987,7 +2044,7 @@ export default function App() {
                   )}
                 </div>
                 <button style={btnStyle("primary")} onClick={()=>{setEditBook(null);setShowForm(true);}}>+ Aggiungi libro</button>
-              <a href="/listens.html" target="_blank"
+              <a href="https://listens.commonplaceapp.org" target="_blank"
                 style={{...btnStyle("ghost"), textDecoration:'none', padding:'9px 14px', fontSize:13}}>
                 🎙 ListenS
               </a>
@@ -2093,24 +2150,27 @@ export default function App() {
                   </div>
                   <div style={{display:"flex", gap:4, alignItems:"center"}}>
                     <span style={{fontFamily:"'DM Mono', monospace", fontSize:11, color:palette.inkLight}}>STATO:</span>
-                    <Tag label="tutti" onClick={()=>setFilterStatus(null)} active={!filterStatus}/>
-                    {Object.entries(STATUS_CONFIG).map(([k,c])=>(
-                      <Tag key={k} label={`${c.dot} ${c.label}`}
-                        onClick={()=>setFilterStatus(filterStatus===k?null:k)} active={filterStatus===k}/>
-                    ))}
+                    <select value={filterStatus||""} onChange={e=>setFilterStatus(e.target.value||null)}
+                      style={{fontFamily:"'DM Mono', monospace",fontSize:11,padding:"2px 6px",
+                        border:`1px solid ${palette.border}`,borderRadius:2,background:palette.paper,
+                        color:palette.ink,cursor:"pointer"}}>
+                      <option value="">tutti</option>
+                      {Object.entries(STATUS_CONFIG).map(([k,c])=>(
+                        <option key={k} value={k}>{c.dot} {c.label}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div style={{display:"flex", gap:6, alignItems:"center"}}>
-                    <span style={{fontFamily:"'DM Mono', monospace", fontSize:11, color:palette.inkLight}}>MIN★:</span>
-                    {[1,1.5,2,2.5,3,3.5,4,4.5,5].map(r=>(
-                      <span key={r} onClick={()=>setFilterRating(filterRating===r?0:r)}
-                        style={{fontFamily:"'DM Mono', monospace", fontSize:11, cursor:"pointer", userSelect:"none",
-                          color:filterRating===r?palette.ink:palette.inkLight,
-                          textDecoration:filterRating===r?"underline":"none"}}>{r}</span>
-                    ))}
-                    {filterRating>0 && (
-                      <span onClick={()=>setFilterRating(0)}
-                        style={{fontFamily:"'DM Mono', monospace",fontSize:10,color:palette.accent,cursor:"pointer",opacity:0.7}}>✕</span>
-                    )}
+                  <div style={{display:"flex", gap:4, alignItems:"center"}}>
+                    <span style={{fontFamily:"'DM Mono', monospace", fontSize:11, color:palette.inkLight}}>VOTO MIN:</span>
+                    <select value={filterRating||""} onChange={e=>setFilterRating(e.target.value?Number(e.target.value):0)}
+                      style={{fontFamily:"'DM Mono', monospace",fontSize:11,padding:"2px 6px",
+                        border:`1px solid ${palette.border}`,borderRadius:2,background:palette.paper,
+                        color:palette.ink,cursor:"pointer"}}>
+                      <option value="">tutti</option>
+                      {[1,1.5,2,2.5,3,3.5,4,4.5,5].map(r=>(
+                        <option key={r} value={r}>{r} stelle</option>
+                      ))}
+                    </select>
                   </div>
                   {/* Toggle vista + dimensione griglia */}
                   <div style={{display:"flex", gap:4, marginLeft:"auto", alignItems:"center"}}>
@@ -2147,9 +2207,9 @@ export default function App() {
                 </div>
 
                 {/* Riga 2: tag + collezioni a scomparsa + contatore */}
-                <div style={{display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8,
+                <div style={{display:"flex", flexDirection:"column", gap:8,
                   paddingTop:8, borderTop:`1px solid ${palette.border}`}}>
-                  <div style={{flex:1, display:"flex", flexDirection:"column", gap:8}}>
+                  <div style={{display:"flex", flexDirection:"column", gap:8}}>
 
                     {/* Tag */}
                     {allTags.length>0 && (
@@ -2176,28 +2236,23 @@ export default function App() {
 
                     {/* Collezioni */}
                     {collections.length>0 && (
-                      <div style={{display:"flex", alignItems:"center", gap:6, flexWrap:"wrap"}}>
+                      <div style={{display:"flex", alignItems:"center", gap:4}}>
                         <span style={{fontFamily:"'DM Mono', monospace", fontSize:11, color:palette.inkLight}}>COLLEZIONE:</span>
-                        <Tag label="tutte" onClick={()=>setFilterCollection(null)} active={!filterCollection}/>
-                        {collections.map(c=>(
-                          <span key={c.id}
-                            onClick={()=>setFilterCollection(filterCollection===c.id?null:c.id)}
-                            style={{display:"inline-flex", alignItems:"center", gap:4,
-                              padding:"2px 8px", borderRadius:2, cursor:"pointer",
-                              fontFamily:"'DM Mono', monospace", fontSize:11, userSelect:"none",
-                              background:filterCollection===c.id?c.color+"22":palette.tagBg,
-                              color:filterCollection===c.id?c.color:palette.inkLight,
-                              border:`1px solid ${filterCollection===c.id?c.color+"66":palette.border}`}}>
-                            <span style={{width:7,height:7,borderRadius:"50%",background:c.color,display:"inline-block",flexShrink:0}}/>
-                            {c.name}
-                          </span>
-                        ))}
+                        <select value={filterCollection||""} onChange={e=>setFilterCollection(e.target.value||null)}
+                          style={{fontFamily:"'DM Mono', monospace",fontSize:11,padding:"2px 6px",
+                            border:`1px solid ${palette.border}`,borderRadius:2,background:palette.paper,
+                            color:palette.ink,cursor:"pointer"}}>
+                          <option value="">tutte</option>
+                          {collections.map(c=>(
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
                       </div>
                     )}
                   </div>
 
                   {/* Contatore + selettore pagina */}
-                  <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
+                  <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                     <div style={{fontFamily:"'DM Mono', monospace", fontSize:11, color:palette.inkLight, whiteSpace:"nowrap", paddingTop:2}}>
                       {filtered.length === books.length
                         ? `${books.length} ${books.length===1?"libro":"libri"}`
@@ -2256,7 +2311,18 @@ export default function App() {
                   const next = [...books];
                   const [moved] = next.splice(fromIdx, 1);
                   next.splice(toIdx, 0, moved);
+                  // PERSISTENZA del riordino (prima era illusorio: spariva al reload).
+                  // L'ordine è added_at desc → assegno al libro spostato un added_at
+                  // a metà strada tra i vicini. Una sola riga aggiornata, zero schema.
+                  const i = next.findIndex(b=>b.id===moved.id);
+                  const tAbove = i>0 ? new Date(next[i-1].addedAt||Date.now()).getTime() : Date.now()+60000;
+                  const tBelow = i<next.length-1 ? new Date(next[i+1].addedAt||0).getTime() : tAbove-86400000;
+                  const newAdded = new Date(Math.floor((tAbove+tBelow)/2)).toISOString();
+                  next[i] = {...moved, addedAt:newAdded};
                   setBooks(next);
+                  if(user) supabase.from("bs_books").update({added_at:newAdded,updated_at:new Date().toISOString()})
+                    .eq("id",moved.id).eq("user_id",user.id)
+                    .then(({error})=>{if(error)console.error("reorder sync:",error);});
                   dragItem.current = null; dragOver.current = null;
                 };
                 return (
