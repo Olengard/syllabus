@@ -17,6 +17,11 @@ come gitlink (submodule di fatto), quindi è l'unico che richiede il doppio comm
 ## Quando NON usare questa skill
 
 - Per il push: **il push si fa solo su richiesta esplicita di Stefano**, mai di tua iniziativa.
+- ⚠️ **MAI push dal repo annidato `Syllabus/app`** (verificato 2026-07-11): il suo `origin`
+  è lo STESSO remote del repo esterno (`github.com/Olengard/syllabus.git`) ma con storia
+  incompatibile — la `main` remota appartiene al repo esterno. Un push normale verrebbe
+  rifiutato; un `--force` cancellerebbe l'intero workspace remoto. I commit di Syllabus/app
+  restano locali (il deploy passa da Vercel CLI, git non serve).
 - Per repo estranei a Commonplace (DnDMaster segue le stesse regole ma ha il suo CLAUDE.md;
   Zeitgeist Wiki ha convenzioni proprie).
 

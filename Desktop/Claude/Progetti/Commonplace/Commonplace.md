@@ -1041,4 +1041,13 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
   nessuna API key mai client-side (priorità assoluta). Priorità operative: 1) manutenzione/bugfix,
   2) migrazione Digest→Vercel+Supabase (piano in Digest/piano-migrazione-vercel.md), 3) sprint build.
 
+- ✅ **Push** del repo esterno su `github.com/Olengard/syllabus` (`d5c53a8..125c833` + coda sessione).
+  ⚠️ **TRAPPOLA SCOPERTA E DOCUMENTATA** (in `commit-suite`): il repo annidato `Syllabus/app` ha come
+  origin lo STESSO remote del workspace ma storia incompatibile — la `main` remota appartiene al
+  workspace. MAI push da `Syllabus/app` (un --force cancellerebbe il workspace remoto); i suoi commit
+  restano locali, il deploy passa da Vercel CLI.
+- ✅ **MANUALE-OPERATIVO.md** creato (radice Commonplace): il metodo per i lavori impegnativi —
+  8 regole (ambito, prove, proporzione, verifica, strumenti-prima-delle-ipotesi, incertezze,
+  fermarsi, calibrazione) + test di autovalutazione in 7 domande. Linkato dal README delle skill.
+
 **⚠️ Azioni richieste:** nessuna.

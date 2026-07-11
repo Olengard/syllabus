@@ -18,6 +18,10 @@ e approvate da Stefano il 2026-07-11.
 | `triage-produzione` | Un'app live è rotta, bianca o irraggiungibile |
 | `migrazione-digest` | Lavoro sulla migrazione Digest → Vercel+Supabase |
 
+**Il metodo di lavoro** (ambito, prove, proporzione, verifica, incertezze, chiusura) è nel
+**`Progetti/Commonplace/MANUALE-OPERATIVO.md`**: leggilo prima di ogni lavoro impegnativo —
+si chiude con il test di autovalutazione in 7 domande da eseguire prima di ogni risposta definitiva.
+
 ## Regole trasversali (valgono sempre, in ogni skill)
 
 1. **Nessuna API key può mai raggiungere il client.** Bundle, localStorage, URL, log,
