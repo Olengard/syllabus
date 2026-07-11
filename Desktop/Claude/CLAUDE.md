@@ -26,6 +26,8 @@ Workspace personale multi-progetto di Stefano (interazione e commit in **italian
 
 **Ecosistema Commonplace** (`Progetti/Commonplace/`): suite di app personali (letture, ascolti, note, video, finanze, GdR) con design system comune. Il documento di riferimento è **`Progetti/Commonplace/Commonplace.md`**: architettura, progetti Supabase condivisi, deploy (Vercel/Netlify/Render), stato per app. App principali: BookShelf (hub, porta 5173), Footnote, ListenS, NoteS/ReadS (anche Expo), Digest (Flask/Python su Render), Platea (Expo), Home, Syllabus.
 
+**Per ogni lavoro complesso su Commonplace, leggi prima `Progetti/Commonplace/MANUALE-OPERATIVO.md`** (metodo: ambito, prove, proporzione, verifica, incertezze, chiusura — con autotest finale in 7 domande) e usa le skill operative in `Progetti/Commonplace/.claude/skills/` (git/matrioska, deploy, sicurezza API key, Supabase, diario, verifica, single-file, triage, migrazione Digest).
+
 **Altri progetti** (`Progetti/Chess`, `China`, `DnD`, `Minorca`, `Personal Wiki`, `Story_Wiki`): materiale personale o dormiente, nessuna convenzione particolare.
 
 ## File sciolti
