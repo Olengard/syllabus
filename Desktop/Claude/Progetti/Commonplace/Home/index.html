@@ -36,6 +36,11 @@
       margin: 0 auto;
       padding: 5rem 0 3.5rem;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
     .site-title {
       font-size: clamp(2.4rem, 6vw, 4rem);
@@ -53,6 +58,17 @@
       text-transform: uppercase;
       margin-top: 1rem;
     }
+    .header-dash {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+      white-space: nowrap;
+    }
+    .header-dash:hover { color: var(--gold); }
 
     /* ── Section labels ── */
     .section-label {
@@ -97,7 +113,6 @@
       position: relative;
     }
     .app-card:hover { background: var(--surface); }
-
     .app-card.collateral { background: #0c0b09; }
     .app-card.collateral:hover { background: var(--surface); }
 
@@ -148,8 +163,6 @@
       border-radius: 3px;
       align-self: flex-start;
     }
-
-    /* Arrow on hover */
     .app-card::after {
       content: '\2192';
       position: absolute;
@@ -192,8 +205,11 @@
 <body>
 
   <header>
-    <h1 class="site-title">Common<span>place</span></h1>
-    <p class="site-subtitle">Suite di app personali &nbsp;&middot;&nbsp; Stefano Olengard</p>
+    <div>
+      <h1 class="site-title">Common<span>place</span></h1>
+      <p class="site-subtitle">Suite di app personali &nbsp;&middot;&nbsp; Stefano Olengard</p>
+    </div>
+    <a class="header-dash" href="https://dash.commonplaceapp.org">&#8594; dashboard</a>
   </header>
 
   <div class="section-label">Suite</div>
@@ -217,10 +233,11 @@
       <div class="app-desc">Libreria personale: letti, in lettura e wishlist &mdash; con ricerca Open Library.</div>
     </a>
 
-    <a class="app-card" href="https://digest-blqp.onrender.com">
-      <div class="app-icon">D</div>
-      <div class="app-name">Digest</div>
-      <div class="app-desc">Newsletter AI: riassunto quotidiano dei tuoi feed RSS con Claude.</div>
+
+    <a class="app-card" href="https://syllabus.commonplaceapp.org">
+      <div class="app-icon">S</div>
+      <div class="app-name">Syllabus</div>
+      <div class="app-desc">Curricula di studio personali: risorse, obiettivi e chat con AI.</div>
     </a>
 
     <a class="app-card" href="https://footnote.commonplaceapp.org">
@@ -229,11 +246,23 @@
       <div class="app-desc">Note veloci e appunti sparsi &mdash; semplice, veloce, sempre accessibile.</div>
     </a>
 
+    <a class="app-card" href="https://digest-blqp.onrender.com">
+      <div class="app-icon">D</div>
+      <div class="app-name">Digest</div>
+      <div class="app-desc">Newsletter AI: riassunto quotidiano dei tuoi feed RSS con Claude.</div>
+    </a>
+
     <a class="app-card" href="https://platea.commonplaceapp.org">
       <div class="app-icon">P</div>
       <div class="app-name">Platea</div>
       <div class="app-desc">Tracking concerti, film e spettacoli visti &mdash; con note e rating.</div>
       <span class="app-badge">iOS &middot; Android</span>
+    </a>
+
+    <a class="app-card" href="https://dash.commonplaceapp.org">
+      <div class="app-icon">&#8651;</div>
+      <div class="app-name">Dashboard</div>
+      <div class="app-desc">Registro culturale unificato: attivit&agrave;, statistiche e ricerca trasversale.</div>
     </a>
 
   </div>
