@@ -28,7 +28,7 @@ const os = require("os");
 const path = require("path");
 
 // ── Aspettative (osservate live il 2026-07-12) ──────────────────────────────
-const SW_MIN = { footnote: 28, listens: 13, marginalia: 1, bookshelf: 1, syllabus: 3 };
+const SW_MIN = { footnote: 28, listens: 13, marginalia: 1, bookshelf: 1, syllabus: 5 };
 
 const CHECKS = [
   // [nome, url, metodo, body, status attesi]
@@ -51,6 +51,7 @@ const CHECKS = [
   ["listens proxy feed", "https://listens.commonplaceapp.org/api/feed", "GET", null, [400, 401]],
   ["notes trascrizione", "https://notes.commonplaceapp.org/api/transcribe", "POST", "{}", [401]],
   ["notes whisper", "https://notes.commonplaceapp.org/api/whisper", "POST", "{}", [401]],
+  ["syllabus proxy AI", "https://syllabus.commonplaceapp.org/api/claude", "POST", "{}", [401]],
   // Gateway Supabase: 401 "No API key" = il progetto è su e risponde.
   ["supabase pchld", "https://pchldmiavycxzpkzochn.supabase.co/rest/v1/", "GET", null, [401]],
   ["supabase bogav (Ledger)", "https://bogavweypmgyxwmdpsqm.supabase.co/rest/v1/", "GET", null, [401]],

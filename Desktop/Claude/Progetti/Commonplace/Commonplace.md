@@ -1308,3 +1308,20 @@ La falla del punto ⚠️ qui sopra è reale: i tre proxy AI erano **completamen
      `syllabus proxy AI` a `[401]` e `SW_MIN.syllabus` → 5.
   4. Controllare se la stessa chiave revocata era usata altrove (altre env Vercel) per non
      rompere altre app col ricambio.
+- ✅ **RISOLTO — Syllabus deployato e verificato** (2026-07-13, autorizzato; Stefano ha
+  creato la nuova chiave, impostata la env su Vercel progetto `app`, e **disabilitato la
+  vecchia**): `npm run build` + `npx vercel --prod`. **Prova live**: SW `syllabus-v5`; il
+  bundle live (`/assets/index-I9LBs5Nd.js`) **NON contiene più** né `sk-ant-…` né
+  `api.anthropic.com` (leak eliminato dalla produzione); `POST` con body valido a
+  `/api/claude` senza login → **401**. `collauda.cjs` aggiornato (check `syllabus proxy AI`
+  a 401, `SW_MIN.syllabus`→5) e **TUTTO VERDE**. ⚠️ NON verificata da qui la generazione
+  *da loggato* (serve la sessione utente): che la nuova chiave sia valida lo conferma una
+  singola prova di generazione in Syllabus — da fare.
+- 🔴 **CONSEGUENZA della disabilitazione della vecchia chiave — DA VERIFICARE SUBITO**: se
+  quella chiave (ora disattivata) era **riusata come `ANTHROPIC_API_KEY` server-side** anche
+  in altri progetti Vercel, la loro AI è **rotta adesso** (500 "key non valida"). Progetti
+  che chiamano Anthropic, ognuno con la SUA env: **footnote-app**, **notes-app** (solo la
+  parte Anthropic `/api/transcribe`; `/api/whisper` usa `OPENAI_API_KEY`, non toccata),
+  **digest-app**. Non è ispezionabile il valore delle env (segrete): verificare provando la
+  generazione da loggato in ognuna, oppure impostare la nuova chiave (riusabile) in tutti e
+  tre e redeployare. Syllabus (progetto `app`) è già a posto.
