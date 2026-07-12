@@ -10,7 +10,7 @@ description: Lavorare con i database Supabase della suite. Usa per qualsiasi lav
 | Progetto | Ruolo | Tabelle (prefissi) |
 |---|---|---|
 | `pchldmiavycxzpkzochn` ("NoteS") | **Progetto principale della suite** | `bs_*` (BookShelf), `fn_books` (Footnote), `ls_*` (ListenS), `sl_*` (Syllabus), `dnd_saves` (DnDMaster), `cp_items`/`cp_log`/`cp_quotes` (layer unificato + Marginalia), tabelle NoteS |
-| `llvqoiyvzloloobjiloe` | Platea + cp legacy + Dashboard v2 | ⚠️ Va in pausa (free tier) e **a luglio 2026 non risultava tra i progetti dell'account MCP**: stato da chiarire con Stefano prima di usarlo |
+| `llvqoiyvzloloobjiloe` | Platea + cp legacy + Dashboard v2 | ⚠️ VIVO e ATTIVO (verificato 2026-07-12: REST 200 con anon key) ma su un **ALTRO account/org Supabase** — l'MCP non lo vede (org "Anonima Olengatta" = solo pchld e bogav, 2 slot free pieni). Dashboard: chiedere a Stefano quale account è. Niente MCP: si lavora via REST con la anon key (in `Platea/.env`) o dal suo SQL editor. Proposta in piedi: migrare tutto su pchld prima della build EAS di Platea (appendice diario #21) |
 | `bogavweypmgyxwmdpsqm` | **Ledger** (verificato 2026-07-11 via MCP) | `accounts`, `transactions`, `transfers`, `budgets`, `categories`, `payment_methods`, `recurring_transactions`, `meal_voucher_usages`, `benefit_*`, `investment_updates` |
 
 Auth: email+password unificata sulla suite (stesso account su `pchld…`). RLS attiva ovunque

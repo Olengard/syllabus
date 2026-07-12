@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ⚠️ Aperto da #20: progetto Supabase llvqoiyvzloloobjiloe non visibile dall'account MCP — stato da chiarire.
+> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito (2026-07-12, appendice #21) il mistero llvqoiyvzloloobjiloe: il progetto è VIVO e ATTIVO (REST 200 con anon key) ma vive su un ALTRO account/org Supabase — l'account MCP "Anonima Olengatta" contiene solo pchld e bogav (2 slot free tier pieni). Accesso dashboard: solo Stefano sa quale account è. Proposta: migrare Platea/Dashboard su pchld prima della build EAS (vedi diario).
 
 ---
 
@@ -337,7 +337,7 @@ Commonplace
 - Watch progress resume
 - Saved videos (toggle cuore â™¥)
 
-**Stato attuale:** 🔶 Revisione completa 2026-06-11 (Sessione #18, Fable 5) — in attesa di build EAS. ⚠️ PRIMA DI TUTTO: riattivare il progetto Supabase llvqoiyvzloloobjiloe (in pausa!).
+**Stato attuale:** 🔶 Revisione completa 2026-06-11 (Sessione #18, Fable 5) — in attesa di build EAS. ✅ Progetto Supabase llvqoiyvzloloobjiloe ATTIVO (verificato 2026-07-12: REST 200 con anon key, `videos` popolata) ma su un ALTRO account/org rispetto all'MCP — niente più "riattivare dal dashboard" come prerequisito. ⚠️ Valutare la migrazione a pchld PRIMA della build EAS, così una build sola incorpora env nuove + revisione #18 (vedi appendice diario #21).
 
 **Aggiornamento 2026-06-11 (Sessione #18 — revisione Fable 5):**
 - CAUSA MADRE DELL'IMPERMANENZA TROVATA: il progetto Supabase llvqoiyvzloloobjiloe è IN PAUSA (free tier, 1 settimana di inattività) — DNS inesistente, verificato dal PC di Stefano. Quando dorme, tutta Platea si svuota. Il warning keep-alive era nel log da marzo, mai eseguito. Rimedio: restore dal dashboard + cron settimanale su cron-job.org che invoca sync-videos (tiene sveglio E sincronizza)
@@ -1134,3 +1134,22 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
   2. Nella nuova app: riassegnare le categorie feed (Impostazioni → Categorie feed).
   3. Domattina: verificare `backup-2026-07-13.json` nel repo commonplace-backups
      (deve avere `pchld.dg_feeds`).
+
+**Appendice #21 (sera) — check llvqoiyvzloloobjiloe (aperto da #20): RISOLTO.**
+- Il progetto è **VIVO e ATTIVO**: REST `200` con la anon key di `Platea/.env`
+  (`videos` popolata), auth endpoint su. Non è in pausa e non è cancellato.
+- **Non è visibile dall'MCP perché vive su un ALTRO account/org**: l'org collegata
+  all'MCP ("Anonima Olengatta") contiene solo `pchld` (NoteS) e `bogav` (Ledger) —
+  i 2 slot del free tier sono pieni, probabile ragione storica dello sdoppiamento.
+  Quale account ospiti llv lo sa solo Stefano (da recuperare per dismissione/export).
+- Nota di passaggio: `videos` è leggibile con la sola anon key senza login — coerente
+  col design di Platea senza auth, ma da ricontrollare in sede di migrazione.
+- **Proposta registrata — migrare llv → pchld PRIMA della build EAS di Platea**, così
+  una sola build incorpora env nuove + revisione #18. A favore: tutto su un account
+  MCP-visibile, keep-alive unico, fine del rischio pausa, allineamento col cp layer
+  già su pchld (cp.ts di Platea punta GIÀ a pchld), Dashboard v2 e il dropdown
+  "Collega a item" di NoteS smettono di dipendere da un progetto fantasma. Percorso
+  dati: `videos`/`sync_log` si rigenerano con sync-videos (da rideployare su pchld
+  + repoint cron-job); il resto (saved, progress, playlists) dovrebbe essere nei backup
+  giornalieri di cp-backup (sezione llv, documentata dal #19 — VERIFICARE le righe llv
+  in `latest.json` come primo passo della migrazione). Deliverable: sessione dedicata.
