@@ -1092,13 +1092,32 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
     `HTTP 401` in TUTTI i backup dal 2026-06-12 a oggi (env `DIGEST_PASSWORD` su Vercel
     cp-backup errata o assente). Nessun backup Digest è mai esistito. Diventa moot dopo
     il cutover (backup leggerà dg_* da Supabase, già nel piano), ma va sistemato lì.
-- **⚠️ Azioni richieste (in ordine):**
-  1. ~~Migrazione dati~~ ✅ fatta (33 feed, vedi sopra).
-  2. **Deploy `digest-app`** (progetto Vercel NUOVO da `DigestV/`): autorizzare il deploy;
-     env richieste su Vercel: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY` (pchld).
-  3. Dopo il deploy: test di parità sui 33 feed reali (confronto errori vecchio vs nuovo,
-     attenzione ai 403 da IP Vercel), digest 4 tipi, memoria, riassunti → solo con ok
-     esplicito: cutover DNS `digest.commonplaceapp.org` → sospendere Render (NON cancellare,
-     rollback 2 settimane) → spegnere ping cron-job.org → aggiornare cp-backup (dg_* da
-     Supabase al posto di fetchDigest, e lì muore anche il 401).
-  4. Nella nuova app: riassegnare le categorie feed (Impostazioni → Categorie feed).
+- ✅ **Deploy `digest-app` + test di parità PASSATO** (2026-07-12, terzo blocco, autorizzato):
+  progetto Vercel nuovo `digest-app` (digest-app-olengards-projects.vercel.app), env impostate
+  da Stefano, Deployment Protection disabilitata da Stefano (il default sui progetti nuovi
+  redirige tutto all'SSO Vercel — 302, stesso gotcha del 403 cdgX). Il test sui feed REALI
+  ha trovato e risolto 3 bug del backend nuovo:
+  - **"URI malformed" (pagina in errore con dati carichi)**: `cleanHtml` JS troncava con
+    `slice(0,300)` per unità UTF-16 → emoji spezzata → surrogata orfana →
+    `encodeURIComponent` esplodeva in `renderArticles` e il catch di `loadAll` mascherava
+    tutto da "API non raggiungibili". Il `[:300]` Python era immune. Fix: taglio per code
+    point (`[...s].slice(0,300)`).
+  - **"Entity expansion limit exceeded" (Guardian, Free Jazz, Public Domain Review)**:
+    protezione anti-DoS di fast-xml-parser oltre 1000 entità. Fix: `processEntities:false`
+    + `decodeXml()` proprio, applicato ANCHE ai link (un `&amp;` non decodificato
+    cambierebbe l'md5 → ID diversi dal vecchio server → stato letto orfano).
+  - **Jacobin 0 articoli**: Atom senza `<link>`, URL solo in `<id>` — server.py aveva il
+    fallback (`entry.link or entry.id`), il ramo Atom nuovo no. Fix: fallback su id http.
+  - **Esito finale: 531 articoli da 26/33 feed, 7 errori "fisiologici"** (DRB feed
+    genuinamente vuoto — verificato sul raw; The Wire 404 URL morto; Weird Fiction Review
+    timeout anche dal PC locale; Jazz Times/Dissent/New Statesman/Paris Review 403 WAF).
+    Memoria OK (citazione da cp_quotes, cache in dg_preferences), riassunto AI OK (proxy),
+    digest generalista OK (116 articoli, 6113→2446 token, ~$0.055, salvato in
+    `digest_last_general`). API senza login → 401 su tutti gli endpoint (verificato curl).
+- **⚠️ Azioni richieste:**
+  1. **Decisione cutover** (punto di non ritorno, spetta a Stefano): DNS
+     `digest.commonplaceapp.org` → progetto `digest-app` → sospendere Render (NON
+     cancellare, rollback 2 settimane) → spegnere ping cron-job.org → aggiornare cp-backup
+     (dg_* da Supabase al posto di fetchDigest — lì muore anche il 401 storico di
+     DIGEST_PASSWORD) → aggiornare link in Home.
+  2. Nella nuova app: riassegnare le categorie feed (Impostazioni → Categorie feed).

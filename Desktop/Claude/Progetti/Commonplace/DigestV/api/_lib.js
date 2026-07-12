@@ -49,12 +49,26 @@ export const BROWSER_HEADERS = {
   "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8",
 };
 
+// Decodifica entità XML/HTML (numeriche + nomi comuni) — il parser gira con
+// processEntities:false (il limite anti-DoS di fast-xml-parser esplodeva sui
+// feed grossi), quindi la decodifica è compito nostro, anche per i LINK
+// (un &amp; non decodificato cambierebbe l'md5 → ID articolo diversi dal vecchio server).
+export function decodeXml(s) {
+  return String(s || "")
+    .replace(/&#x([0-9a-f]+);/gi, (m, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return " "; } })
+    .replace(/&#(\d+);/g, (m, n) => { try { return String.fromCodePoint(+n); } catch { return " "; } })
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, " ");
+}
+
 export function cleanHtml(t) {
   if (!t) return "";
-  return String(t).replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ").trim().slice(0, 300);
+  const s = decodeXml(String(t).replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ").trim();
+  // Taglio per CODE POINT, mai per unità UTF-16: uno slice(0,300) può spezzare
+  // un'emoji lasciando una surrogata orfana → encodeURIComponent nel frontend
+  // lancia "URI malformed" (successo il 2026-07-12; il [:300] Python era immune).
+  return [...s].slice(0, 300).join("");
 }
 
 // Scarica e parsa un feed RSS/Atom → { title, items:[{title,link,desc,date}] }
@@ -76,7 +90,7 @@ export async function fetchFeed(url, timeoutMs = 8000) {
   if (!r.ok) throw new Error(`HTTP ${r.status} — il sito blocca le richieste automatiche`);
   const xml = await r.text();
   if (/^\s*<!doctype html|^\s*<html/i.test(xml)) throw new Error("HTML, non feed");
-  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+  const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", processEntities: false });
   const doc = parser.parse(xml);
   const arr = (x) => (Array.isArray(x) ? x : x ? [x] : []);
   let title = "", items = [];
@@ -84,7 +98,7 @@ export async function fetchFeed(url, timeoutMs = 8000) {
     title = cleanHtml(doc.rss.channel.title);
     items = arr(doc.rss.channel.item).map((i) => ({
       title: cleanHtml(i.title),
-      link: typeof i.link === "string" ? i.link : i.link?.["@_href"] || i.guid?.["#text"] || String(i.guid || ""),
+      link: decodeXml(typeof i.link === "string" ? i.link : i.link?.["@_href"] || i.guid?.["#text"] || String(i.guid || "")).trim(),
       desc: cleanHtml(i.description || i["content:encoded"] || ""),
       date: i.pubDate || i["dc:date"] || null,
     }));
@@ -93,9 +107,12 @@ export async function fetchFeed(url, timeoutMs = 8000) {
     items = arr(doc.feed.entry).map((i) => {
       const links = arr(i.link);
       const alt = links.find((l) => l["@_rel"] === "alternate") || links[0];
+      // Fallback su <id> come server.py (entry.get('link') or entry.get('id')):
+      // alcuni Atom (es. Jacobin) non hanno <link>, l'URL vive nell'id
+      const fallbackId = typeof i.id === "string" && /^https?:/.test(i.id) ? i.id : "";
       return {
         title: cleanHtml(i.title?.["#text"] ?? i.title),
-        link: alt?.["@_href"] || "",
+        link: decodeXml(alt?.["@_href"] || fallbackId).trim(),
         desc: cleanHtml(i.summary?.["#text"] ?? i.summary ?? i.content?.["#text"] ?? ""),
         date: i.published || i.updated || null,
       };
