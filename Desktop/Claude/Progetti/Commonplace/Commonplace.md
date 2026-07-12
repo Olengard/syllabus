@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-11 -- Sessione #20 (consegna Fable 5). Libreria skill operative in `.claude/skills/` (9 skill, approvate); lavoro #18 committato (era già tutto live); verificato: migration ListenS eseguita, ANTHROPIC_API_KEY nuova attiva, Ledger = progetto Supabase bogav…, DnDMaster deploya via Netlify CLI. ⚠️ Aperto: progetto Supabase llvqoiyvzloloobjiloe non visibile dall'account MCP — stato da chiarire.
+> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. Migrazione Digest→Vercel+Supabase: SQL eseguito su pchld (dg_feeds/dg_preferences con RLS), backend DigestV completato (aggiunto preferences.js mancante + fallback 403 cookie), frontend DigestV con login Supabase suite scritto e verificato in locale. ⚠️ Restano: migra-dati.ps1 (serve password Digest), deploy digest-app (autorizzazione), test parità sui feed reali, cutover DNS. ⚠️ Aperto da #20: progetto Supabase llvqoiyvzloloobjiloe non visibile dall'account MCP — stato da chiarire.
 
 ---
 
@@ -275,7 +275,7 @@ Commonplace
 - gevent workers per digest call lunghe
 - Accesso da: Windows PC (proxy corporate, `verify=False`), secondo PC, OnePlus 13
 
-**Stato attuale:** ✅ Revisione completa 2026-06-10 (Sessione #18, Fable 5). ⚠️ Da fare su Render: impostare `ANTHROPIC_API_KEY` (nuova chiave) e verificare `ACCESS_PASSWORD` attiva, poi deploy (git push).
+**Stato attuale:** ✅ Live su Render (verificato 2026-07-11: /api/auth/status → 200). 🔄 **Migrazione a Vercel+Supabase in corso** (Sessione #21, 2026-07-12): `DigestV/` pronto — SQL eseguito su pchld, backend e frontend completi, verifica locale OK. Restano: migrazione dati, deploy, test parità, cutover DNS. Stato dettagliato in `Digest/piano-migrazione-vercel.md`.
 
 **Aggiornamento 2026-06-10 (Sessione #18 — revisione Fable 5):**
 - FIX "classificazioni/letture perse": gli ID di articoli e feed usavano `hash()` Python, randomizzato a ogni processo — su Render (free tier, sleep dopo 15 min) gli ID cambiavano a ogni risveglio, orfanizzando stato letto e riassunti. Ora `stable_id()` con md5. NOTA: al primo deploy lo stato letto si azzera un'ultima volta (gli ID cambiano schema), poi resta stabile per sempre
@@ -1051,3 +1051,36 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
   fermarsi, calibrazione) + test di autovalutazione in 7 domande. Linkato dal README delle skill.
 
 **⚠️ Azioni richieste:** nessuna.
+
+## 2026-07-12 — Sessione #21
+
+- ✅ **Digest: migrazione Vercel+Supabase — fasi 1-4 completate** (commit `12b1bb4` repo esterno,
+  `d8822e7` repo annidato Digest per il piano aggiornato):
+  - **SQL eseguito su pchld** via MCP: `dg_feeds` (con colonna `category`) + `dg_preferences`,
+    schema e RLS verificati (1 policy own-data ciascuna, `information_schema` + `pg_policies`).
+  - **Backend `DigestV/api/` completato**: trovate e colmate 2 lacune rispetto a server.py —
+    (1) mancava **`preferences.js`** (il frontend usa GET/POST `/api/preferences` per feed
+    prioritari, ultimi digest, collapsed cats); (2) `fetchFeed` non aveva il **fallback 403**
+    di server.py — ora su 403 visita la homepage, raccoglie i cookie e ritenta con
+    Referer+Cookie. Sintassi esbuild OK su tutti i 7 file.
+  - **Frontend `DigestV/index.html`**: login Supabase della suite (signInWithPassword, sessione
+    persistente supabase-js, logout+email in Impostazioni), `apiFetch` con Bearer access_token,
+    categorie lette/scritte su `dg_feeds.category` (PATCH immediato, niente più
+    `digest_feed_cats` in preferences), DELETE con `?id=`, **niente API key client-side**
+    (rimossi input chiave e indirizzo server), rimosso il retry "server che si sveglia"
+    (niente più cold start), sw.js network-first (mai cache su `/api/`) + manifest → PWA.
+  - **Verifica**: JS inline sintassi OK; `fetchFeed` testato da Node su feed reali — BBC,
+    Internazionale, Repubblica OK; **ilpost.it 403 anche via curl dal PC** (WAF anti-bot a
+    monte, probabilmente fallisce anche dal Render attuale — da confrontare nel test di
+    parità). Rendering verificato su server statico locale (launch.json `digestv-static`,
+    porta 5180): login screen, modali, pannello Account, zero errori console.
+- **⚠️ Azioni richieste (in ordine):**
+  1. **Migrazione dati**: eseguire `DigestV/migra-dati.ps1 -DigestPassword "<pw Digest>"
+     -ServiceKey "<service_role pchld>"` (porta feed+preferenze da Render a Supabase,
+     mappando le categorie). Claude non ha la password di Digest.
+  2. **Deploy `digest-app`** (progetto Vercel NUOVO da `DigestV/`): autorizzare il deploy;
+     env richieste su Vercel: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY` (pchld).
+  3. Dopo il deploy: test di parità sui ~40 feed reali (confronto errori vecchio vs nuovo,
+     attenzione ai 403 da IP Vercel), digest 4 tipi, memoria, riassunti → solo con ok
+     esplicito: cutover DNS `digest.commonplaceapp.org` → sospendere Render (NON cancellare,
+     rollback 2 settimane) → spegnere ping cron-job.org → aggiungere dg_* a cp-backup.
