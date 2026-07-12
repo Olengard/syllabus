@@ -41,15 +41,16 @@
 
 ## Fase 0 — Prerequisiti (Stefano, ~15 min sul dashboard llv)
 
-> Stato al 2026-07-12 sera: **0.1 PARZIALE** — colonne ✅ archiviate in
-> `supabase/llv-schema-2026-07-12.md`; MANCANO vista `continue_watching`, RPC
-> `search_videos` e i valori degli ENUM (query pronta nel file archivio).
+> **✅ FASE 0 COMPLETATA (2026-07-12 sera).** Tutto in `supabase/llv-schema-2026-07-12.md`:
+> colonne, vista `continue_watching`, RPC `search_videos`, enum `video_source` +
+> `content_category` (verbatim dal SQL editor llv, con note d'ordine per la Fase 1).
 > **0.2 ✅** YouTube key recuperata (la custodisce Stefano — MAI in git/chat, va nei
 > secrets della Edge Function in Fase 3). **0.3 ✅** sezione llv verificata in
 > `latest.json` (conteggi identici al REST). Bonus scoperto durante la verifica:
 > `dnd_saves` mancava dal backup → aggiunta a `Backup/api/backup.js` e deployata
 > (conferma nel backup di domattina); notato anche `backup-2026-07-11.json` assente
 > (cron ha saltato un giorno — da tenere d'occhio).
+> **Si parte dalla Fase 1** — il dashboard llv non serve più fino alla Fase 3 (secrets).
 
 1. Dal SQL editor di llv, eseguire **UNA QUERY ALLA VOLTA** (l'editor Supabase mostra
    solo il risultato dell'ULTIMO statement: eseguite in blocco si perde tutto tranne

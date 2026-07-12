@@ -4,19 +4,83 @@
 > (vedi `../piano-migrazione-pchld.md`, Fase 0). Serve alla Fase 1 per ricreare
 > gli schemi IDENTICI su pchld.
 
-## ⚠️ Pezzi ancora mancanti (chiedere a Stefano)
+## ✅ FASE 0 COMPLETA (2026-07-12 sera) — vista, RPC, enum
 
-1. **Definizione della vista `continue_watching`** — output di:
-   `select pg_get_viewdef('continue_watching'::regclass, true);`
-2. **Definizione della RPC `search_videos`** — output di:
-   `select pg_get_functiondef(p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='search_videos';`
-3. **Valori degli ENUM** (le colonne `USER-DEFINED` qui sotto: `source` e `category`) — output di:
-   ```sql
-   select t.typname, e.enumlabel
-     from pg_type t join pg_enum e on e.enumtypid = t.oid
-    order by t.typname, e.enumsortorder;
-   ```
-   Senza questi, i CREATE TYPE su pchld non si possono scrivere.
+### ENUM custom (gli unici due da ricreare su pchld — gli altri typname
+### dell'output erano tipi di sistema Supabase: aal_level, factor_type, oauth_*, ecc.)
+
+```sql
+create type video_source as enum ('youtube','archive','wikidata','playlist');
+create type content_category as enum
+  ('cinema','classica','jazz','opera','lezioni','storia','documentario','anime');
+```
+
+⚠️ ATTENZIONE Fase 1: su pchld questi CREATE TYPE potrebbero collidere con nomi futuri —
+sono nomi generici in un progetto condiviso. Vanno bene così (nessun conflitto oggi),
+ma verificare con `select typname from pg_type join pg_namespace...` prima di crearli.
+Colonne che li usano: `videos.source/category`, `channels.source/category`,
+`sync_log.source` (la vista li eredita). `carousels.category` invece è TEXT semplice.
+
+### Vista `continue_watching` (verbatim da pg_get_viewdef)
+
+```sql
+create view continue_watching as
+ SELECT v.id,
+    v.title,
+    v.thumbnail_url,
+    v.embed_url,
+    v.duration_sec,
+    v.category,
+    v.channel_id,
+    v.tags,
+    v.source,
+    v.source_id,
+    wp.position_sec,
+    wp.completed,
+    wp.last_watched,
+        CASE
+            WHEN v.duration_sec > 0 THEN round(wp.position_sec::numeric / v.duration_sec::numeric * 100::numeric)
+            ELSE 0::numeric
+        END AS progress_pct
+   FROM watch_progress wp
+     JOIN videos v ON v.id = wp.video_id
+  WHERE wp.completed = false
+  ORDER BY wp.last_watched DESC
+ LIMIT 10;
+```
+
+### RPC `search_videos` (verbatim da pg_get_functiondef)
+
+```sql
+CREATE OR REPLACE FUNCTION public.search_videos(query_text text, filter_category text DEFAULT NULL::text, filter_tags text[] DEFAULT NULL::text[], result_limit integer DEFAULT 30, result_offset integer DEFAULT 0)
+ RETURNS SETOF videos
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT *
+  FROM videos v
+  WHERE
+    (query_text IS NULL OR query_text = '' OR
+      to_tsvector('english',
+        coalesce(v.title,'') || ' ' ||
+        coalesce(v.description,'') || ' ' ||
+        coalesce(v.composer,'')
+      ) @@ plainto_tsquery('english', query_text)
+      OR lower(v.title) LIKE lower('%' || query_text || '%')
+    )
+    AND (filter_category IS NULL OR v.category::text = filter_category)
+    AND (filter_tags IS NULL OR v.tags && filter_tags)
+  ORDER BY
+    CASE WHEN lower(v.title) LIKE lower('%' || query_text || '%') THEN 0 ELSE 1 END,
+    v.published_at DESC
+  LIMIT result_limit OFFSET result_offset;
+$function$
+```
+
+Nota Fase 1: la funzione fa FTS `to_tsvector` al volo su title/description/composer —
+su llv non risulta un indice GIN dedicato dal DDL colonne; con 11k righe funziona
+comunque, ricrearla identica senza "migliorie". `RETURNS SETOF videos` richiede che
+la TABELLA videos esista PRIMA della funzione (ordine: enum → tabelle → vista → RPC).
 
 ## Note di lettura
 
