@@ -37,8 +37,13 @@ con policy `user_id = auth.uid()`.
 4. Nuove tabelle: SEMPRE con RLS e policy `user_id = auth.uid()`; `user_id` impostato
    client-side ma imposto dalla RLS.
 5. Problema di connettività/dati vuoti → prima ipotesi: **progetto in pausa** (free tier,
-   7 giorni di inattività, il DNS smette di risolvere). Restore dal dashboard, poi
-   verificare il keep-alive su cron-job.org.
+   7 giorni di inattività). ⚠️ Il vecchio segnale "il DNS non risolve" NON è più
+   affidabile (verificato 2026-07-12: il DNS Cloudflare risolve comunque) — test giusto:
+   `curl -s https://<project>.supabase.co/rest/v1/` → `401 "No API key"` = progetto VIVO;
+   timeout/HTTP 000 o messaggio "paused" = dorme. Restore dal dashboard, poi verificare
+   il keep-alive su cron-job.org.
+6. Dati persi/corrotti → **`Backup/RIPRISTINO.md`**: procedura di ripristino dai backup
+   giornalieri, testata il 2026-07-12 (cavia prima, mai direttamente sui dati veri).
 
 ## Comandi
 
