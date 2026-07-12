@@ -8,7 +8,7 @@
 
 ## ðŸ—ºï¸ Cos'Ã¨ Commonplace
 
-Commonplace Ã¨ un ecosistema di app personali costruite attorno alla vita intellettuale e culturale di Stefano: letture, ascolti, note, documenti, video di qualitÃ , finanze personali e gioco di ruolo. Le app condividono un design system comune (Playfair Display, Lora, DM Mono, palette calda su crema `#fffdf0`) e dati (attualmente localStorage condiviso, migrazione a Supabase pianificata per aprile 2026).
+Commonplace Ã¨ un ecosistema di app personali costruite attorno alla vita intellettuale e culturale di Stefano: letture, ascolti, note, documenti, video di qualitÃ , finanze personali e gioco di ruolo. Le app condividono un design system comune (Playfair Display, Lora, DM Mono, palette calda su crema `#fffdf0`) e dati su Supabase (progetti `pchldmiavycxzpkzochn` e `llvqoiyvzloloobjiloe`; il localStorage resta come cache locale).
 
 **Stack di sviluppo:** React, Vite, React Native/Expo, Supabase, Flask/Python. Tutto sviluppato su Windows PC con PowerShell. Desktop Commander MCP per file e processi senza copy-paste.
 
@@ -25,7 +25,7 @@ Commonplace
 â”‚   â”œâ”€â”€ ListenS         â†’ Vite + React (html in public di BookShelf)
 â”‚   â””â”€â”€ NoteS / ReadS   â†’ Vite PWA (Vercel) + Expo SDK 52
 â”‚
-â”œâ”€â”€ Digest / NewS       â†’ Flask/Python + PostgreSQL (Railway)
+â”œâ”€â”€ Digest / NewS       â†’ Vercel Functions + Supabase pchld (DigestV/) — dal 2026-07-12
 â”œâ”€â”€ DnD Master          â†’ Vite PWA (Netlify)
 â”œâ”€â”€ Platea / VideoS     â†’ Expo SDK 52 (EAS build)
 â”œâ”€â”€ ReadS               â†’ Expo SDK 52 (EAS build, staged)
@@ -37,13 +37,13 @@ Commonplace
   - NoteS, Platea â€” progetto `llvqoiyvzloloobjiloe`
   - **BookShelf, Footnote, ListenS â€” progetto `pchldmiavycxzpkzochn`** (stesso di NoteS, login unificato) âœ… migrazione completata 2026-03-29
   - âš ï¸ Configurare keep-alive via cron-job.org per tutti i progetti Supabase (free tier si mette in pausa dopo 1 settimana di inattivitÃ )
-- **Render:** Digest â€” `https://digest-blqp.onrender.com` (migrato da Railway 2026-03-31). Free tier, sleep dopo 15min.
-- **Vercel:** NoteS, Ledger â€” dominio `commonplaceapp.org` (acquistato 2026-03-24, DNS Vercel)
+- **Render:** ~~Digest~~ — `digest-blqp.onrender.com` resta SOLO come rollback fino a ~2026-07-26, poi da sospendere (Digest è su Vercel dal 2026-07-12; spegnere anche il ping cron-job.org)
+- **Vercel:** NoteS, Ledger, Digest (progetto `digest-app`) â€” dominio `commonplaceapp.org` (acquistato 2026-03-24, DNS Vercel)
 - **Netlify:** DnD Master â€” sottodominio `dnd.commonplaceapp.org`
-- **Railway:** Digest/NewS (PostgreSQL persistente)
+- **Railway:** ~~Digest/NewS~~ — dismesso (il Postgres free è scaduto ~fine giugno 2026; dati ora su Supabase pchld)
 - **localStorage condiviso:** Cultural Suite â€” migrazione a Supabase completata per BookShelf, Footnote, ListenS (2026-03-29). NoteS giÃ  su Supabase.
 - **Hub launcher locale:** `Claude/Progetti/Commonplace/Suite/avvia_suite.bat`
-- **PROSSIMA SESSIONE — Migrazione Digest → Vercel+Supabase:** piano completo in `Digest/piano-migrazione-vercel.md` (architettura, SQL dg_feeds/dg_preferences, migrazione dati, rischi, ordine lavori). Nel frattempo: ping cron-job.org ogni 10 min su digest-blqp.onrender.com/api/auth/status come palliativo anti-sleep.
+- ✅ **Migrazione Digest → Vercel+Supabase COMPLETATA** (2026-07-12, Sessione #21): vedi sezione Digest e diario #21. Il ping cron-job.org su digest-blqp va spento insieme alla sospensione Render (tiene sveglio un server che non serve più).
 - **MEMORIA (2026-06-12, Sessione #19):** in Digest — endpoint `/api/memoria` (auth) + card "✦ Memoria" sopra i feed. Riemersioni DETERMINISTICHE sulla data (hash, zero AI, zero costi): citazione in esergo da cp_quotes (1 giorno su 3 pesca tra le preferite), anniversario di lettura (stesso mese anni passati), riscoperta (libro ≥4★ letto ≥2 anni fa), wishlist che invecchia, "un anno fa" da cp_log/cp_items. Cache giornaliera in preferences (memoria_cache). Richiede env `SUPABASE_SERVICE_KEY` (pchld service_role) su Render. Deploy: push fatto, Render rideploya da solo.
 - **BACKUP AUTOMATICO (2026-06-12, Sessione #19):** cartella `Backup/`, progetto Vercel `cp-backup`, cron giornaliero 5:00 UTC → `api/backup.js` scarica tutte le tabelle utente di pchld + llv (service_role, paginato; esclusi `videos`/`sync_log` rigenerabili) e i feed/preferenze di Digest, poi committa `backups/backup-YYYY-MM-DD.json` + `latest.json` su repo GitHub privato. Env richieste: CRON_SECRET, SUPABASE_PCHLD_SERVICE_KEY, SUPABASE_LLV_SERVICE_KEY, GITHUB_TOKEN, GITHUB_REPO, DIGEST_PASSWORD (opz.). Trigger manuale: /api/backup?secret=… Ripristino: i JSON sono upsertabili via REST.
 - **MARGINALIA — Commonplace Book (2026-06-11, Sessione #18):** nuova app autonoma in `Marginalia/` (single-file, pattern Footnote). Tabella `cp_quotes` su pchld (vedi `Marginalia/cp_quotes-migration.sql`, include backfill della tabella quotes di NoteS). NoteS specchia automaticamente le citazioni in cp_quotes a ogni salvataggio (preservando `favorite`; le citazioni rimosse dalla nota escono dal libro; cleanup anche su delete nota). Funzioni: citazione del giorno ("in esergo oggi", deterministica sulla data), ricerca full-text, filtri autore/tag/preferite, ordinamento recenti/antiche/a caso, aggiunta e modifica citazioni native (id `mg_`; quelle `ns_` si modificano in NoteS), export txt/json. Deploy: primo `deploya.bat` crea il progetto Vercel; dominio suggerito marginalia.commonplaceapp.org.
@@ -262,11 +262,11 @@ Commonplace
 
 **Scopo:** Lettore di feed RSS personalizzato, focalizzato su notizie italiane.
 
-**Tech stack:** Flask/Python + PostgreSQL (Railway)
+**Tech stack:** Vercel Functions (Node) + Supabase pchld (`dg_feeds`/`dg_preferences`) — ex Flask/Python
 
-**Cartella:** `Claude/Progetti/Commonplace/Digest/`
+**Cartella:** `Claude/Progetti/Commonplace/DigestV/` (il vecchio Flask in `Digest/` è archivio storico + piano migrazione)
 
-**Deploy:** Railway (migrato da SQLite a PostgreSQL per persistenza)
+**Deploy:** Vercel — progetto `digest-app`, dominio `digest.commonplaceapp.org`
 
 **FunzionalitÃ :**
 - Feed RSS italiani
@@ -403,8 +403,8 @@ Commonplace
 | **Loot tables** | DnD Master | Feature mancante prima del build Capacitor |
 | **Push notifications** | Ledger | Da aggiungere prima del build Capacitor |
 | **Export CSV/PDF** | Ledger | Da aggiungere prima del build Capacitor |
-| **Railway ANTHROPIC_API_KEY** | Digest/Footnote | Aggiungere env var su Railway per attivare proxy Footnote |
-| **digest.commonplaceapp.org** | Digest | Configurare custom domain in Railway |
+| ~~**Railway ANTHROPIC_API_KEY**~~ | Digest/Footnote | Superato: chiavi server-side su Vercel (Footnote `api/`, Digest `digest-app`) |
+| ~~**digest.commonplaceapp.org**~~ | Digest | ✅ 2026-07-12 — dominio sul progetto Vercel `digest-app` |
 
 ### Sprint build
 
@@ -434,7 +434,7 @@ Commonplace
 ### Porte locali
 - BookShelf (Vite): `5173` (serve anche la Suite)
 - NoteS (Vite): `5173` âš ï¸ conflitto se avviata insieme a BookShelf
-- Digest (Railway): nessun conflitto locale
+- DigestV: server statico locale porta `5180` (launch.json `digestv-static`)
 
 ### Supabase â€” keep-alive âš ï¸
 Il free tier si mette in pausa dopo 7 giorni di inattivitÃ . Configurare ping via cron-job.org per ogni progetto Supabase attivo (giÃ  fatto per NoteS, verificare per Platea).
