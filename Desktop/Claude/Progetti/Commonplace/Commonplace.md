@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. Migrazione Digest→Vercel+Supabase: SQL eseguito su pchld (dg_feeds/dg_preferences con RLS), backend DigestV completato (aggiunto preferences.js mancante + fallback 403 cookie), frontend DigestV con login Supabase suite scritto e verificato in locale. ⚠️ Restano: migra-dati.ps1 (serve password Digest), deploy digest-app (autorizzazione), test parità sui feed reali, cutover DNS. ⚠️ Aperto da #20: progetto Supabase llvqoiyvzloloobjiloe non visibile dall'account MCP — stato da chiarire.
+> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ⚠️ Aperto da #20: progetto Supabase llvqoiyvzloloobjiloe non visibile dall'account MCP — stato da chiarire.
 
 ---
 
@@ -275,7 +275,7 @@ Commonplace
 - gevent workers per digest call lunghe
 - Accesso da: Windows PC (proxy corporate, `verify=False`), secondo PC, OnePlus 13
 
-**Stato attuale:** ✅ Live su Render (verificato 2026-07-11: /api/auth/status → 200). 🔄 **Migrazione a Vercel+Supabase in corso** (Sessione #21, 2026-07-12): `DigestV/` pronto — SQL eseguito su pchld, backend e frontend completi, verifica locale OK. Restano: migrazione dati, deploy, test parità, cutover DNS. Stato dettagliato in `Digest/piano-migrazione-vercel.md`.
+**Stato attuale:** ✅ **MIGRATO a Vercel+Supabase** (Sessione #21, 2026-07-12): `digest.commonplaceapp.org` → progetto Vercel `digest-app` (sorgenti in `DigestV/`), dati su pchld (`dg_feeds`/`dg_preferences`), login suite, chiavi solo server-side. Test di parità passato (531 articoli, digest ~$0.055). Render (`digest-blqp`) = rollback fino a ~2026-07-26, poi sospendere; `Digest/` (Flask) resta come archivio storico. ⚠️ Categorie feed da riassegnare nella UI.
 
 **Aggiornamento 2026-06-10 (Sessione #18 — revisione Fable 5):**
 - FIX "classificazioni/letture perse": gli ID di articoli e feed usavano `hash()` Python, randomizzato a ogni processo — su Render (free tier, sleep dopo 15 min) gli ID cambiavano a ogni risveglio, orfanizzando stato letto e riassunti. Ora `stable_id()` con md5. NOTA: al primo deploy lo stato letto si azzera un'ultima volta (gli ID cambiano schema), poi resta stabile per sempre
@@ -1114,10 +1114,23 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
     Memoria OK (citazione da cp_quotes, cache in dg_preferences), riassunto AI OK (proxy),
     digest generalista OK (116 articoli, 6113→2446 token, ~$0.055, salvato in
     `digest_last_general`). API senza login → 401 su tutti gli endpoint (verificato curl).
+- ✅ **CUTOVER ESEGUITO** (2026-07-12, quarto blocco, autorizzato da Stefano):
+  - DNS: dominio `digest.commonplaceapp.org` aggiunto al progetto `digest-app` + rimosso
+    il CNAME verso `digest-blqp.onrender.com` (rec_1e6d17a2…). Verificato: DNS risolve su
+    IP Vercel, `/` → 200 col nuovo sw.js, `/api/feeds` → 401 senza login. Il vecchio
+    frontend non registrava SW → nessuna cache fantasma; localStorage (stato letto) intatto.
+  - Home: card Digest ora punta a `digest.commonplaceapp.org` (prima: URL Render diretto).
+    Deployata e verificata live (curl sul href).
+  - cp-backup: `dg_feeds`+`dg_preferences` aggiunte alle tabelle pchld, RIMOSSO
+    `fetchDigest`/DIGEST_PASSWORD (era rotto da sempre: 401 in ogni backup). Deployato
+    (READY). ⚠️ Non verificabile subito senza CRON_SECRET: controllare che
+    `backup-2026-07-13.json` contenga `pchld.dg_feeds` (33 righe).
+    NB: `Backup/api/backup.js` modificato+deployato ma la cartella Backup/ resta fuori
+    da git come dal #19 (fa fede il deploy Vercel).
 - **⚠️ Azioni richieste:**
-  1. **Decisione cutover** (punto di non ritorno, spetta a Stefano): DNS
-     `digest.commonplaceapp.org` → progetto `digest-app` → sospendere Render (NON
-     cancellare, rollback 2 settimane) → spegnere ping cron-job.org → aggiornare cp-backup
-     (dg_* da Supabase al posto di fetchDigest — lì muore anche il 401 storico di
-     DIGEST_PASSWORD) → aggiornare link in Home.
+  1. **Stefano — dismissione Render** (con calma, entro ~2 settimane): sospendere il
+     servizio `digest-blqp` su Render (NON cancellarlo: è il rollback) e spegnere il ping
+     su cron-job.org (ora tiene sveglio un server che non serve più a nessuno).
   2. Nella nuova app: riassegnare le categorie feed (Impostazioni → Categorie feed).
+  3. Domattina: verificare `backup-2026-07-13.json` nel repo commonplace-backups
+     (deve avere `pchld.dg_feeds`).
