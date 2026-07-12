@@ -1152,4 +1152,9 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
   dati: `videos`/`sync_log` si rigenerano con sync-videos (da rideployare su pchld
   + repoint cron-job); il resto (saved, progress, playlists) dovrebbe essere nei backup
   giornalieri di cp-backup (sezione llv, documentata dal #19 — VERIFICARE le righe llv
-  in `latest.json` come primo passo della migrazione). Deliverable: sessione dedicata.
+  in `latest.json` come primo passo della migrazione).
+- **Piano completo scritto: `Platea/piano-migrazione-pchld.md`** (inventario verificato
+  tabella per tabella via REST — videos 11.390, channels 37, carousels 40, saved 8,
+  progress 10, pl_* vuote, continue_watching=vista, RPC search_videos — 7 fasi, rischi,
+  prerequisiti Stefano in Fase 0). Sessione dedicata; l'export dati NON richiede le
+  credenziali llv (tutto anon-readable), servono solo per DDL vista/RPC e YOUTUBE_API_KEY.
