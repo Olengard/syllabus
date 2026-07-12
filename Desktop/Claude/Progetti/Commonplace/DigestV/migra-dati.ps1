@@ -34,7 +34,12 @@ $uid = $u[0].id
 Write-Output "user_id: $uid ($Email)"
 
 # 3) Feed + categorie (da preferences digest_feed_cats) dal vecchio server
-$feeds = @(Invoke-RestMethod -Headers $hOld -Uri "$old/api/feeds")
+# NOTA PS 5.1: Invoke-RestMethod può emettere l'array JSON come SINGOLO oggetto
+# nella pipeline — @(comando) lo lascia annidato (Count=1) e il ForEach gira una
+# volta sola sull'intero array (successo il 2026-07-12: 33 feed collassati in 1 riga).
+# Assegnare prima a una variabile e POI avvolgere in @() forza l'enumerazione corretta.
+$feedsResp = Invoke-RestMethod -Headers $hOld -Uri "$old/api/feeds"
+$feeds = @($feedsResp)
 $prefs = Invoke-RestMethod -Headers $hOld -Uri "$old/api/preferences"
 if ($feeds.Count -eq 0) { Write-Error 'Il vecchio Digest ha restituito 0 feed: qualcosa non va, interrompo senza scrivere.'; exit 1 }
 Write-Output "Dal vecchio Digest: $($feeds.Count) feed"

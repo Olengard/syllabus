@@ -1074,13 +1074,31 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
     monte, probabilmente fallisce anche dal Render attuale — da confrontare nel test di
     parità). Rendering verificato su server statico locale (launch.json `digestv-static`,
     porta 5180): login screen, modali, pannello Account, zero errori console.
+- ✅ **Migrazione dati COMPLETATA** (2026-07-12, secondo blocco): **33 feed in `dg_feeds`**
+  (33 URL distinti, tutti su user olengard@gmail.com, category 'news' — le categorie sono
+  da riassegnare nella nuova UI: sul vecchio server `digest_feed_cats` era vuoto).
+  Percorso accidentato, tre root cause trovate:
+  - **401 al primo tentativo**: il vecchio script calcolava il token sha256 in locale e non
+    validava la password → riscritto con login reale a `/api/auth` + `ErrorAction Stop`.
+  - **Bug PS 5.1**: `Invoke-RestMethod` emette l'array JSON come singolo oggetto →
+    `@(comando)` lo lascia annidato e il ForEach collassa 33 feed in 1 riga spazzatura
+    (ripulita). Fix nel commento dello script: assegnare a variabile, poi `@($var)`.
+    Alla fine i 33 feed (identici a `Digest/feeds.json`, verificato id-per-id) sono stati
+    inseriti direttamente via SQL MCP.
+  - **Preferenze del vecchio server VUOTE** (zero chiavi: niente categorie, niente feed
+    prioritari, niente memoria_cache): il DB Render risulta più giovane del previsto —
+    coerente con la scadenza del Postgres free (90gg da fine marzo ≈ fine giugno).
+  - ⚠️ **DIFETTO SCOPERTO — cp-backup**: la sezione `digest` dei backup è in errore
+    `HTTP 401` in TUTTI i backup dal 2026-06-12 a oggi (env `DIGEST_PASSWORD` su Vercel
+    cp-backup errata o assente). Nessun backup Digest è mai esistito. Diventa moot dopo
+    il cutover (backup leggerà dg_* da Supabase, già nel piano), ma va sistemato lì.
 - **⚠️ Azioni richieste (in ordine):**
-  1. **Migrazione dati**: eseguire `DigestV/migra-dati.ps1 -DigestPassword "<pw Digest>"
-     -ServiceKey "<service_role pchld>"` (porta feed+preferenze da Render a Supabase,
-     mappando le categorie). Claude non ha la password di Digest.
+  1. ~~Migrazione dati~~ ✅ fatta (33 feed, vedi sopra).
   2. **Deploy `digest-app`** (progetto Vercel NUOVO da `DigestV/`): autorizzare il deploy;
      env richieste su Vercel: `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY` (pchld).
-  3. Dopo il deploy: test di parità sui ~40 feed reali (confronto errori vecchio vs nuovo,
+  3. Dopo il deploy: test di parità sui 33 feed reali (confronto errori vecchio vs nuovo,
      attenzione ai 403 da IP Vercel), digest 4 tipi, memoria, riassunti → solo con ok
      esplicito: cutover DNS `digest.commonplaceapp.org` → sospendere Render (NON cancellare,
-     rollback 2 settimane) → spegnere ping cron-job.org → aggiungere dg_* a cp-backup.
+     rollback 2 settimane) → spegnere ping cron-job.org → aggiornare cp-backup (dg_* da
+     Supabase al posto di fetchDigest, e lì muore anche il 401).
+  4. Nella nuova app: riassegnare le categorie feed (Impostazioni → Categorie feed).
