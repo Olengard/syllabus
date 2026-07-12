@@ -94,9 +94,21 @@
 > Collaudo: continue_watching 9 righe (= llv), search_videos OK (FTS+categoria, anche
 > via REST POST /rpc/), scrittura anon su watch_progress 201 (riga di test rimossa),
 > scrittura anon su videos 401 (RLS corretta).
-> **Prossimo passo: Fase 3** (sync-videos su pchld + secret YOUTUBE_API_KEY + cron),
-> poi Fase 4 (client) e Fase 5 (Dashboard/NoteS). sync_log: importato solo schema
-> (storico llv non copiato, rigenerabile — scelta del piano).
+> **✅ FASE 3 ESEGUITA (2026-07-12 sera)** salvo 2 azioni Stefano: sync-videos v6
+> deployata su pchld via MCP (ACTIVE, verify_jwt on, deno.json incluso) e COLLAUDATA
+> con un canale archive.org (non richiede YouTube key): 2000 upsert, videos
+> 11.390→11.398 (+8 nuovi reali), sync_log status ok. ⚠️ Restano a Stefano:
+> (1) secret `YOUTUBE_API_KEY` sul dashboard pchld (Edge Functions → Secrets);
+> (2) repoint cron-job.org: POST https://pchldmiavycxzpkzochn.supabase.co/functions/v1/sync-videos
+> con header `Authorization: Bearer <anon key pchld>` (e spegnere il ping llv in Fase 7).
+> **✅ FASE 4 ESEGUITA (stessa sera)**: `.env` → pchld; `cp.ts` semplificato (usa il
+> client principale di supabase.ts, rimossi CP_URL/CP_KEY hardcoded); `npx tsc --noEmit`
+> pulito; `.env` e `cp.ts` COPIATI in C:\VideoS (diff verificato identico).
+> NB: il sorgente Platea NON è tracciato nel repo esterno (storico): le modifiche
+> vivono su disco + C:\VideoS, il "deploy" è la build EAS (Fase 6).
+> sync_log llv: importato solo schema (storico non copiato, rigenerabile — scelta del piano).
+> **Prossimo passo: Fase 5** (Dashboard sb2→pchld + NoteS "Collega a item", repo
+> annidati + deploy autorizzati), poi Fase 6 build EAS.
 
 ## Fase 1 — Schema su pchld (MCP `apply_migration`)
 
