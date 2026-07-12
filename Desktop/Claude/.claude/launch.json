@@ -18,6 +18,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5180", "--directory", "Progetti/Commonplace/DigestV"],
       "port": 5180
+    },
+    {
+      "name": "dashboard-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5181", "--directory", "Progetti/Commonplace/Dashboard"],
+      "port": 5181
     }
   ]
 }

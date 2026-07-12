@@ -107,8 +107,20 @@
 > NB: il sorgente Platea NON è tracciato nel repo esterno (storico): le modifiche
 > vivono su disco + C:\VideoS, il "deploy" è la build EAS (Fase 6).
 > sync_log llv: importato solo schema (storico non copiato, rigenerabile — scelta del piano).
-> **Prossimo passo: Fase 5** (Dashboard sb2→pchld + NoteS "Collega a item", repo
-> annidati + deploy autorizzati), poi Fase 6 build EAS.
+> **✅ FASE 5 ESEGUITA (2026-07-12 sera)**, con due scoperte:
+> (1) **NoteS non richiedeva NULLA**: la revisione #18 aveva già unificato
+> (`cpSupabase = supabase` → pchld, verificato in App.jsx riga 11 e nel dropdown
+> riga ~3572); la voce del piano veniva da una nota #18 stantia. Restano solo
+> commenti stantii che citano llv — innocui.
+> (2) **Dashboard: il solo repoint l'avrebbe svuotata** — le policy cp su pchld
+> danno all'anonimo solo le righe `user_id NULL` (1 su 37; su llv vedeva tutto ma
+> erano dati FERMI A GIUGNO). Aggiunto quindi il **login suite** (pattern DigestV):
+> client unico pchld, signInWithPassword, logout nell'header, sessione persistente.
+> Verificato su server statico locale (launch.json `dashboard-static`, porta 5181):
+> login screen, errore credenziali gestito, console pulita. Commit nel repo annidato
+> `b6512d2` (NB: congela anche la v2 di aprile che era rimasta non committata).
+> ⚠️ Deploy con `deploy_dashboard.bat` da autorizzare + primo login reale da Stefano.
+> **Prossimo passo: Fase 6 build EAS** (dopo secret YOUTUBE_API_KEY + cron, vedi Fase 3).
 
 ## Fase 1 — Schema su pchld (MCP `apply_migration`)
 
