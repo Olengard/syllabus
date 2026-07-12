@@ -81,6 +81,23 @@
 3. Verificare che `latest.json` nel repo commonplace-backups abbia la sezione llv popolata
    (fallback dati; documentata dal #19, mai riverificata).
 
+> **✅ FASE 1 + FASE 2 ESEGUITE E VERIFICATE (2026-07-12 sera, via MCP).**
+> Migration `platea_llv_schema` applicata su pchld (enum, 9 tabelle, indici verbatim
+> incluso GIN FTS, vista, RPC, RLS: videos/sync_log sola lettura anon, le altre 7
+> lettura+scrittura — AdminScreen scrive channels/carousels/carousel_videos, verificato
+> nel codice). Vincoli confrontati riga per riga con llv: identici.
+> Dati trasferiti SERVER-TO-SERVER con l'estensione `http` (installata su pchld,
+> migration `install_http_extension`): pchld ha letto il REST di llv con la anon key —
+> zero passaggi dal PC. Conteggi verificati identici: videos 11.390, channels 37,
+> carousels 40, saved_videos 8, watch_progress 10, carousel_videos/pl_* 0; sequence
+> riallineate con setval; cp legacy upsert con `on conflict do nothing` (1 cp_items).
+> Collaudo: continue_watching 9 righe (= llv), search_videos OK (FTS+categoria, anche
+> via REST POST /rpc/), scrittura anon su watch_progress 201 (riga di test rimossa),
+> scrittura anon su videos 401 (RLS corretta).
+> **Prossimo passo: Fase 3** (sync-videos su pchld + secret YOUTUBE_API_KEY + cron),
+> poi Fase 4 (client) e Fase 5 (Dashboard/NoteS). sync_log: importato solo schema
+> (storico llv non copiato, rigenerabile — scelta del piano).
+
 ## Fase 1 — Schema su pchld (MCP `apply_migration`)
 
 - Creare: `videos`, `channels`, `carousels`, `carousel_videos`, `saved_videos`,
