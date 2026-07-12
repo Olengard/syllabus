@@ -51,13 +51,27 @@
 > (conferma nel backup di domattina); notato anche `backup-2026-07-11.json` assente
 > (cron ha saltato un giorno — da tenere d'occhio).
 
-1. Dal SQL editor di llv, eseguire e salvare l'output di:
+1. Dal SQL editor di llv, eseguire **UNA QUERY ALLA VOLTA** (l'editor Supabase mostra
+   solo il risultato dell'ULTIMO statement: eseguite in blocco si perde tutto tranne
+   l'ultima — è successo il 2026-07-12) e salvare i quattro output:
    ```sql
+   -- (a) vista continue_watching
    select pg_get_viewdef('continue_watching'::regclass, true);
+   ```
+   ```sql
+   -- (b) RPC search_videos
    select pg_get_functiondef(p.oid) from pg_proc p
      join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname='search_videos';
-   -- DDL colonne di tutte le tabelle (per ricreare gli schemi identici):
+   ```
+   ```sql
+   -- (c) valori degli ENUM (colonne source/category sono USER-DEFINED)
+   select t.typname, e.enumlabel
+     from pg_type t join pg_enum e on e.enumtypid = t.oid
+    order by t.typname, e.enumsortorder;
+   ```
+   ```sql
+   -- (d) DDL colonne di tutte le tabelle — ✅ GIÀ FATTO: supabase/llv-schema-2026-07-12.md
    select table_name, column_name, data_type, is_nullable, column_default
      from information_schema.columns
     where table_schema='public' order by table_name, ordinal_position;
