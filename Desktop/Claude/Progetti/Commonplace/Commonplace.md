@@ -1325,3 +1325,20 @@ La falla del punto ⚠️ qui sopra è reale: i tre proxy AI erano **completamen
   **digest-app**. Non è ispezionabile il valore delle env (segrete): verificare provando la
   generazione da loggato in ognuna, oppure impostare la nuova chiave (riusabile) in tutti e
   tre e redeployare. Syllabus (progetto `app`) è già a posto.
+- ✅ **CHIUSO — chiave ricreata e redeploy fatti da Stefano** (2026-07-13): nuova
+  `ANTHROPIC_API_KEY` impostata su **footnote-app**, **notes-app** e **digest-app**, e le tre
+  app rideployate da lui. **Collaudo finale `node Suite/collauda.cjs` TUTTO VERDE**: 11 app a
+  200, i 4 proxy AI (footnote/notes-transcribe/notes-whisper/syllabus) + digest a **401** su
+  richiesta anonima, SW footnote-v28 / syllabus-v5 / gli altri ai minimi, backup fresco.
+  ⚠️ Resta l'unica cosa non osservabile da terminale: la **generazione da loggato** in
+  ciascuna app (conferma che la nuova chiave sia valida end-to-end) — la dà l'uso reale.
+- ℹ️ **Nota su Vercel env "Sensitive"**: irrilevante per il leak pubblico (a tenere la chiave
+  fuori dal bundle è il nome NON-`VITE_` + uso server-only, già garantito). Il flag rende la
+  env write-only sul dashboard (difesa in profondità contro accesso lato Vercel), non contro
+  il client. Su footnote è stata lasciata non-sensitive: accettabile per progetto personale;
+  volendo irrigidire, ricreare la var con "Sensitive" spuntato (non convertibile a toggle) +
+  redeploy.
+
+**Fine Sessione #21 (blocco sicurezza proxy AI).** Consegnata a Fable 5 (non Opus: il modello
+non era cambiato in-sessione, chiarito a Stefano). Commit: NoteS `8e07af2`, Syllabus/app
+`4e8ccda`, esterni `5b6e8a3`/`aef981d`/`ac56c54`. Nessun push (non richiesto).
