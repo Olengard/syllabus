@@ -19,6 +19,11 @@ root cause e può peggiorare (SW, env var).
 
 ## Procedura — controlli in quest'ordine
 
+0. **Collaudo completo in un colpo**: `node Suite/collauda.cjs` (dalla cartella
+   Commonplace) — ~26 check su tutta la suite: HTTP, versioni SW, endpoint API che
+   rifiutano richieste anonime, gateway Supabase, freschezza backup. Spesso localizza
+   il guasto da solo; i singoli check qui sotto servono ad approfondire. (Aggiunto
+   2026-07-12; dopo ogni bump SW alzare `SW_MIN` nello script.)
 1. **L'app risponde?** `curl -sI https://app.commonplaceapp.org/` — codice HTTP:
    - **403 con header Vercel** → Deployment Protection riattivata da sola (gotcha storico):
      vercel.com → Team Settings → Security → Deployment Protection → Disabled. (Azione di
@@ -31,12 +36,15 @@ root cause e può peggiorare (SW, env var).
    Live più vecchio → manca un deploy o un bump SW. Uguali ma comportamento vecchio →
    cache SW sul client: bump versione + redeploy.
 3. **Supabase in pausa** (dati spariti, login che non va, app "svuotata"):
-   `nslookup <project>.supabase.co` — se il DNS non risolve, il progetto dorme
-   (free tier, 7 giorni). Restore dal dashboard + keep-alive cron-job.org. È stata la
-   causa madre dell'"impermanenza" di Platea/Dashboard.
-4. **Render cold start** (Digest lento o "non raggiungibile"): free tier, sleep dopo
-   15 min. Il frontend riprova da solo (3 tentativi, 20s). Non è un guasto: aspetta ~30s
-   e riprova prima di toccare qualsiasi cosa.
+   ⚠️ il vecchio test `nslookup` NON è più affidabile (verificato 2026-07-12: il DNS
+   Cloudflare risolve anche per progetti d'altri account/in pausa). Test giusto:
+   `curl -s https://<project>.supabase.co/rest/v1/` — un progetto VIVO risponde
+   `401 {"message":"No API key found..."}`; HTTP 000/timeout o un messaggio "paused"
+   = dorme. Restore dal dashboard + keep-alive cron-job.org. È stata la causa madre
+   dell'"impermanenza" di Platea/Dashboard.
+4. **Render cold start** — ⚠️ STORICO: Digest è su Vercel dal 2026-07-12 (cutover #21);
+   `digest-blqp` su Render resta solo come rollback fino a ~2026-07-26. Se il sintomo
+   è "Digest lento/irraggiungibile" oggi, NON è cold start: vai ai punti 1-2.
 5. **Errori console/rete nel browser** (browser pane sull'URL live): errori Babel →
    sintassi/pin CDN (vedi `app-single-file`); 401/500 dal proxy AI → env var
    `ANTHROPIC_API_KEY` mancante sul progetto Vercel (nuovi progetti non ereditano le env)
@@ -49,7 +57,8 @@ root cause e può peggiorare (SW, env var).
 curl -sI https://footnote.commonplaceapp.org/ | head -5      # HTTP status
 curl -s https://footnote.commonplaceapp.org/sw.js | head -3  # versione live
 grep -oE "footnote-v[0-9]+" Footnote/sw.js                    # versione locale
-nslookup pchldmiavycxzpkzochn.supabase.co                      # Supabase sveglio?
+curl -s https://pchldmiavycxzpkzochn.supabase.co/rest/v1/      # Supabase sveglio? (401 = vivo)
+node Suite/collauda.cjs                                        # collaudo completo suite
 # marker di una modifica nel bundle live (app Vite)
 ASSET=$(curl -s https://bookshelf.commonplaceapp.org/ | grep -oE '/assets/index-[^"]+\.js' | head -1); \
 curl -s "https://bookshelf.commonplaceapp.org$ASSET" | grep -c "MARKER"

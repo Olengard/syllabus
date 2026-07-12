@@ -1202,3 +1202,35 @@ quello); qui la sintesi e le root cause:
   5. Quando pronto: **Fase 6** build EAS da `C:\VideoS` (incorpora migrazione + revisione
      #18), poi **Fase 7** dismissione llv (delta dati, cp-backup senza sezione llv,
      pausa progetto) — procedure nel piano.
+
+**Appendice #21 (notte) — Costruire per il futuro: collaudo automatico + ripristino testato.**
+Due strumenti pensati per la consegna a Opus: trasformano "fidati ma verifica" da prosa
+a comandi eseguibili.
+- ✅ **`Suite/collauda.cjs` — collaudo automatico della suite live** (`node Suite/collauda.cjs`):
+  26 check in ~60s — HTTP di tutte le 11 app, versioni minime dei 5 SW manuali (SW_MIN
+  nello script, da alzare a ogni bump), SW vite-pwa, endpoint API che devono rifiutare
+  richieste anonime (un 200 lì = chiavi esposte), gateway Supabase, freschezza backup
+  (<30h, via clone leggero del repo privato). Esit code = numero di FAIL. Prima
+  esecuzione: TUTTO VERDE. Agganciato alle skill deploy-suite (verifica post-deploy)
+  e triage-produzione (mossa zero). GOTCHA: estensione .cjs obbligatoria
+  (C:\Users\Test\package.json dichiara "type":"module"); in Node/cmd.exe il null device
+  è NUL, non /dev/null.
+- ✅ **`Backup/RIPRISTINO.md` — procedura di ripristino TESTATA**: 2 righe di
+  bs_collections ripristinate da latest.json in tabella-cavia su pchld, confronto al
+  byte con l'originale (2/2 identiche), upsert idempotente provato, e il metodo di
+  verifica ha rilevato una discrepanza introdotta per errore (prova che il confronto
+  morde). Documentati: struttura del JSON, ripristino per-tabella (cavia prima, sempre),
+  sequence, ordine FK, user_id/RLS (mai via anon key), scenario disastro totale, e i
+  BUCHI del backup: Ledger (bogav) NON è mai stato incluso in cp-backup, videos/sync_log
+  esclusi per design, utenti auth non backuppati.
+- ✅ **Skill triage-produzione aggiornata** con due correzioni figlie di oggi: il test
+  nslookup per i progetti Supabase in pausa NON è più affidabile (il DNS Cloudflare
+  risolve comunque — test giusto: REST 401 = vivo) e il punto "Render cold start" è
+  marcato storico (Digest è su Vercel dal cutover).
+- ⚠️ **Scoperta da approfondire (task separato creato)**: `footnote /api/claude` e
+  `notes /api/transcribe` rispondono 400 a body invalido senza credenziali — se un body
+  VALIDO senza auth ottiene 200, i proxy AI sono aperti (stessa falla corretta su Digest
+  nel #18). Da verificare e nel caso proteggere senza rompere i client.
+- ⚠️ **Nota per Stefano**: cp-backup non copre Ledger (bogav) — valutare se aggiungere
+  le sue tabelle a backup.js (env SUPABASE_BOGAV_SERVICE_KEY da creare) in una sessione
+  futura.

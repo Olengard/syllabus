@@ -48,6 +48,9 @@ anche se non ti viene chiesto nulla, chiudi sempre con:
 3. App Vite: `npm run build` deve passare. Se fallisce, il deploy è annullato.
 4. Esegui il deploy dal canale giusto (tabella sopra).
 5. **Verifica live** (vedi comandi): il deploy non è finito finché non l'hai osservato online.
+   Collaudo completo della suite in un comando: `node Suite/collauda.cjs` (2026-07-12 —
+   HTTP, versioni SW, auth API, gateway Supabase, freschezza backup). Dopo un bump SW
+   alza la versione minima in `SW_MIN` dentro lo script.
 6. Annota il deploy nella voce di sessione di `Commonplace.md` (skill `diario-di-sessione`).
 
 ## Comandi
