@@ -1282,3 +1282,29 @@ La falla del punto ⚠️ qui sopra è reale: i tre proxy AI erano **completamen
   versione non trovata" per edge-cache subito dopo il deploy; sparito al secondo giro (curl
   diretto mostrava già v28). Falla proxy AI chiusa in produzione su Footnote e NoteS.
   Resta aperto **Syllabus** (stesso pattern, task separato `task_bf14b869`).
+- ✅ **Syllabus — fix di codice applicato e committato** (2026-07-12 notte): stesso pattern
+  JWT su `Syllabus/app/api/claude.js` (`verifyUser` via GoTrue, 401 senza login), client
+  `callClaude()` passa il Bearer, SW `syllabus-v4`→`v5`. `npm run build` verde. Commit nel
+  repo annidato `Syllabus/app` (`4e8ccda`), gitlink aggiornato nell'esterno.
+- 🔴 **INCIDENTE DI SICUREZZA scoperto verificando lo stato live di Syllabus**: il bundle
+  **in produzione** (`syllabus.commonplaceapp.org`, versione live `syllabus-v3`) contiene
+  una **chiave Anthropic reale, completa (108 char, prefisso `sk-ant-api03-wh…`), hardcoded**
+  in una funzione del bundle, e chiama `api.anthropic.com` **direttamente dal client**.
+  È scaricabile pubblicamente ORA. Causa: la **revisione #18** di Syllabus (commit `102f8e6`,
+  che spostava la chiave server-side) fu **committata ma MAI deployata** — il ⚠️ "impostare
+  ANTHROPIC_API_KEY su Vercel Syllabus + redeploy" era rimasto in sospeso, quindi la prod è
+  ferma alla versione pre-#18 con la chiave nel client. Il deploy del fix odierno **rimuove**
+  la chiave dal bundle (v5 usa il proxy), ma è **BLOCCATO** finché non si agisce.
+- **⚠️🔴 AZIONI RICHIESTE A STEFANO — in quest'ordine, urgenti:**
+  1. **REVOCARE subito** la chiave `sk-ant-api03-wh…` su console.anthropic.com (è pubblica
+     da quando l'attuale build di Syllabus è online: va considerata compromessa a prescindere
+     dal deploy).
+  2. Creare una **nuova** `ANTHROPIC_API_KEY` e impostarla come env **server-side** sul
+     progetto Vercel di Syllabus (mai `VITE_`).
+  3. Solo allora autorizzare il **deploy di Syllabus** (`cd Syllabus/app && npm run build &&
+     npx vercel --prod`): porta live v5, che elimina la chiave dal client e chiude anche il
+     proxy aperto. Verifica post-deploy: `curl` del bundle senza `sk-ant`, e
+     `POST {}` a `/api/claude` senza login → 401. Aggiungere a `collauda.cjs` il check
+     `syllabus proxy AI` a `[401]` e `SW_MIN.syllabus` → 5.
+  4. Controllare se la stessa chiave revocata era usata altrove (altre env Vercel) per non
+     rompere altre app col ricambio.
