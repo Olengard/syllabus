@@ -5,7 +5,8 @@
 # ════════════════════════════════════════════════════════════════
 param(
   [Parameter(Mandatory=$true)][string]$DigestPassword,
-  [Parameter(Mandatory=$true)][string]$ServiceKey
+  [Parameter(Mandatory=$true)][string]$ServiceKey,
+  [string]$Email = 'olengard@gmail.com'
 )
 $old = 'https://digest-blqp.onrender.com'
 $sb  = 'https://pchldmiavycxzpkzochn.supabase.co'
@@ -17,10 +18,12 @@ $token = ($bytes | ForEach-Object { $_.ToString('x2') }) -join ''
 $hOld = @{ Authorization = "Bearer $token" }
 $hSb  = @{ apikey=$ServiceKey; Authorization="Bearer $ServiceKey"; 'Content-Type'='application/json'; Prefer='resolution=merge-duplicates' }
 
-# user_id: il primo (unico) utente del progetto
-$users = Invoke-RestMethod -Headers @{ apikey=$ServiceKey; Authorization="Bearer $ServiceKey" } -Uri "$sb/auth/v1/admin/users?per_page=5"
-$uid = $users.users[0].id
-Write-Output "user_id: $uid"
+# user_id: selezionato per EMAIL (pchld ha più utenti: Stefano e Manu — mai prendere il "primo")
+$users = Invoke-RestMethod -Headers @{ apikey=$ServiceKey; Authorization="Bearer $ServiceKey" } -Uri "$sb/auth/v1/admin/users?per_page=50"
+$u = @($users.users | Where-Object { $_.email -eq $Email })
+if ($u.Count -ne 1) { Write-Error "Utente '$Email' non trovato (o non univoco) su pchld. Interrompo."; exit 1 }
+$uid = $u[0].id
+Write-Output "user_id: $uid ($Email)"
 
 # Feed + categorie (da preferences digest_feed_cats)
 $feeds = Invoke-RestMethod -Headers $hOld -Uri "$old/api/feeds"
