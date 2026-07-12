@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito (2026-07-12, appendice #21) il mistero llvqoiyvzloloobjiloe: il progetto è VIVO e ATTIVO (REST 200 con anon key) ma vive su un ALTRO account/org Supabase — l'account MCP "Anonima Olengatta" contiene solo pchld e bogav (2 slot free tier pieni). Accesso dashboard: solo Stefano sa quale account è. Proposta: migrare Platea/Dashboard su pchld prima della build EAS (vedi diario).
+> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito il mistero llvqoiyvzloloobjiloe (vivo e attivo, ma su ALTRO account/org — MCP vede solo pchld e bogav) **e MIGRAZIONE Platea/Dashboard llv→pchld ESEGUITA la sera stessa, fasi 0-5**: schema+dati (11.390 video) su pchld, sync-videos deployata e collaudata, Dashboard con login suite LIVE su dash.commonplaceapp.org, NoteS già a posto dal #18. ⚠️ A Stefano: secret YOUTUBE_API_KEY, repoint cron sync, collaudo login Dashboard; poi Fase 6 (build EAS) e Fase 7 (dismissione llv) — piano e stato in `Platea/piano-migrazione-pchld.md`.
 
 ---
 
@@ -337,7 +337,7 @@ Commonplace
 - Watch progress resume
 - Saved videos (toggle cuore â™¥)
 
-**Stato attuale:** 🔶 Revisione completa 2026-06-11 (Sessione #18, Fable 5) — in attesa di build EAS. ✅ Progetto Supabase llvqoiyvzloloobjiloe ATTIVO (verificato 2026-07-12: REST 200 con anon key, `videos` popolata) ma su un ALTRO account/org rispetto all'MCP — niente più "riattivare dal dashboard" come prerequisito. ⚠️ Valutare la migrazione a pchld PRIMA della build EAS, così una build sola incorpora env nuove + revisione #18 (vedi appendice diario #21).
+**Stato attuale:** 🔶 **MIGRATO a pchld (2026-07-12, fasi 0-5 del piano)**: dati (11.390 video), Edge Function sync-videos e RLS vivono sul progetto della suite; `.env` e `cp.ts` aggiornati e copiati in `C:\VideoS`. In attesa di: secret YOUTUBE_API_KEY + repoint cron (Stefano), **build EAS (Fase 6** — incorpora migrazione + revisione #18**)**, dismissione llv (Fase 7, solo a build verificata). Stato fase-per-fase: `Platea/piano-migrazione-pchld.md`. Il backend Supabase (llv) resta il rollback fino alla Fase 7.
 
 **Aggiornamento 2026-06-11 (Sessione #18 — revisione Fable 5):**
 - CAUSA MADRE DELL'IMPERMANENZA TROVATA: il progetto Supabase llvqoiyvzloloobjiloe è IN PAUSA (free tier, 1 settimana di inattività) — DNS inesistente, verificato dal PC di Stefano. Quando dorme, tutta Platea si svuota. Il warning keep-alive era nel log da marzo, mai eseguito. Rimedio: restore dal dashboard + cron settimanale su cron-job.org che invoca sync-videos (tiene sveglio E sincronizza)
@@ -1158,3 +1158,47 @@ Valori Syllabus: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ANTHROPIC_API_K
   progress 10, pl_* vuote, continue_watching=vista, RPC search_videos — 7 fasi, rischi,
   prerequisiti Stefano in Fase 0). Sessione dedicata; l'export dati NON richiede le
   credenziali llv (tutto anon-readable), servono solo per DDL vista/RPC e YOUTUBE_API_KEY.
+
+**Appendice #21 (tarda sera) — Migrazione Platea/Dashboard llv→pchld: FASI 0-5 ESEGUITE.**
+Dettaglio operativo e stato fase-per-fase in `Platea/piano-migrazione-pchld.md` (fa fede
+quello); qui la sintesi e le root cause:
+- ✅ **Fase 0**: DDL llv archiviati in `Platea/supabase/llv-schema-2026-07-12.md` (colonne,
+  vincoli, indici, vista `continue_watching`, RPC `search_videos`, enum `video_source`/
+  `content_category`). GOTCHA scoperto: l'SQL editor Supabase mostra solo l'ULTIMO
+  statement di un blocco — le query di ricognizione vanno eseguite una alla volta.
+  Backup llv verificato in `latest.json` (solo struttura, zero contenuti letti).
+- ✅ **Fasi 1-2**: schema IDENTICO ricreato su pchld (migration `platea_llv_schema`;
+  vincoli confrontati riga per riga) e dati trasferiti SERVER-TO-SERVER con l'estensione
+  Postgres `http` (installata su pchld): pchld legge il REST di llv con la anon key,
+  zero passaggi dal PC. Conteggi identici (videos 11.390, channels 37, carousels 40,
+  saved 8, progress 10); sequence riallineate; RLS a perimetro (anon scrive solo dove
+  l'app scrive: saved/progress/pl_* + channels/carousels/carousel_videos per AdminScreen;
+  videos/sync_log sola lettura). Collaudo REST+RPC+RLS passato.
+- ✅ **Fase 3**: `sync-videos` v6 deployata su pchld via MCP e collaudata con un canale
+  archive.org (non richiede YouTube key): 2000 upsert, +8 video nuovi reali, sync_log ok.
+- ✅ **Fase 4**: `Platea/.env` → pchld; `cp.ts` semplificato (client unico, rimossa la
+  anon key pchld hardcoded); `npx tsc --noEmit` pulito; copiati in `C:\VideoS` (diff ok).
+- ✅ **Fase 5**: **NoteS non richiedeva nulla** (già unificato dal #18: `cpSupabase =
+  supabase`; la voce di piano veniva da una nota stantia — i documenti mentono, il codice
+  no). **Dashboard**: il solo repoint l'avrebbe SVUOTATA (RLS own-data su cp: l'anonimo
+  vede solo `user_id NULL`, 1 item su 37; su llv "vedeva tutto" ma erano dati fermi a
+  giugno) → aggiunto login suite (pattern DigestV), client unico pchld, logout in header.
+  Verificata in locale (porta 5181) e DEPLOYATA su dash.commonplaceapp.org (autorizzata,
+  READY, marker verificati via curl). Commit annidato `b6512d2` (congela anche la v2 di
+  aprile mai committata). Nel suo `.gitignore` c'è una riga `.vercel` duplicata dal CLI.
+- ✅ **cp-backup**: `dnd_saves` MANCAVA dai backup (tabella nata il 07/07, dopo la stesura
+  di backup.js del #19) → aggiunta e deployato (READY). Notato anche: manca
+  `backup-2026-07-11.json` (il cron ha saltato un giorno — tenere d'occhio).
+- **⚠️ Azioni richieste (Stefano):**
+  1. Secret `YOUTUBE_API_KEY` sul dashboard pchld (Edge Functions → Secrets) — senza,
+     i canali YouTube falliranno alla prossima sync (gli archive già funzionano).
+  2. cron-job.org: ripuntare il job sync a POST
+     `https://pchldmiavycxzpkzochn.supabase.co/functions/v1/sync-videos` con header
+     `Authorization: Bearer <anon key pchld>`. NON spegnere ancora il ping/llv (rollback).
+  3. Collaudo Dashboard: login su dash.commonplaceapp.org con le credenziali suite —
+     deve mostrare ~37 item invece di 1.
+  4. Domattina, nel backup: `pchld.dg_feeds` (33), `pchld.dnd_saves` (15), file del
+     giorno presente.
+  5. Quando pronto: **Fase 6** build EAS da `C:\VideoS` (incorpora migrazione + revisione
+     #18), poi **Fase 7** dismissione llv (delta dati, cp-backup senza sezione llv,
+     pausa progetto) — procedure nel piano.
