@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito il mistero llvqoiyvzloloobjiloe (vivo e attivo, ma su ALTRO account/org — MCP vede solo pchld e bogav) **e MIGRAZIONE Platea/Dashboard llv→pchld ESEGUITA la sera stessa, fasi 0-5**: schema+dati (11.390 video) su pchld, sync-videos deployata e collaudata, Dashboard con login suite LIVE su dash.commonplaceapp.org, NoteS già a posto dal #18. ⚠️ A Stefano: secret YOUTUBE_API_KEY, repoint cron sync, collaudo login Dashboard; poi Fase 6 (build EAS) e Fase 7 (dismissione llv) — piano e stato in `Platea/piano-migrazione-pchld.md`. **Strumenti nuovi per la consegna**: collaudo suite live `node Suite/collauda.cjs` (26 check) + ripristino backup TESTATO in `Backup/RIPRISTINO.md`.
+> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito il mistero llvqoiyvzloloobjiloe (vivo e attivo, ma su ALTRO account/org — MCP vede solo pchld e bogav) **e MIGRAZIONE Platea/Dashboard llv→pchld ESEGUITA la sera stessa, fasi 0-5**: schema+dati (11.390 video) su pchld, sync-videos deployata e collaudata, Dashboard con login suite LIVE su dash.commonplaceapp.org, NoteS già a posto dal #18. ⚠️ A Stefano: secret YOUTUBE_API_KEY, repoint cron sync, collaudo login Dashboard; poi Fase 6 (build EAS) e Fase 7 (dismissione llv) — piano e stato in `Platea/piano-migrazione-pchld.md`. **Strumenti nuovi per la consegna**: collaudo suite live `node Suite/collauda.cjs` (26 check) + ripristino backup TESTATO in `Backup/RIPRISTINO.md`. **Chiusi i 3 proxy AI aperti**: Footnote/api/claude + NoteS/api/{transcribe,whisper} ora esigono la sessione Supabase della suite (401 senza login) — deployati e verificati live (body valido senza auth = 401, collaudo TUTTO VERDE). ⚠️ Resta aperto lo stesso buco su Syllabus/api/claude (task separato).
 
 ---
 
@@ -1234,3 +1234,51 @@ a comandi eseguibili.
 - ⚠️ **Nota per Stefano**: cp-backup non copre Ledger (bogav) — valutare se aggiungere
   le sue tabelle a backup.js (env SUPABASE_BOGAV_SERVICE_KEY da creare) in una sessione
   futura.
+
+**Appendice #21 (chiusura task proxy AI aperti) — CONFERMATO e CORRETTO nel codice.**
+La falla del punto ⚠️ qui sopra è reale: i tre proxy AI erano **completamente aperti**.
+- **Conferma per ispezione** (NON sparata dal vivo, per non bruciare crediti):
+  `Footnote/api/claude.js`, `NoteS/api/transcribe.js`, `NoteS/api/whisper.js` non
+  verificavano NULLA. Un body valido senza credenziali sarebbe filato dritto ad
+  Anthropic/OpenAI con la chiave del server → 200 e crediti a carico nostro per chiunque.
+  Il 400 visto il 07/12 era solo la validazione del body (in transcribe/whisper la chiave
+  legacy `x-api-key`/`x-openai-key` mancante dava 400), a valle di zero controllo d'accesso.
+  **Perché `collauda.cjs` era verde**: mandava `POST {}` e accettava `[400,401]` — il 400
+  passava come "rifiutato" mascherando il caso body-valido-senza-auth. Punto cieco chiuso.
+- **Fix (schema uguale a Digest #18, adattato alla suite)**: ogni proxy ora richiede la
+  **sessione Supabase della suite**. Verifica dependency-free e senza segreti nuovi:
+  `GET {SB_URL}/auth/v1/user` con la sola **anon key** (pubblica, già nei bundle) + il JWT
+  dell'utente come Bearer; 200+id → passa, altrimenti **401** PRIMA di toccare la chiave.
+  Stesso progetto `pchld` di tutta la suite. Il fallback legacy `x-api-key`/`x-openai-key`
+  resta (utile solo se già loggati) — non indebolisce nulla, l'auth è a monte.
+- **Client aggiornati per NON rompere nulla**: `Footnote/index.html` (`claude()`) e
+  `NoteS/src/App.jsx` (helper `cpAuthHeader()`, 3 fetch: 2 transcribe + 1 whisper) ora
+  passano `Authorization: Bearer <access_token>` dalla sessione già attiva. Ogni utente
+  reale è loggato (signInWithPassword), quindi il flusso è invariato per loro.
+- **Verifica locale**: `npm run build` NoteS OK (dist rigenerato, sw.js vite-pwa aggiornato
+  → nessun bump manuale lì). Footnote servito in locale (porta 5199): login screen,
+  **zero errori console** = parse Babel/JSX integro. Grep segreti pulito (solo un
+  placeholder d'input `sk-ant-…`). **SW Footnote bumpato v27→v28** (index.html modificato).
+- **`Suite/collauda.cjs` irrobustito**: `SW_MIN.footnote` 27→28; i check dei proxy passano
+  da `[400,401]` a **`[401]` secco** (footnote claude, notes transcribe) + aggiunto
+  **notes whisper**. Questi 3 diventeranno verdi SOLO dopo il deploy (finché la prod è
+  vecchia, segnalano correttamente "proxy ancora aperto").
+- **⚠️ Azione richiesta (Stefano) — AUTORIZZARE IL DEPLOY**: due progetti Vercel distinti,
+  **niente env nuove da impostare** (usa la anon key pubblica già nota):
+  1. Progetto **Footnote** → deploy (`Footnote/deploya.bat` o push): serve `index.html`
+     nuovo + `api/claude.js` + `sw.js` v28.
+  2. Progetto **notes-app** (NoteS) → deploy: build da `src/App.jsx` + `api/transcribe.js`
+     + `api/whisper.js`.
+  Post-deploy: `node Suite/collauda.cjs` deve dare i 3 check proxy a 401 e i SW verdi;
+  poi login su Footnote e NoteS e provare una generazione/trascrizione (deve funzionare
+  da loggati). Modifiche solo nel repo, **non deployate**: la prod resta esposta finché
+  Stefano non autorizza.
+- ✅ **DEPLOY ESEGUITO E VERIFICATO** (2026-07-12 sera, autorizzato da Stefano):
+  `npx vercel --prod` su **footnote-app** (dpl_EzyDQz6…, READY, alias footnote.commonplaceapp.org)
+  e **notes-app** (dpl_5iRVNC…, READY). **Prova live decisiva**: i tre proxy colpiti con un
+  body VALIDO senza credenziali (`messages` popolato, il caso che prima dava 200) → tutti
+  **401**. SW Footnote live = `footnote-v28`. `node Suite/collauda.cjs` **TUTTO VERDE** (18
+  app/API + 8 SW + backup 15.7h). Nota: al primissimo giro un FAIL transitorio "sw footnote
+  versione non trovata" per edge-cache subito dopo il deploy; sparito al secondo giro (curl
+  diretto mostrava già v28). Falla proxy AI chiusa in produzione su Footnote e NoteS.
+  Resta aperto **Syllabus** (stesso pattern, task separato `task_bf14b869`).

@@ -155,9 +155,12 @@ function AuthScreen({t}) {
 }
 
 async function claude(messages, system, maxTokens, model) {
+  // Il proxy /api/claude ora richiede la sessione Supabase: passiamo il JWT.
+  const { data: { session } } = await sb.auth.getSession();
+  const authHeaders = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
   const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: JSON.stringify({
       model: model || MODEL_CHAT,
       max_tokens: maxTokens || 800,
