@@ -41,6 +41,16 @@
 
 ## Fase 0 — Prerequisiti (Stefano, ~15 min sul dashboard llv)
 
+> Stato al 2026-07-12 sera: **0.1 PARZIALE** — colonne ✅ archiviate in
+> `supabase/llv-schema-2026-07-12.md`; MANCANO vista `continue_watching`, RPC
+> `search_videos` e i valori degli ENUM (query pronta nel file archivio).
+> **0.2 ✅** YouTube key recuperata (la custodisce Stefano — MAI in git/chat, va nei
+> secrets della Edge Function in Fase 3). **0.3 ✅** sezione llv verificata in
+> `latest.json` (conteggi identici al REST). Bonus scoperto durante la verifica:
+> `dnd_saves` mancava dal backup → aggiunta a `Backup/api/backup.js` e deployata
+> (conferma nel backup di domattina); notato anche `backup-2026-07-11.json` assente
+> (cron ha saltato un giorno — da tenere d'occhio).
+
 1. Dal SQL editor di llv, eseguire e salvare l'output di:
    ```sql
    select pg_get_viewdef('continue_watching'::regclass, true);
