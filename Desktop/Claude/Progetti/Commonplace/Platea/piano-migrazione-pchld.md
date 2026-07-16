@@ -199,6 +199,16 @@
 
 ## Fase 7 — Dismissione llv (SOLO a build verificata)
 
+> **✅ FASE 7 ESEGUITA (2026-07-17)** — MIGRAZIONE COMPLETATA, TUTTE LE 7 FASI CHIUSE.
+> Delta llv 12→16/07: **ZERO su tutte le tabelle** (watch_progress, saved, cp, channels,
+> carousels — verificato via REST con filtri gte sul cutoff): nessuna ricopia necessaria.
+> cp-backup: sezione llv RIMOSSA, le 7 tabelle utente video aggiunte alla lista pchld,
+> deployato (READY; conferma nel backup di domattina: chiavi pchld.channels ecc.).
+> `cron.unschedule('keepalive-llv')` eseguito (resta solo sync-videos-settimanale).
+> ⚠️ A Stefano: mettere il progetto llv in PAUSA dal suo dashboard (account separato) —
+> cancellabile dopo qualche settimana; env SUPABASE_LLV_SERVICE_KEY eliminabile da
+> Vercel cp-backup; job cron-job.org tutti spegnibili/dismettibili.
+
 - ⚠️ Finché la build vecchia è installata, il telefono SCRIVE ancora su llv: prima della
   dismissione ricopiare i delta (`watch_progress`, `saved_videos`, cp) llv→pchld.
 - cp-backup: rimuovere sezione llv + env `SUPABASE_LLV_SERVICE_KEY` da `Backup/api/backup.js`,

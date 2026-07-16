@@ -17,8 +17,10 @@
   sia un array (è successo: sezione digest in 401 per un mese, #21).
 - ⚠️ Il backup NON contiene: `videos`/`sync_log` (rigenerabili con sync-videos),
   tabelle di Ledger (progetto bogav, MAI incluso in cp-backup!), niente di Zeitgeist.
-  `dnd_saves` c'è solo dal 2026-07-13 (aggiunta in #21). La sezione `llv` riflette il
-  progetto llv finché non viene dismesso (Fase 7 migrazione Platea).
+  `dnd_saves` c'è solo dal 2026-07-13 (aggiunta in #21). La sezione `llv` esiste SOLO
+  nei backup fino al 2026-07-17 (Fase 7): da allora le tabelle video di Platea
+  (`channels`, `carousels`, `carousel_videos`, `saved_videos`, `watch_progress`, `pl_*`)
+  stanno sotto `projects.pchld` come tutto il resto.
 
 ## Procedura per UNA tabella (il caso comune: dati cancellati/corrotti per errore)
 

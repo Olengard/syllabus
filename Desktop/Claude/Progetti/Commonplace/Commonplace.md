@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-15 -- Sessione #22. **Platea FASE 6: build EAS eseguita** (preview d065eef6, pre-flight: icone/app.json riallineati da Platea a C:\VideoS, junk rimosso, YOUTUBE_API_KEY verificata) — resta il collaudo sul telefono, poi Fase 7 (dismissione llv). **cron-job.org pensionato per Supabase**: pg_cron su pchld (sync settimanale + keepalive llv, collaudati). Review indipendente del blocco sicurezza proxy #21: PROMOSSA (GoTrue vero, 401 live, bundle puliti) e pushata. Backup 13-15/07 verificati (dg_feeds 33, dnd_saves 15, cron regolare). Migrazione Platea: piano e stato in Platea/piano-migrazione-pchld.md; diario completo in coda.
+> Ultimo aggiornamento: 2026-07-17 -- Sessione #22. **MIGRAZIONE PLATEA/DASHBOARD llv→pchld COMPLETATA, 7 FASI SU 7**: build EAS collaudata sul telefono (end-to-end ok), 2 bug diagnosticati al collaudo (carosello in categoria sbagliata → fix dato; resume archive mancante → fix in PlayerScreen per la prossima build), sync completa = 37/37 canali ok e job pg_cron riscritto un-canale-per-chiamata (root cause: wall-clock 150s delle Edge Function), cp-backup ora copre le tabelle Platea su pchld, llv DISMESSO (delta zero; pausa dashboard a Stefano). Dettagli: Platea/piano-migrazione-pchld.md + diario #22.
 
 ---
 
@@ -34,9 +34,9 @@ Commonplace
 
 **Infrastruttura condivisa:**
 - **Supabase:** 
-  - NoteS, Platea â€” progetto `llvqoiyvzloloobjiloe`
-  - **BookShelf, Footnote, ListenS â€” progetto `pchldmiavycxzpkzochn`** (stesso di NoteS, login unificato) âœ… migrazione completata 2026-03-29
-  - âš ï¸ Configurare keep-alive via cron-job.org per tutti i progetti Supabase (free tier si mette in pausa dopo 1 settimana di inattivitÃ )
+  - **TUTTA la suite (tranne Ledger) — progetto `pchldmiavycxzpkzochn`**: BookShelf, Footnote, ListenS, NoteS, Syllabus, DnDMaster, Digest, Marginalia, cp layer, e **Platea/Dashboard dal 2026-07-12** (migrazione da llv, Fase 7 chiusa 2026-07-17). Ledger sta su `bogavweypmgyxwmdpsqm`.
+  - ~~`llvqoiyvzloloobjiloe`~~ — **DISMESSO** (Fase 7, 2026-07-17): delta verificati ZERO, dati su pchld, storici nei backup. Resta solo da mettere in PAUSA dal suo dashboard (account separato: Stefano); cancellabile dopo qualche settimana.
+  - Keep-alive: NON più via cron-job.org → **pg_cron su pchld** (`cron.job`: sync-videos settimanale un-canale-per-chiamata; pchld è comunque usato ogni giorno — vedi diario #22).
 - **Render:** ~~Digest~~ — `digest-blqp.onrender.com` resta SOLO come rollback fino a ~2026-07-26, poi da sospendere (Digest è su Vercel dal 2026-07-12; spegnere anche il ping cron-job.org)
 - **Vercel:** NoteS, Ledger, Digest (progetto `digest-app`) â€” dominio `commonplaceapp.org` (acquistato 2026-03-24, DNS Vercel)
 - **Netlify:** DnD Master â€” sottodominio `dnd.commonplaceapp.org`
@@ -337,7 +337,7 @@ Commonplace
 - Watch progress resume
 - Saved videos (toggle cuore â™¥)
 
-**Stato attuale:** 🔶 **MIGRATO a pchld (2026-07-12, fasi 0-5 del piano)**: dati (11.390 video), Edge Function sync-videos e RLS vivono sul progetto della suite; `.env` e `cp.ts` aggiornati e copiati in `C:\VideoS`. In attesa di: secret YOUTUBE_API_KEY + repoint cron (Stefano), **build EAS (Fase 6** — incorpora migrazione + revisione #18**)**, dismissione llv (Fase 7, solo a build verificata). Stato fase-per-fase: `Platea/piano-migrazione-pchld.md`. Il backend Supabase (llv) resta il rollback fino alla Fase 7.
+**Stato attuale:** ✅ **MIGRAZIONE A PCHLD COMPLETATA — TUTTE LE 7 FASI** (2026-07-12 → 2026-07-17): dati e sync su pchld, build EAS `preview` (d065eef6) installata e collaudata sul telefono (end-to-end verificato: watch_progress + cp scrivono su pchld), backup coperto da cp-backup, sync settimanale via pg_cron un-canale-per-chiamata, llv dismesso (delta zero; pausa dal dashboard a carico di Stefano). Storia completa: `Platea/piano-migrazione-pchld.md`. In coda per la PROSSIMA build: resume archive (`start=` già in PlayerScreen), avviso categoria in AdminScreen, sync per-canale dal pulsante admin.
 
 **Aggiornamento 2026-06-11 (Sessione #18 — revisione Fable 5):**
 - CAUSA MADRE DELL'IMPERMANENZA TROVATA: il progetto Supabase llvqoiyvzloloobjiloe è IN PAUSA (free tier, 1 settimana di inattività) — DNS inesistente, verificato dal PC di Stefano. Quando dorme, tutta Platea si svuota. Il warning keep-alive era nel log da marzo, mai eseguito. Rimedio: restore dal dashboard + cron settimanale su cron-job.org che invoca sync-videos (tiene sveglio E sincronizza)
@@ -1413,3 +1413,28 @@ I due difetti riportati:
   avuto una sync 'ok'**: il dubbio di Stefano ("non so se sincronizza tutto") è risolto.
   Backlog prossima build: anche il pulsante sync di AdminScreen dovrebbe iterare
   per canale (oggi la sync completa da app muore a 150s come da cron).
+
+**Appendice #22 (chiusura) — FASE 7 ESEGUITA: llv dismesso, migrazione Platea COMPLETA.**
+- ✅ **Delta llv 12→16/07: ZERO** su watch_progress, saved_videos, cp_items, cp_log,
+  channels, carousels (verificato via REST con filtro sul cutoff 2026-07-12T18Z):
+  la build vecchia non è mai stata usata dopo la migrazione. Nessuna ricopia.
+- ✅ **cp-backup aggiornato e deployato** (READY): sezione llv rimossa, le 7 tabelle
+  utente di Platea (`channels`,`watch_progress`,`saved_videos`,`carousels`,
+  `carousel_videos`,`pl_playlists`,`pl_playlist_videos`) ora nella lista pchld
+  (`videos`/`sync_log` restano esclusi: rigenerabili). Verifica domattina: il backup
+  deve avere `pchld.channels` (37) ecc.
+- ✅ **`cron.unschedule('keepalive-llv')`** eseguito: in `cron.job` resta solo
+  `sync-videos-settimanale` (un canale per chiamata).
+- ✅ Documentazione allineata: infrastruttura Supabase in testa a questo file (pchld =
+  tutta la suite tranne Ledger; llv barrato DISMESSO), sezione Platea (✅ 7/7), skill
+  `supabase-commonplace` (mappa progetti), `Backup/RIPRISTINO.md` (sezione llv solo nei
+  backup storici ≤17/07).
+- **⚠️ Azioni richieste (Stefano):**
+  1. Mettere in PAUSA il progetto `llvqoiyvzloloobjiloe` dal suo dashboard (account
+     separato) — NON cancellarlo per qualche settimana (i backup storici + la pausa
+     sono il rollback); poi si può eliminare.
+  2. Vercel cp-backup: la env `SUPABASE_LLV_SERVICE_KEY` non serve più (eliminabile).
+  3. cron-job.org: tutti i job della suite sono ormai sostituiti (pg_cron) o inutili
+     (Digest su Vercel): spegnere/dismettere quando vuoi, insieme alla sospensione di
+     Render (~26/07).
+  4. Domattina: backup con `pchld.channels`/`saved_videos`/`watch_progress` presenti.
