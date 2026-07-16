@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-12 -- Sessione #21. **Migrazione Digest→Vercel+Supabase COMPLETATA, cutover incluso**: digest.commonplaceapp.org è live sul progetto `digest-app` (DigestV/), 33 feed su pchld, test di parità passato (3 bug trovati e risolti coi feed reali), Home aggiornata, cp-backup ora salva dg_* da Supabase. ⚠️ Restano a Stefano: sospendere Render + ping cron-job (rollback fino ~26/07), riassegnare categorie feed, verificare backup di domattina. ✅ Chiarito il mistero llvqoiyvzloloobjiloe (vivo e attivo, ma su ALTRO account/org — MCP vede solo pchld e bogav) **e MIGRAZIONE Platea/Dashboard llv→pchld ESEGUITA la sera stessa, fasi 0-5**: schema+dati (11.390 video) su pchld, sync-videos deployata e collaudata, Dashboard con login suite LIVE su dash.commonplaceapp.org, NoteS già a posto dal #18. ⚠️ A Stefano: secret YOUTUBE_API_KEY, repoint cron sync, collaudo login Dashboard; poi Fase 6 (build EAS) e Fase 7 (dismissione llv) — piano e stato in `Platea/piano-migrazione-pchld.md`. **Strumenti nuovi per la consegna**: collaudo suite live `node Suite/collauda.cjs` (26 check) + ripristino backup TESTATO in `Backup/RIPRISTINO.md`. **Chiusi i 3 proxy AI aperti**: Footnote/api/claude + NoteS/api/{transcribe,whisper} ora esigono la sessione Supabase della suite (401 senza login) — deployati e verificati live (body valido senza auth = 401, collaudo TUTTO VERDE). ⚠️ Resta aperto lo stesso buco su Syllabus/api/claude (task separato).
+> Ultimo aggiornamento: 2026-07-15 -- Sessione #22. **Platea FASE 6: build EAS eseguita** (preview d065eef6, pre-flight: icone/app.json riallineati da Platea a C:\VideoS, junk rimosso, YOUTUBE_API_KEY verificata) — resta il collaudo sul telefono, poi Fase 7 (dismissione llv). **cron-job.org pensionato per Supabase**: pg_cron su pchld (sync settimanale + keepalive llv, collaudati). Review indipendente del blocco sicurezza proxy #21: PROMOSSA (GoTrue vero, 401 live, bundle puliti) e pushata. Backup 13-15/07 verificati (dg_feeds 33, dnd_saves 15, cron regolare). Migrazione Platea: piano e stato in Platea/piano-migrazione-pchld.md; diario completo in coda.
 
 ---
 
@@ -1342,3 +1342,47 @@ La falla del punto ⚠️ qui sopra è reale: i tre proxy AI erano **completamen
 **Fine Sessione #21 (blocco sicurezza proxy AI).** Consegnata a Fable 5 (non Opus: il modello
 non era cambiato in-sessione, chiarito a Stefano). Commit: NoteS `8e07af2`, Syllabus/app
 `4e8ccda`, esterni `5b6e8a3`/`aef981d`/`ac56c54`. Nessun push (non richiesto).
+
+## 2026-07-15 — Sessione #22
+
+- ✅ **Review indipendente del blocco sicurezza proxy AI** (chiuso il 13/07 dalla sessione
+  parallela): codice verificato (tutti e 3 i proxy validano il JWT contro GoTrue
+  `/auth/v1/user`, non un check decorativo), prove live rifatte (body VALIDO senza auth
+  → 401 su footnote/syllabus/notes; bundle Syllabus senza `sk-ant`; collauda TUTTO VERDE).
+  Pushati i 4 commit del blocco che erano rimasti locali (`d331c75..5bc072d`).
+- ✅ **Backup verificati**: 13/07 con `dg_feeds` 33 + `dnd_saves` 15 (i fix del #21
+  funzionano), file del 14 e 15 presenti (il cron non salta più), sezione digest legacy
+  sparita, `dg_preferences` 2→6 (il nuovo Digest è in uso).
+- ✅ **Platea FASE 6 — build EAS ESEGUITA** (autorizzata): build `preview` Android
+  **finished** su progetto Expo VideoS2, id `d065eef6-85ee-4c77-b4cd-824ef7024ca8`.
+  Il pre-flight ha salvato la build tre volte:
+  - `C:\VideoS` aveva le **icone di marzo VECCHIE** (l'icona B1 del 26/03 era solo in
+    Platea/) e `app.json` con `userInterfaceStyle: light` invece di `dark` → allineati
+    prima del lancio (direzione SEMPRE Platea → C:\VideoS).
+  - Junk rimosso (autorizzato): `src/src/` e `assets/fonts/fonts/` — copie annidate
+    accidentali del 9-10 marzo, zero import (verificato con grep).
+  - Meccanismo env CONFERMATO: in C:\VideoS `.env` è tracciato e NON gitignorato
+    (a differenza di Platea/) → EAS lo impacchetta e cuoce le EXPO_PUBLIC_* nel binario.
+    Non "correggere" mai quel .gitignore: è così apposta.
+  - `YOUTUBE_API_KEY` su pchld VERIFICATA funzionante (sync actmusic: status ok in
+    sync_log = l'API YouTube ha risposto).
+  ⚠️ Resta il collaudo sul telefono (Stefano): installare l'APK dal link Expo, poi home
+  popolata, ricerca, ♥, resume, playlist, e righe `pl_*` nuove in cp_items su pchld.
+- ✅ **cron-job.org PENSIONATO per Supabase → pg_cron su pchld** (Stefano riporta
+  fallimenti frequenti su tutte le app; cause probabili: ping keep-alive non autenticati
+  → 401 = "failed" per cron-job E dubbia attività reale sul DB; timeout sui cold start).
+  Installata `pg_cron` (migration `pg_cron_sync_e_keepalive`), 2 job ATTIVI e collaudati
+  nel contesto worker (job di test ogni minuto: 5/5 succeeded, poi rimosso):
+  - `sync-videos-settimanale` — lunedì 05:00 UTC, invoca la Edge Function su pchld
+    (extensions.http, timeout 300s);
+  - `keepalive-llv` — ogni giorno 04:30 UTC, query REST **autenticata** su llv (attività
+    vera). ⚠️ Da spegnere in Fase 7: `select cron.unschedule('keepalive-llv');`
+  Osservabilità: `select * from cron.job;` e `cron.job_run_details` via MCP.
+- **⚠️ Azioni richieste (Stefano):**
+  1. Installare l'APK Platea sul OnePlus (link build Expo qui sopra) e fare il collaudo;
+     dirlo a Claude per la verifica cp_items lato server → poi si apre la **Fase 7**.
+  2. cron-job.org: i job Supabase (keep-alive, sync llv) si possono SPEGNERE già ora
+     (sostituiti da pg_cron); il ping Digest/Render si spegne insieme alla sospensione
+     di Render (~26/07). A quel punto cron-job.org si può dismettere del tutto.
+  3. Invariate dal #21: generazione da loggato nelle 4 app AI (conferma nuova chiave),
+     categorie feed Digest.

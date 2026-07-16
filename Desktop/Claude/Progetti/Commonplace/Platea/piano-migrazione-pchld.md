@@ -120,7 +120,16 @@
 > login screen, errore credenziali gestito, console pulita. Commit nel repo annidato
 > `b6512d2` (NB: congela anche la v2 di aprile che era rimasta non committata).
 > ⚠️ Deploy con `deploy_dashboard.bat` da autorizzare + primo login reale da Stefano.
-> **Prossimo passo: Fase 6 build EAS** (dopo secret YOUTUBE_API_KEY + cron, vedi Fase 3).
+> **✅ FASE 6 — BUILD EAS ESEGUITA (2026-07-15, autorizzata)**: build `preview` Android
+> **finished**, Expo VideoS2 id `d065eef6-85ee-4c77-b4cd-824ef7024ca8`. Il pre-flight
+> ha corretto: icone B1 e app.json (dark) che in C:\VideoS erano VECCHI (marzo),
+> junk `src/src`+`fonts/fonts` rimosso, meccanismo env confermato (in C:\VideoS `.env`
+> è tracciato e NON ignorato — è voluto, non "correggerlo"). YOUTUBE_API_KEY verificata
+> funzionante (sync actmusic ok). Cron: NON più su cron-job.org → **pg_cron su pchld**
+> (`sync-videos-settimanale` lun 05:00 UTC + `keepalive-llv` 04:30 UTC, collaudati;
+> vedi diario #22). ⚠️ Resta: installazione APK + collaudo sul telefono (Stefano) con
+> verifica cp_items lato server → poi **Fase 7** (ricordare: `cron.unschedule('keepalive-llv')`
+> al posto del vecchio "spegnere cron llv").
 
 ## Fase 1 — Schema su pchld (MCP `apply_migration`)
 
