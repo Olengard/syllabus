@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-17 -- Sessione #22. **MIGRAZIONE PLATEA/DASHBOARD llv→pchld COMPLETATA, 7 FASI SU 7**: build EAS collaudata sul telefono (end-to-end ok), 2 bug diagnosticati al collaudo (carosello in categoria sbagliata → fix dato; resume archive mancante → fix in PlayerScreen per la prossima build), sync completa = 37/37 canali ok e job pg_cron riscritto un-canale-per-chiamata (root cause: wall-clock 150s delle Edge Function), cp-backup ora copre le tabelle Platea su pchld, llv DISMESSO (delta zero; pausa dashboard a Stefano). Dettagli: Platea/piano-migrazione-pchld.md + diario #22.
+> Ultimo aggiornamento: 2026-07-17 -- Sessione #22. **MIGRAZIONE PLATEA/DASHBOARD llv→pchld COMPLETATA, 7 FASI SU 7**: build EAS collaudata sul telefono (end-to-end ok), 2 bug diagnosticati al collaudo (carosello in categoria sbagliata → fix dato; resume archive mancante → fix in PlayerScreen per la prossima build), sync completa = 37/37 canali ok e job pg_cron riscritto un-canale-per-chiamata (root cause: wall-clock 150s delle Edge Function), cp-backup ora copre le tabelle Platea su pchld, llv DISMESSO (delta zero; pausa dashboard a Stefano). Dettagli: Platea/piano-migrazione-pchld.md + diario #22. **Priorità correnti: `piano-di-lavoro.md`** (rinnovato 17/07: backup Ledger in testa, poi giro debug Syllabus/Footnote/ListenS richiesto da Stefano).
 
 ---
 

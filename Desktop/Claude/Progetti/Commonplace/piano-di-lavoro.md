@@ -1,11 +1,49 @@
-# Commonplace — Piano di lavoro · Aprile 2026
+# Commonplace — Piano di lavoro
 
-> ⚠️ **DOCUMENTO STORICO** (fermo alla Sessione #11, aprile 2026) — NON è il piano corrente.
-> Fa fede **`Commonplace.md`**: intestazione (stato ultimo), sezioni per app e diario di sessione in coda.
-> Priorità operative correnti (ratificate in Sessione #20): 1) manutenzione/bugfix, 2) ~~migrazione Digest → Vercel+Supabase~~ ✅ completata #21, 3) sprint build (ReadS/Platea EAS, DnD/Ledger Capacitor).
+> Ultimo aggiornamento: **2026-07-17 — Sessione #22** (rinnovato: il piano di aprile resta
+> in coda come archivio). Fonte di verità sullo STATO è `Commonplace.md` (header + diario);
+> questo file elenca solo le PRIORITÀ. Regole operative: MANUALE-OPERATIVO.md + skill in
+> `.claude/skills/`. Priorità ratificate (#20): 1) manutenzione/bugfix, 2) sprint build.
 
-> Ultimo aggiornamento: 2026-04-09 — Sessione #11
-> Priorità: chiusura suite + test + build sprint
+## Stato per app (sintesi al 2026-07-17 — verifica sempre con `node Suite/collauda.cjs`)
+
+| App | Stato |
+|---|---|
+| BookShelf, Footnote (SW v28), ListenS (v13), NoteS, Marginalia, Home | ✅ live; proxy AI protetti (#21) |
+| Digest | ✅ Vercel+Supabase (`DigestV/`), migrato #21 |
+| Dashboard | ✅ login suite, su pchld (#21) |
+| Syllabus | ✅ v5 — incidente chiave chiuso (#21) |
+| **Platea** | ✅ **migrata a pchld 7/7** (#21-22), build d065eef6 collaudata |
+| DnDMaster | ✅ 2B (catalogo, Supabase) |
+| Ledger | ✅ funzionante — **⚠️ UNICA APP SENZA BACKUP** |
+| ReadS | 🔶 staged: build EAS da lanciare |
+
+## Priorità (2026-07-17)
+
+1. **[Stefano — minuti]** Chiusure Fase 7: pausa progetto llv, env `SUPABASE_LLV_SERVICE_KEY`
+   via da cp-backup, dismissione cron-job.org + sospensione Render (~26/07), verifica
+   backup del giorno dopo (`pchld.channels` 37). Più: categorie feed Digest, una
+   generazione da loggato nelle 4 app AI.
+2. **[Claude/Fable] Backup Ledger (bogav)** — dati finanziari, oggi ZERO backup. Serve a
+   Stefano: creare service key bogav + env `SUPABASE_BOGAV_SERVICE_KEY` su Vercel
+   cp-backup. Poi: lista tabelle in `Backup/api/backup.js`, deploy, RIPRISTINO.md.
+3. **[richiesto da Stefano, prossima sessione] GIRO DI DEBUG: Syllabus, Footnote,
+   ListenS** + valutazione di un miglioramento generale di ListenS. Se il tempo
+   (contratto Fable) finisce prima → documentare qui l'esito parziale per Opus.
+4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
+   L'**export CSV/PDF** invece è adatto a Opus.
+5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
+   è maturo (in coda: resume archive GIÀ nel codice, avviso categoria AdminScreen,
+   sync per-canale dal pulsante admin); Capacitor DnD (dopo loot tables) e Ledger (dopo 4).
+6. **[Opus-friendly]** Loot tables DnDMaster; export Ledger; pulizie (commenti llv
+   stantii in NoteS, decidere il vecchio TODO "Tag Vault UI"); test manuali della
+   checklist pre-build (input strani, offline).
+7. **Chiusura periodo Fable**: passata finale di handover per Opus (questo file +
+   Commonplace.md + eventuale diario).
+
+---
+
+# ARCHIVIO — Piano di aprile 2026 (storico, Sessione #11)
 
 ---
 
