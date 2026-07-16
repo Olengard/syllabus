@@ -1386,3 +1386,30 @@ non era cambiato in-sessione, chiarito a Stefano). Commit: NoteS `8e07af2`, Syll
      di Render (~26/07). A quel punto cron-job.org si può dismettere del tutto.
   3. Invariate dal #21: generazione da loggato nelle 4 app AI (conferma nuova chiave),
      categorie feed Digest.
+
+**Appendice #22 — Collaudo telefono Platea: PASSATO, con 2 bug diagnosticati e sistemati.**
+Esito Stefano: home popolata, ricerca ok, video youtube+archive partono, salvati presenti
+con resume, caroselli si aggiornano. Verifica server: watch_progress + cp_items/cp_log
+scrivono su pchld (5+5 righe la sera del collaudo) — **end-to-end della migrazione CHIUSO**.
+I due difetti riportati:
+- ✅ **"Non aggiunge caroselli"** — FALSO ALLARME sull'insert (la riga arrivava al DB):
+  il carosello "Ronnie Scott" era stato creato in categoria **cinema** ma il canale è
+  **jazz**, e il fetch incrocia `category` del carosello e `channel_id` → intersezione
+  vuota → carosello invisibile. Fix DATO (update a jazz), zero build. Backlog prossima
+  build: avviso in AdminScreen quando categoria carosello ≠ categoria del canale.
+- ✅ **"Continua a guardare riparte da zero" (i salvati no)** — root cause: il player
+  YouTube riceve `start: initialPosition`, l'embed **archive.org no** (nessun parametro).
+  Non dipende dal punto d'ingresso ma dalla SORGENTE (la lista "continua" era piena di
+  archive). Bug da sempre, mascherato dall'impermanenza di llv. Fix in
+  `PlayerScreen.tsx` (`&start=` anche sull'embed archive), tsc ok, copiato in C:\VideoS —
+  **attivo alla PROSSIMA build EAS** (niente expo-updates).
+- 🔴→✅ **SCOPERTA STRUTTURALE: la sync completa muore a ~150s** (limite wall-clock
+  Edge Function; 4 run la sera del collaudo — 3 dal pulsante AdminScreen di Stefano che
+  riprovava, 1 nostra — tutte uccise a metà, righe sync_log rimaste 'running', ora chiuse
+  con errore esplicativo). Su llv era uguale e nessuno se n'era accorto. Cura: il job
+  pg_cron `sync-videos-settimanale` ora invoca la funzione **UN CANALE PER CHIAMATA**
+  (loop plpgsql, ogni chiamata ~5-40s ≪ 150s, un canale fallito non blocca gli altri) —
+  collaudato su 2 canali. Cumulando le run parziali, **tutti i 37 canali attivi hanno
+  avuto una sync 'ok'**: il dubbio di Stefano ("non so se sincronizza tutto") è risolto.
+  Backlog prossima build: anche il pulsante sync di AdminScreen dovrebbe iterare
+  per canale (oggi la sync completa da app muore a 150s come da cron).

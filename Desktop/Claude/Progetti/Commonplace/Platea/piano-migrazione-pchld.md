@@ -127,9 +127,16 @@
 > è tracciato e NON ignorato — è voluto, non "correggerlo"). YOUTUBE_API_KEY verificata
 > funzionante (sync actmusic ok). Cron: NON più su cron-job.org → **pg_cron su pchld**
 > (`sync-videos-settimanale` lun 05:00 UTC + `keepalive-llv` 04:30 UTC, collaudati;
-> vedi diario #22). ⚠️ Resta: installazione APK + collaudo sul telefono (Stefano) con
-> verifica cp_items lato server → poi **Fase 7** (ricordare: `cron.unschedule('keepalive-llv')`
-> al posto del vecchio "spegnere cron llv").
+> vedi diario #22). **✅ COLLAUDO TELEFONO PASSATO (2026-07-16)**: home, ricerca,
+> player yt+archive, salvati, caroselli; cp_items/cp_log e watch_progress scrivono su
+> pchld (verificato lato server) — **end-to-end chiuso, si può aprire la FASE 7**.
+> Due bug diagnosticati al collaudo (dettagli in appendice #22): carosello in categoria
+> sbagliata (fix dato, no build) e resume mancante sull'embed archive (fix in
+> PlayerScreen.tsx, GIÀ in Platea+C:\VideoS, attivo alla prossima build). SCOPERTA:
+> la sync completa muore al limite 150s delle Edge Function → job pg_cron riscritto
+> UN CANALE PER CHIAMATA (collaudato); stesso fix da portare nel pulsante AdminScreen
+> alla prossima build. Fase 7, promemoria: `cron.unschedule('keepalive-llv')` al posto
+> del vecchio "spegnere cron llv"; i delta llv→pchld restano da ricopiare prima della pausa.
 
 ## Fase 1 — Schema su pchld (MCP `apply_migration`)
 
