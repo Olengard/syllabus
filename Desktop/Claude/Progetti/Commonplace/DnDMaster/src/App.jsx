@@ -1051,6 +1051,14 @@ function Import5eTools({ onImportMonsters, onImportSpells, onImportItems, onImpo
     // suffisso fonte ("AF|DMG"): si guarda solo la sigla.
     const propMap = {F:"Accurata",L:"Leggera",H:"Pesante",R:"Portata",T:"Lanciabile",V:"Versatile","2H":"A Due Mani",A:"Munizioni",AF:"Munizioni",LD:"Caricamento",S:"Speciale",RLD:"Ricarica"};
     const baseType = String(it.type||"").split("|")[0];
+    // Danno arma: dmg1/dmg2 + codice tipo (S/P/B) → nomi IT, così weaponToAttack
+    // e il datalist armi funzionano anche con gli importati.
+    const dmgTypeMap = { S:"Tagliente", P:"Perforante", B:"Contundente", R:"Radioso", N:"Necrotico", F:"Fuoco", C:"Freddo", L:"Fulmine", T:"Tuono", A:"Acido", O:"Forza", Y:"Psichico", I:"Veleno" };
+    // it.value è in MONETE DI RAME (cp): 1500 → "15 mo", 50 → "5 ma", 7 → "7 mr"
+    const costFromCp = (v) => !v ? "—"
+      : v % 100 === 0 ? `${v/100} mo`
+      : v % 10 === 0 ? `${v/10} ma`
+      : `${v} mr`;
     return {
       slug: (it.name||"").toLowerCase().replace(/[^a-z0-9]/g,"-"),
       name: it.name || "?",
@@ -1058,16 +1066,27 @@ function Import5eTools({ onImportMonsters, onImportSpells, onImportItems, onImpo
       subcategory: baseType === "R" ? "Distanza (import)" : (baseType === "M" || baseType === "S") ? "Mischia (import)" : "Importato",
       rarity: rarityMap[it.rarity] || it.rarity || "—",
       weight: it.weight || 0,
-      cost: it.value ? `${it.value} mo` : "—",
+      cost: costFromCp(it.value),
       ac: it.ac || null,
+      damage: it.dmg1 || null,
+      damageType: dmgTypeMap[it.dmgType] || null,
+      range: it.range || null,
       properties: [
-        ...(it.property||[]).map(c=>propMap[String(c).split("|")[0]]).filter(Boolean),
+        ...(it.property||[]).map(c=>{
+          const sigla = String(c).split("|")[0];
+          // Versatile col dado a due mani, come nel DB inline: "Versatile (1d10)"
+          if (sigla === "V" && it.dmg2) return `Versatile (${it.dmg2})`;
+          return propMap[sigla];
+        }).filter(Boolean),
+        it.range && `Gittata ${it.range}`,
         it.reqAttune && (it.reqAttune === true ? "Richiede sintonia" : `Richiede sintonia (${it.reqAttune})`),
         it.curse && "Maledetto",
       ].filter(Boolean),
-      notes: Array.isArray(it.entries)
+      // Cap sulle note: certe descrizioni 5e.tools sono lunghissime e finirebbero
+      // in localStorage moltiplicate per migliaia di oggetti (quota!)
+      notes: (Array.isArray(it.entries)
         ? it.entries.map(e=>typeof e==="string"?e:e.text||"").join(" ")
-        : "",
+        : "").slice(0, 1500),
       _imported: true,
     };
   };
@@ -1981,6 +2000,17 @@ function computeArmorClass(char) {
 // dell'auto-attacco da equipaggiamento: "accurata" → max(FOR,DES), a distanza
 // → DES, bonus competenza incluso). Il nome resta libero per attacchi custom.
 const WEAPON_SUGGEST = EQUIPMENT_DB.filter(i => i.category === "Arma" && i.damage);
+// Datalist armi completo: inline + importati dal catalogo (con danno). Dedup per
+// slug, l'inline vince (gotcha collisione slug IT/EN). Letto una volta per mount.
+function useWeaponSuggest() {
+  return React.useMemo(() => {
+    let imported = [];
+    try { imported = loadJSON(K.importedItems, []); } catch { /* niente importati */ }
+    const seen = new Set(WEAPON_SUGGEST.map(i => i.slug));
+    const extra = imported.filter(i => i.category === "Arma" && i.damage && !seen.has(i.slug));
+    return [...WEAPON_SUGGEST, ...extra];
+  }, []);
+}
 function weaponToAttack(item, char) {
   const strMod = Math.floor(((char.abilities?.STR || 10) - 10) / 2);
   const dexMod = Math.floor(((char.abilities?.DEX || 10) - 10) / 2);
@@ -2009,6 +2039,7 @@ function CharacterSheet({ char, onChange, onDelete }) {
 
 
   const [newAttack, setNewAttack] = useState({ name: "", atkBonus: "", dmgDice: "", dmgBonus: "", dmgType: "", notes: "" });
+  const weaponSuggest = useWeaponSuggest(); // inline + armi importate dal catalogo
 
   const update = (patch) => onChange({ ...char, ...patch });
   const updateAbility = (ab, val) => update({ abilities: { ...char.abilities, [ab]: +val } });
@@ -2436,11 +2467,11 @@ function CharacterSheet({ char, onChange, onDelete }) {
                     onChange={e => {
                       const v = e.target.value;
                       // Arma nota selezionata/digitata per intero → autocompila i campi
-                      const w = WEAPON_SUGGEST.find(i => i.name.toLowerCase() === v.toLowerCase());
+                      const w = weaponSuggest.find(i => i.name.toLowerCase() === v.toLowerCase());
                       setNewAttack(a => w ? { ...a, ...weaponToAttack(w, char) } : { ...a, name: v });
                     }} />
                   <datalist id="weapon-suggest">
-                    {WEAPON_SUGGEST.map(i => <option key={i.slug} value={i.name} />)}
+                    {weaponSuggest.map(i => <option key={i.slug} value={i.name} />)}
                   </datalist>
                   <input placeholder="Bonus attacco (es +5)" value={newAttack.atkBonus} onChange={e => setNewAttack(a => ({ ...a, atkBonus: e.target.value }))} />
                   <input placeholder="Dado danno (es 1d8)" value={newAttack.dmgDice} onChange={e => setNewAttack(a => ({ ...a, dmgDice: e.target.value }))} />

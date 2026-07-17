@@ -122,6 +122,24 @@ export async function getSpells(onProgress) {
   return all;
 }
 
+// ─── Oggetti (equipaggiamento base + oggetti magici e vari) ──────────────────
+// items-base.json = armi/armature/attrezzatura base (con danni e proprietà);
+// items.json = tutto il resto (magici, meraviglie, dotazioni). Uniti in una
+// lista sola: il parser dell'app (parse5eItem) gestisce entrambe le forme.
+export async function getItems() {
+  const hit = await cacheGet("items-all");
+  if (hit) return hit;
+  const [base, extra] = await Promise.all([
+    fetchJSON("items-base.json"),
+    fetchJSON("items.json"),
+  ]);
+  const all = [...(base.baseitem || []), ...(extra.item || [])]
+    .filter((it) => it.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  await cacheSet("items-all", all);
+  return all;
+}
+
 // ─── Optional features (infusioni, invocazioni, manovre, metamagia, stili…) ───
 // Un unico file con tutte le opzioni selezionabili, taggate per `featureType`.
 export const getOptionalFeatures = () =>

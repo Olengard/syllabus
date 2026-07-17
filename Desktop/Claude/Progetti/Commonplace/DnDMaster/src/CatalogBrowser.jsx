@@ -2,7 +2,7 @@ import React from "react";
 import {
   getClassList, getClassData,
   getRaces, getFeats, getBackgrounds,
-  getSpells,
+  getSpells, getItems,
   buildMonsterIndex, hasMonsterIndex, getMonsterStatblock,
 } from "./catalog.js";
 import { K, loadJSON } from "./storage.js";
@@ -11,6 +11,7 @@ const CATS = [
   { id: "class",      label: "📖 Classi" },
   { id: "spell",      label: "✨ Incantesimi" },
   { id: "monster",    label: "🐉 Mostri" },
+  { id: "item",       label: "⚔ Oggetti" },
   { id: "race",       label: "🧬 Razze" },
   { id: "feat",       label: "⚡ Talenti" },
   { id: "background", label: "📜 Background" },
@@ -23,6 +24,18 @@ const IMPORTED_KEYS = {
   class: K.importedClasses, spell: K.importedSpells,
   race: K.importedRaces,    feat: K.importedFeats,
   background: K.importedBackgrounds, monster: K.customMonsters,
+  item: K.importedItems,
+};
+
+// Etichette leggibili per i codici tipo oggetto 5e.tools (sottotitolo riga).
+const ITEM_TYPE_LABELS = {
+  M: "Arma da mischia", R: "Arma a distanza", S: "Scudo", A: "Munizioni",
+  LA: "Armatura leggera", MA: "Armatura media", HA: "Armatura pesante",
+  RD: "Bacchetta", ST: "Bastone", RG: "Anello", SC: "Pergamena", P: "Pozione",
+  W: "Meraviglioso", G: "Avventura", AT: "Strumento", INS: "Strumento musicale",
+  T: "Attrezzo", TAH: "Finimenti", TG: "Merce", VEH: "Veicolo", SHP: "Nave",
+  MNT: "Cavalcatura", EXP: "Esplosivo", GV: "Variante generica", FD: "Cibo",
+  OTH: "Altro", "$": "Tesoro",
 };
 
 // Nomi (minuscoli) già presenti nell'archivio locale per una categoria:
@@ -66,6 +79,7 @@ export default function CatalogBrowser({ onImport }) {
       else if (c === "feat")       list = await getFeats();
       else if (c === "background") list = await getBackgrounds();
       else if (c === "spell")      list = await getSpells((done, total) => setProgress({ done, total }));
+      else if (c === "item")       list = await getItems();
       else if (c === "monster") {
         if (!build && !(await hasMonsterIndex())) { setNeedBuild(true); setLoading(false); return; }
         list = await buildMonsterIndex((done, total) => setProgress({ done, total }));
@@ -98,6 +112,7 @@ export default function CatalogBrowser({ onImport }) {
       let type, data;
       if (cat === "class")           { type = "class";      data = await getClassData(it.file); }
       else if (cat === "spell")      { type = "spell";      data = { spell: [it] }; }
+      else if (cat === "item")       { type = "item";       data = { item: [it] }; }
       else if (cat === "race")       { type = "race";       data = { race: [it] }; }
       else if (cat === "feat")       { type = "feat";       data = { feat: [it] }; }
       else if (cat === "background") { type = "background"; data = { background: [it] }; }
@@ -117,6 +132,7 @@ export default function CatalogBrowser({ onImport }) {
   // Importa in blocco tutti gli elementi di una categoria
   async function importCategory(c, list) {
     if (c === "spell")      return onImport("spell",      { spell: list });
+    if (c === "item")       return onImport("item",       { item: list });
     if (c === "race")       return onImport("race",       { race: list });
     if (c === "feat")       return onImport("feat",       { feat: list });
     if (c === "background") return onImport("background", { background: list });
@@ -182,6 +198,11 @@ export default function CatalogBrowser({ onImport }) {
   const subtitle = (it) => {
     if (cat === "spell")   return `Liv. ${it.level ?? 0}${it.school ? " • " + it.school : ""}`;
     if (cat === "monster") return `GS ${it.cr} • ${it.type}`;
+    if (cat === "item") {
+      const t = ITEM_TYPE_LABELS[String(it.type || "").split("|")[0]] || "";
+      const r = it.rarity && it.rarity !== "none" ? it.rarity : "";
+      return [t, r, it.source].filter(Boolean).join(" • ");
+    }
     if (cat === "race" || cat === "background" || cat === "feat") return it.source || "";
     return "";
   };
