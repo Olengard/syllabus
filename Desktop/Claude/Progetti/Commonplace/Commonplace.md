@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-17 -- Sessione #22. **MIGRAZIONE PLATEA/DASHBOARD llv→pchld COMPLETATA, 7 FASI SU 7**: build EAS collaudata sul telefono (end-to-end ok), 2 bug diagnosticati al collaudo (carosello in categoria sbagliata → fix dato; resume archive mancante → fix in PlayerScreen per la prossima build), sync completa = 37/37 canali ok e job pg_cron riscritto un-canale-per-chiamata (root cause: wall-clock 150s delle Edge Function), cp-backup ora copre le tabelle Platea su pchld, llv DISMESSO (delta zero; pausa dashboard a Stefano). Dettagli: Platea/piano-migrazione-pchld.md + diario #22. **Priorità correnti: `piano-di-lavoro.md`** (rinnovato 17/07: backup Ledger in testa, poi giro debug Syllabus/Footnote/ListenS richiesto da Stefano).
+> Ultimo aggiornamento: 2026-07-18 -- Sessione #23. **DnDMaster: catalogo Oggetti 5e.tools** (124 base + ~1650 magici) deployato e verificato live — parser con danno/gittata, fix costi (rame→valuta), datalist armi con importati. Stato generale: migrazione Platea 7/7 chiusa, llv dismesso, sicurezza proxy chiusa, backup testati. Priorità: piano-di-lavoro.md (backup Ledger, giro debug Syllabus/Footnote/ListenS). Diario in coda.
 
 ---
 
@@ -1438,3 +1438,26 @@ I due difetti riportati:
      (Digest su Vercel): spegnere/dismettere quando vuoi, insieme alla sospensione di
      Render (~26/07).
   4. Domattina: backup con `pchld.channels`/`saved_videos`/`watch_progress` presenti.
+
+## 2026-07-18 — Sessione #23
+
+- ✅ **DnDMaster: tab ⚔ Oggetti nel Catalogo online** (richiesta di Stefano pre-sessione
+  D&D: "l'equipaggiamento è l'unica parte sguarnita") — deployato su Netlify e verificato
+  live (marker nel bundle). 124 armi/armature/attrezzi base (items-base.json) + ~1.650
+  oggetti magici e vari (items.json) dal mirror 5e.tools, cache IndexedDB, stessa UX
+  delle altre categorie (✓ importato, ↻, "Importa mancanti"); escluso da "Importa tutto"
+  per la quota. La filiera import oggetti ESISTEVA già (parse5eItem, runImport('item'),
+  merge per slug): mancava solo la voce a catalogo + tre buchi chiusi:
+  - `parse5eItem` non estraeva il DANNO → armi importate inutilizzabili per l'auto-attacco.
+    Ora: dmg1/dmg2 ("Versatile (1d10)"), dmgType S/P/B→IT, gittata.
+  - BUG pre-esistente: `value` di 5e.tools è in monete di RAME, il parser lo mostrava
+    come oro ("Longsword 1500 mo") → ora converte mo/ma/mr. Gli oggetti importati in
+    passato restano col costo vecchio finché non si reimportano (↻).
+  - Il datalist armi della scheda usava solo EQUIPMENT_DB inline → `useWeaponSuggest()`
+    include gli importati con danno (dedupe slug, inline vince).
+  Note cappate a 1500 char (quota localStorage). Verifica: 116/116 Vitest, build verde,
+  parser validato sui dati REALI del mirror (Longsword/Longbow/Plate/Bag of Holding),
+  app avviata pulita in locale; dettaglio operativo nel CLAUDE.md di DnDMaster.
+- **⚠️ Azioni richieste:** Stefano al primo avvio: 📥 Importa → Catalogo → ⚔ Oggetti
+  ("Importa mancanti" o selettivo), poi in scheda PG provare un attacco con un'arma
+  importata (autocompilazione). Nient'altro.
