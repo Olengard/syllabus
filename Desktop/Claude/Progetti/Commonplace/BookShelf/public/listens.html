@@ -101,6 +101,7 @@ const CATEGORIES=[
   {id:'1324',label:'Cultura'},{id:'1533',label:'Scienza'},
   {id:'1487',label:'Storia'},{id:'1443',label:'Filosofia'},
   {id:'1489',label:'News'},{id:'1543',label:'Documentari'},
+  {id:'1483',label:'Narrativa'},{id:'1488',label:'True Crime'},
   {id:'1304',label:'Educazione'},{id:'1301',label:'Arte e libri'},
   {id:'1310',label:'Musica'},{id:'1318',label:'Tecnologia'},
 ];
@@ -286,9 +287,11 @@ async function fetchItunesTop(genreId,country='us'){
 }
 // Classifica GENERALE dal nuovo endpoint Apple (marketingtools, mantenuto);
 // il vecchio rss.itunes resta per i generi, che il v2 non supporta.
+// ⚠️ marketingtools NON manda Access-Control-Allow-Origin (verificato 2026-07-18):
+// dal browser va SEMPRE passato dal nostro proxy /api/feed, mai fetch diretto.
 async function fetchAppleTopV2(country='us'){
-  const res=await fetch(`https://rss.marketingtools.apple.com/api/v2/${country}/podcasts/top/30/podcasts.json`);
-  const data=await res.json();
+  const res=await fetch('/api/feed?url='+encodeURIComponent(`https://rss.marketingtools.apple.com/api/v2/${country}/podcasts/top/30/podcasts.json`));
+  const data=JSON.parse(await res.text());
   return(data.feed?.results||[]).map(e=>({itunes_id:String(e.id||''),title:e.name||'',author:e.artistName||'',cover_url:(e.artworkUrl100||'').replace('100x100','600x600'),feed_url:'',genre:e.genres?.[0]?.name||'',track_count:null,release_date:'',description:'',apple_url:e.url||'',source:{type:'discovery'}}));
 }
 async function fetchItunesSearch(query,country='us'){
@@ -1023,8 +1026,10 @@ function PodcastDetailView({t,podcast,player,onUpdateEpisode,onQueue,onLater,lat
           <p style={{fontSize:13,color:t.textSec,marginBottom:4}}>{podcast.author}</p>
           {podcast.genre&&<div style={{marginBottom:6}}><Badge label={podcast.genre} color={t.accent} bg={t.accentBg}/>{podcast.track_count?<span style={{fontSize:11,color:t.textMuted,marginLeft:8}}>{podcast.track_count} episodi</span>:null}</div>}
           {(()=>{const desc=podcast.description||saved?.description||feedDesc;return desc?<div style={{marginBottom:10}}>
-            <p style={{fontSize:13,color:t.textSec,lineHeight:1.6,...(!showFullDesc?{display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}:{})}}>{desc}</p>
-            {desc.length>120&&<button onClick={()=>setShowFullDesc(s=>!s)} style={{background:'none',border:'none',color:t.accent,fontSize:12,cursor:'pointer',padding:'2px 0',fontStyle:'italic'}}>{showFullDesc?'▴ Meno':'▾ Leggi tutto'}</button>}
+            {/* Su mobile 3 righe sono ~90 caratteri: la vecchia soglia 120 nascondeva
+                il "Leggi tutto" a testi già tagliati. Anche il testo stesso è tappabile. */}
+            <p onClick={()=>setShowFullDesc(s=>!s)} style={{fontSize:13,color:t.textSec,lineHeight:1.6,cursor:'pointer',...(!showFullDesc?{display:'-webkit-box',WebkitLineClamp:3,WebkitBoxOrient:'vertical',overflow:'hidden'}:{})}}>{desc}</p>
+            {desc.length>60&&<button onClick={()=>setShowFullDesc(s=>!s)} style={{background:'none',border:'none',color:t.accent,fontSize:13,cursor:'pointer',padding:'6px 0',fontStyle:'italic'}}>{showFullDesc?'▴ Meno':'▾ Leggi tutto'}</button>}
           </div>:null;})()}
           {!saved&&!addDone&&onAddPodcast&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             <button onClick={handleFollow} style={{padding:'7px 18px',background:t.accent,border:'none',borderRadius:8,color:'#fff',fontSize:13,cursor:'pointer',fontFamily:"'Playfair Display',serif",fontWeight:600}}>● Segui</button>
