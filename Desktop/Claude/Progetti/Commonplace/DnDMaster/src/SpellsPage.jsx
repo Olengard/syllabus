@@ -2,6 +2,7 @@ import React from "react";
 import { K, loadJSON } from "./storage.js";
 import { SPELLS_DB } from "./data/spells.js";
 import { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
+import { spellItAlias } from "./data/spellNamesIT.js";
 
 // ─── SpellsPage ────────────────────────────────────────────────────────────────
 export default function SpellsPage() {
@@ -35,7 +36,7 @@ export default function SpellsPage() {
     // Ponte EN↔IT: cerca anche nello slug inglese (es. "fireball" → Palla di Fuoco)
     if (query) {
       const q = searchNorm(query);
-      const hay = searchNorm(`${sp.name || ""} ${deSlug(sp.slug)}`);
+      const hay = searchNorm(`${sp.name || ""} ${deSlug(sp.slug)} ${spellItAlias(sp.name) || spellItAlias(deSlug(sp.slug))}`);
       if (!hay.includes(q)) return false;
     }
     if (levelFilter !== "" && sp.level !== parseInt(levelFilter)) return false;

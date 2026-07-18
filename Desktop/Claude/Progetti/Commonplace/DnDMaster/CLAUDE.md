@@ -80,3 +80,20 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-fi
 
 ## Roadmap
 **Supabase fase 2B: FATTA (2026-07-07)** — auth vera + sync cross-device via `dnd_saves`. Limite noto e accettato: conflitti last-write-wins per chiave intera (es. tutti i PG in un blob) — se servisse, spezzare `characters` in una riga per PG senza cambiare l'API. Vedi memoria `dnd-master-roadmap`.
+
+**Schede condivise coi giocatori (design 2026-07-18, richiesto da Stefano — DA IMPLEMENTARE, ~2-3 sessioni):**
+principio non negoziabile: **la copia del Master è sempre la verità**. Disegno:
+1. *Prerequisito*: spezzare `characters` in una riga per PG (già previsto sopra) — senza, il
+   last-write-wins sul blob renderebbe la condivisione un tritacarne di sovrascritture.
+2. Tabella `dnd_shared_chars` (player_uid, char_id, char jsonb, updated_at) su pchld, RLS:
+   il giocatore scrive SOLO la propria riga; il Master (uid Olengard) legge tutte. Il giocatore
+   usa la STESSA app (ha già login/registrazione): vede e cura solo la sua scheda.
+3. *Modello a PROPOSTA, niente merge automatico*: gli aggiornamenti del giocatore NON toccano
+   la copia del Master. Nella vista Master un badge "📬 aggiornamento da <giocatore>" apre il
+   DIFF (PF, slot, equip, livello) con "Accetta" / "Ignora". Il controllo del diff è anche
+   l'anti-cheat naturale.
+4. In sessione fa fede lo schermo del Master (il combat tracker usa già le sue copie); il
+   giocatore aggiorna la scheda "amministrativa" (level up, acquisti) fuori sessione.
+Problemi previsti e mitigati dal disegno: conflitti concorrenti (risolti dal modello a
+proposta), cheating/errori (diff visibile), offline (coda sync esistente), privacy (RLS
+per riga: un giocatore non vede schede altrui né mostri/note del Master).

@@ -3,6 +3,7 @@ import CatalogBrowser from "./CatalogBrowser.jsx";
 import ClassChoices from "./ClassChoices.jsx";
 import shopExtra from "./shopExtra.json";
 import GlobalSearch, { norm as searchNorm, deSlug } from "./GlobalSearch.jsx";
+import { spellItAlias } from "./data/spellNamesIT.js";
 import BackupModal from "./BackupRestore.jsx";
 import DiceTray from "./DiceTray.jsx";
 import SessionPage from "./SessionPage.jsx";
@@ -5454,7 +5455,10 @@ function buildSearchEntries(importedSpells) {
   }
   for (const s of spellMap.values()) {
     const lvl = s.level === 0 ? "Trucchetto" : `Liv. ${s.level}`;
-    push("spell", s.slug || s.name, s.name, deSlug(s.slug), `${lvl}${s.school ? " · " + s.school : ""}`, s, s.desc);
+    // Alias IT per gli importati EN (es. "dardo tracciante" → Guiding Bolt):
+    // entra solo nell'indice di ricerca, non cambia nulla a video
+    const aliasIT = spellItAlias(s.name) || spellItAlias(deSlug(s.slug));
+    push("spell", s.slug || s.name, s.name, deSlug(s.slug), `${lvl}${s.school ? " · " + s.school : ""}`, s, `${s.desc || ""} ${aliasIT}`);
   }
 
   // Mostri: inline + custom/importati per-utente
