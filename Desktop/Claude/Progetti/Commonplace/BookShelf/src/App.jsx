@@ -1026,7 +1026,7 @@ function BookCard({ book, onEdit, onDelete, compact=false, collections=[], onGoT
           {book.status==='wishlist' && <button
             onClick={e=>{ e.stopPropagation(); onEdit({...book, status:'da leggere'}); }}
             style={{...btnStyle("primary"), fontSize:12, padding:"5px 14px", marginTop:8}}>
-            Ho il libro â€” sposta in "Da leggere"
+            Ho il libro — sposta in "Da leggere"
           </button>}
         </div>
       )}
