@@ -1461,3 +1461,20 @@ I due difetti riportati:
 - **⚠️ Azioni richieste:** Stefano al primo avvio: 📥 Importa → Catalogo → ⚔ Oggetti
   ("Importa mancanti" o selettivo), poi in scheda PG provare un attacco con un'arma
   importata (autocompilazione). Nient'altro.
+
+**Appendice #23 — Backup Ledger ATTIVO (l'ultimo dato scoperto della suite).**
+- ✅ Env `SUPABASE_BOGAV_SERVICE_KEY` impostata da Stefano su Vercel cp-backup; sezione
+  `bogav` aggiunta a `Backup/api/backup.js` (11 tabelle: accounts, transactions,
+  transfers, categories, payment_methods, recurring_transactions, budgets,
+  benefit_budgets, benefit_conversions, meal_voucher_usages, investment_updates —
+  tutte dati utente, nessuna rigenerabile) e deployata (READY).
+- ✅ `Backup/RIPRISTINO.md`: nuova sezione **Ledger trigger-aware** — i saldi sono
+  mantenuti da trigger, un ripristino ingenuo di transactions li APPLICHEREBBE DUE
+  VOLTE: procedura = disable trigger user sulle 4 tabelle → ripristino in ordine FK
+  (saldi dal backup) → enable + verifica pg_trigger + trigger_tests.sql.
+- ℹ️ Nota tecnica: `list_tables` MCP mostrava 0 righe su TUTTE le tabelle bogav
+  (statistiche stantie, mai ANALYZE) — i conteggi veri erano sani (70 transazioni).
+  Non fidarsi dei row count di list_tables: contare con execute_sql.
+- **⚠️ Azioni richieste:** domattina (19/07) verificare che il backup contenga
+  `projects.bogav` (transactions ≈70). Con questo, TUTTI i dati utente della suite
+  hanno un backup giornaliero con procedura di ripristino documentata e testata.

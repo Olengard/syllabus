@@ -16,7 +16,9 @@
   invece `{"_error": "HTTP NNN"}` — controllare PRIMA che la tabella da ripristinare
   sia un array (è successo: sezione digest in 401 per un mese, #21).
 - ⚠️ Il backup NON contiene: `videos`/`sync_log` (rigenerabili con sync-videos),
-  tabelle di Ledger (progetto bogav, MAI incluso in cp-backup!), niente di Zeitgeist.
+  niente di Zeitgeist, e gli utenti auth. **Ledger (bogav) è incluso dal 2026-07-18**
+  (primo backup con sezione `projects.bogav`: 2026-07-19) — per il SUO ripristino vedi
+  la sezione dedicata in fondo: i trigger dei saldi cambiano la procedura.
   `dnd_saves` c'è solo dal 2026-07-13 (aggiunta in #21). La sezione `llv` esiste SOLO
   nei backup fino al 2026-07-17 (Fase 7): da allora le tabelle video di Platea
   (`channels`, `carousels`, `carousel_videos`, `saved_videos`, `watch_progress`, `pl_*`)
@@ -82,6 +84,47 @@
 2. Gli utenti auth NON sono nel backup: si ricreano a mano (2 utenti: Olengard, Manu)
    e i NUOVI uuid vanno sostituiti nei `user_id` del JSON prima del ripristino.
 3. Poi procedura per-tabella come sopra, in ordine FK.
+
+## Ripristino LEDGER (bogav) — ⚠️ procedura DIVERSA per via dei trigger
+
+Da luglio 2026 `accounts.balance` e `benefit_budgets.used_amount` sono mantenuti da
+**trigger Postgres** su `transactions`/`transfers`/`meal_voucher_usages`/
+`benefit_conversions` (vedi `Ledger/CLAUDE.md`). Un INSERT di ripristino con i trigger
+attivi APPLICHEREBBE DI NUOVO i delta sopra saldi già ripristinati dal backup →
+**doppio conteggio silenzioso**. Procedura corretta (via MCP `execute_sql` su bogav,
+che è admin):
+
+```sql
+-- 1. Trigger utente SPENTI sulle 4 tabelle con effetti sui saldi
+alter table transactions        disable trigger user;
+alter table transfers           disable trigger user;
+alter table meal_voucher_usages disable trigger user;
+alter table benefit_conversions disable trigger user;
+
+-- 2. Ripristino per-tabella (procedura generale sopra), in quest'ordine FK:
+--    categories, payment_methods, accounts, benefit_budgets, budgets,
+--    recurring_transactions → poi transactions, transfers, benefit_conversions,
+--    meal_voucher_usages, investment_updates.
+--    I SALDI arrivano dal backup (accounts.balance, benefit_budgets.used_amount):
+--    coi trigger spenti restano esattamente quelli.
+
+-- 3. Trigger RIACCESI (obbligatorio, verificare!)
+alter table transactions        enable trigger user;
+alter table transfers           enable trigger user;
+alter table meal_voucher_usages enable trigger user;
+alter table benefit_conversions enable trigger user;
+select tgrelid::regclass, tgname, tgenabled from pg_trigger
+ where not tgisinternal and tgrelid::regclass::text in
+ ('transactions','transfers','meal_voucher_usages','benefit_conversions');
+-- tgenabled deve essere 'O' (origin) per tutti
+
+-- 4. Collaudo trigger: eseguire Ledger/sql/trigger_tests.sql nel SQL editor —
+--    successo = eccezione finale LEDGER_TESTS_PASSED (fa rollback da sola).
+```
+
+Nota: i saldi possono già contenere drift storico pre-trigger (documentato nel
+CLAUDE.md di Ledger) — dopo un ripristino la riconciliazione ⚖️ per conto resta
+il giudice finale, come nell'uso normale.
 
 ## Manutenzione di questo documento
 

@@ -15,7 +15,7 @@
 | Syllabus | ✅ v5 — incidente chiave chiuso (#21) |
 | **Platea** | ✅ **migrata a pchld 7/7** (#21-22), build d065eef6 collaudata |
 | DnDMaster | ✅ 2B (catalogo, Supabase) |
-| Ledger | ✅ funzionante — **⚠️ UNICA APP SENZA BACKUP** |
+| Ledger | ✅ funzionante — backup ATTIVO dal 2026-07-18 (verifica primo giro: backup del 19/07 con `projects.bogav`) |
 | ReadS | 🔶 staged: build EAS da lanciare |
 
 ## Priorità (2026-07-17)
@@ -24,9 +24,10 @@
    via da cp-backup, dismissione cron-job.org + sospensione Render (~26/07), verifica
    backup del giorno dopo (`pchld.channels` 37). Più: categorie feed Digest, una
    generazione da loggato nelle 4 app AI.
-2. **[Claude/Fable] Backup Ledger (bogav)** — dati finanziari, oggi ZERO backup. Serve a
-   Stefano: creare service key bogav + env `SUPABASE_BOGAV_SERVICE_KEY` su Vercel
-   cp-backup. Poi: lista tabelle in `Backup/api/backup.js`, deploy, RIPRISTINO.md.
+2. ~~Backup Ledger (bogav)~~ ✅ **FATTO 2026-07-18**: env impostata da Stefano, 11 tabelle
+   in backup.js, deployato, RIPRISTINO.md con la procedura Ledger trigger-aware
+   (disable trigger user → ripristino → enable + trigger_tests.sql). ⚠️ Verifica del
+   19/07: il backup deve avere `projects.bogav.transactions` (70 righe al 18/07).
 3. **[richiesto da Stefano, prossima sessione] GIRO DI DEBUG: Syllabus, Footnote,
    ListenS** + valutazione di un miglioramento generale di ListenS. Se il tempo
    (contratto Fable) finisce prima → documentare qui l'esito parziale per Opus.
