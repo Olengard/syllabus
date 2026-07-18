@@ -97,3 +97,9 @@ principio non negoziabile: **la copia del Master è sempre la verità**. Disegno
 Problemi previsti e mitigati dal disegno: conflitti concorrenti (risolti dal modello a
 proposta), cheating/errori (diff visibile), offline (coda sync esistente), privacy (RLS
 per riga: un giocatore non vede schede altrui né mostri/note del Master).
+**Decisioni ratificate da Stefano (2026-07-18):** modello a proposta approvato; requisito:
+i giocatori devono avere il catalogo 5e.tools completo → GIÀ VERO (dnd_imported_* è
+per-utente, ogni account ha il suo 📥 Importa: zero lavoro). Conseguenza di design:
+la scheda condivisa viaggia con SNAPSHOT completi (incantesimi/attacchi/privilegi
+materializzati nel char, come i pin di Sessione) — MAI riferimenti per nome da risolvere
+nell'archivio del Master, che potrebbe non avere gli stessi import del giocatore.
