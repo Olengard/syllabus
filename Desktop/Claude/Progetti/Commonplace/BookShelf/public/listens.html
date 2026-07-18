@@ -420,6 +420,13 @@ function usePlayer(){
       navigator.mediaSession.setActionHandler('seekforward',({seekOffset})=>{const t=Math.min(audio.duration||0,audio.currentTime+(seekOffset||30));audio.currentTime=t;setState(s=>({...s,position:t}));});
       navigator.mediaSession.setActionHandler('stop',()=>{audio.pause();audio.currentTime=0;setState(s=>({...s,playing:false,position:0}));navigator.mediaSession.playbackState='none';});
       navigator.mediaSession.setActionHandler('seekto',({seekTime})=>{if(seekTime!=null){audio.currentTime=seekTime;setState(s=>({...s,position:seekTime}));}});
+      // Volante/schermo auto (AVRCP via Bluetooth) mandano prev/next TRACK, non
+      // seek: senza questi handler i pulsanti ⏮⏭ in macchina non facevano NULLA.
+      // Convenzione podcast: ⏮ = -15s, ⏭ = +30s.
+      try{
+        navigator.mediaSession.setActionHandler('previoustrack',()=>{const t=Math.max(0,audio.currentTime-15);audio.currentTime=t;setState(s=>({...s,position:t}));});
+        navigator.mediaSession.setActionHandler('nexttrack',()=>{const t=Math.min(audio.duration||0,audio.currentTime+30);audio.currentTime=t;setState(s=>({...s,position:t}));});
+      }catch(e){}
     }
     return()=>{audio.pause();clearInterval(saveTimer.current);clearInterval(sleepTimerRef.current);if(stallTimerRef.current)clearTimeout(stallTimerRef.current);window.removeEventListener('pagehide',flushPos);document.removeEventListener('visibilitychange',onHidden);};
   },[]);

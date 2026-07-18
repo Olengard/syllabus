@@ -1,5 +1,5 @@
 // ListenS Service Worker
-const CACHE = 'listens-v15';
+const CACHE = 'listens-v16';
 
 self.addEventListener('install', e => {
   e.waitUntil(
