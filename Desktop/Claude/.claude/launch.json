@@ -24,6 +24,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5181", "--directory", "Progetti/Commonplace/Dashboard"],
       "port": 5181
+    },
+    {
+      "name": "listens-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5182", "--directory", "Progetti/Commonplace/ListenS"],
+      "port": 5182
     }
   ]
 }

@@ -28,7 +28,7 @@ const os = require("os");
 const path = require("path");
 
 // ── Aspettative (osservate live il 2026-07-12) ──────────────────────────────
-const SW_MIN = { footnote: 28, listens: 13, marginalia: 1, bookshelf: 2, syllabus: 5 };
+const SW_MIN = { footnote: 28, listens: 14, marginalia: 1, bookshelf: 2, syllabus: 5 };
 
 const CHECKS = [
   // [nome, url, metodo, body, status attesi]

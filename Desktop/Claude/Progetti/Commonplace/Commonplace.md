@@ -1499,3 +1499,31 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
   nessun nuovo deployment deve apparire sul progetto `app`.
 - LEZIONE per il futuro: se un fix Vercel "regredisce da solo", controllare gli alias
   `*-git-main-*` (= integrazione Git attiva) prima di incolpare cache o SW.
+
+**Appendice #23 — ListenS: giro completo (persistenza, favicon, presentazione, discovery, UI mobile). DEPLOYATO, SW v14.**
+- ✅ **Persistenza**: infrastruttura VERIFICATA sana (PK user_id+episode_id e RLS own-data
+  sul DB; i fix #18 — stableEpId, soft delete — live da tempo: i problemi storici erano lì).
+  Induriti per l'uso in auto/corsa: flush POSIZIONE immediato su pausa/background/pagehide
+  (prima: solo throttle 30s → fino a 30s persi cross-device se l'app veniva uccisa);
+  errori upsert non più inghiottiti (console.warn); BUG FIXATO: a fine episodio
+  savePosition(id,0) era un NO-OP per la guardia pos<3 → la posizione non si azzerava
+  mai e l'episodio finito ripartiva dalla coda (ora resetPosition dedicata).
+- ✅ **Favicon** web aggiunta (link rel=icon su icon-192, mancava solo il tag).
+- ✅ **Presentazione podcast** nella scheda: la UI c'era già ma description era quasi
+  sempre vuota (classifiche/suggerimenti arrivano senza) → fallback dalla description
+  del canale RSS (feedDesc), già recuperata da fetchFeed e mai usata.
+- ✅ **DISCOVERY — bug storico**: 6 categorie su 8 mostravano la classifica SBAGLIATA
+  (ID generi Apple scombinati: "Filosofia"=1523 apriva la trance, "Storia"=1314 la
+  religione, "News"=1533 la scienza, "Scienza"=1318 la tecnologia...). ID verificati
+  UNO A UNO sul vivo e corretti (Cultura 1324, Scienza 1533, Storia 1487, Filosofia
+  1443, News 1489, Tecnologia 1318) + NUOVI: Documentari (1543) e "⭐ Top" generale
+  dal nuovo endpoint mantenuto rss.marketingtools.apple.com (v2, il vecchio
+  rss.itunes resta per i generi che il v2 non supporta).
+- ✅ **UI mobile** (uso in auto/corsa): Play episodi 34→44px, controlli riga 2 della
+  PlayerBar ~28→40px (skip/velocità/timer), skip FullPlayer 38px con più area,
+  Play barra 46→52px.
+- Verifiche: boot pulito su server statico locale (porta 5182, launch.json
+  listens-static), tag script bilanciati, deploy Vercel + curl live (SW v14, favicon,
+  categorie nuove nel bundle), collauda TUTTO VERDE (SW_MIN.listens→14). Copia Suite
+  riallineata (ListenS → BookShelf/public, andrà live col prossimo deploy BookShelf).
+- **⚠️ Azioni richieste (Stefano):** collaudo sul telefono, vedi checklist a voce.
