@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-18 -- Sessione #23. **DnDMaster: catalogo Oggetti 5e.tools** (124 base + ~1650 magici) deployato e verificato live — parser con danno/gittata, fix costi (rame→valuta), datalist armi con importati. Stato generale: migrazione Platea 7/7 chiusa, llv dismesso, sicurezza proxy chiusa, backup testati. Priorità: piano-di-lavoro.md (backup Ledger, giro debug Syllabus/Footnote/ListenS). Diario in coda.
+> Ultimo aggiornamento: 2026-07-19 -- Sessione #24. **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: verifica primo backup Ledger (mattina del 19/07).
 
 ---
 
@@ -1527,3 +1527,37 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
   categorie nuove nel bundle), collauda TUTTO VERDE (SW_MIN.listens→14). Copia Suite
   riallineata (ListenS → BookShelf/public, andrà live col prossimo deploy BookShelf).
 - **⚠️ Azioni richieste (Stefano):** collaudo sul telefono, vedi checklist a voce.
+
+## 2026-07-18/19 — Sessione #24 (serale)
+
+- ✅ **Digest: icona PWA a sfondo scuro** — era rimasta crema (#f5f0e8) nel MANIFEST
+  (la favicon.svg era già scura): ora #1a1a1a + ✦ oro, SW v2, deployata. Le icone
+  installate si aggiornano male: rimuovere e ri-aggiungere l'app alla home.
+- ✅ **DnDMaster: slot incantesimi al cambio livello** — ROOT CAUSE: syncClassToLevel
+  cercava la classe SOLO in CLASSES_DB (inline IT) → con una classe importata dal
+  catalogo (nome EN) aggiornava il livello senza toccare gli slot ("non sempre" =
+  dipendeva dall'origine della classe). Ora `findClassData` (inline+importate, riuso
+  computeSlots). BONUS trovato: applicare una classe importata PERDEVA la caratteristica
+  da incantatore (campo `spellcastingAbility` minuscolo di 5e.tools vs `spellcasting`
+  inline) → fallback+uppercase. Per i PG esistenti: ritoccare il livello ricalcola tutto.
+- ✅ **DnDMaster: chip CD incantesimi e Attacco** nel pannello slot (8+BP+mod / BP+mod,
+  fallback dal DB classe per PG con caratteristica mancante). Deployato con gli slot.
+- ✅ **ListenS: pulsanti auto ⏮⏭ funzionanti** — la Media Session non gestiva
+  previoustrack/nexttrack (che è ciò che il volante manda via AVRCP): ora ⏮=-15s
+  ⏭=+30s. SW v16, deployato. CHIARITO il limite: una PWA NON può comparire tra le
+  app di Android Auto (servono nativo+Play Store) — flusso corretto: avvio dal
+  telefono, controlli da volante/schermo. Eventuale wrapper nativo = progetto a parte.
+- ✅ **DnDMaster: ricerca incantesimi in ITALIANO per gli importati EN** — dizionario
+  ufficiale IT→EN (`data/spellNamesIT.js`, 138 voci curate) come alias nell'indice
+  della palette e nel filtro SpellsPage: "dardo tracciante"→Guiding Bolt. Copre il
+  limite documentato del ponte EN↔IT per gli incantesimi; mostri/oggetti restano
+  solo-EN (stesso schema se servirà). Deployato e verificato nel bundle live.
+- ✅ **DnDMaster: DESIGN "schede condivise coi giocatori"** scritto in roadmap
+  (CLAUDE.md) e RATIFICATO da Stefano: account player/master, modello a PROPOSTA
+  (diff + Accetta/Ignora, la copia del Master è SEMPRE la verità), prerequisito
+  split per-PG, schede-SNAPSHOT (mai riferimenti all'archivio del master), catalogo
+  già per-utente (zero lavoro). Stima 2-3 sessioni — pronto per Fable o Opus.
+- **⚠️ Azioni richieste (Stefano):** domattina (dopo le ~7:20) verifica backup con
+  `projects.bogav` (~70 transazioni) — la fa Claude su richiesta; sul tablet:
+  ritoccare il livello dei PG con classe importata (ricalcolo slot), controllare i
+  chip CD, cercare "dardo tracciante"; ri-aggiungere l'icona Digest alla home.
