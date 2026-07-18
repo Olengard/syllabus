@@ -1,5 +1,5 @@
 // Digest Service Worker — network-first, cache solo come fallback offline
-const CACHE = 'digest-v1';
+const CACHE = 'digest-v2';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])).then(() => self.skipWaiting()));

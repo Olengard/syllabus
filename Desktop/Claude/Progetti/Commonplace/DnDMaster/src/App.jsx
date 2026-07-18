@@ -480,8 +480,29 @@ function SpellSlotsPanel({ char, onChange }) {
   const levels = [1,2,3,4,5,6,7,8,9];
   const anySlot = levels.some(sl => (char.spellSlots?.[sl] || 0) > 0);
 
+  // CD incantesimi (8 + BP + mod) e tiro per colpire (BP + mod) sulla
+  // caratteristica da incantatore. Fallback dal DB classe per i PG creati
+  // prima del fix sulle classi importate (spellcastingAbility vuota).
+  const spellAbility = String(char.spellcastingAbility || findClassData(char.class)?.spellcasting || "").toUpperCase();
+  const spellMod = spellAbility ? Math.floor(((char.abilities?.[spellAbility] || 10) - 10) / 2) : 0;
+  const profB = PB[Math.min(20, Math.max(1, char.level || 1))];
+  const segno = (n) => (n >= 0 ? "+" : "") + n;
+
   return (
     <div>
+      {spellAbility && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ padding: "4px 12px", borderRadius: 6, background: "var(--surface3)", border: "1px solid var(--gold-dim)", color: "var(--gold)", fontSize: "0.8rem", fontFamily: "'Cinzel', serif" }}>
+            CD incantesimi {8 + profB + spellMod}
+          </span>
+          <span style={{ padding: "4px 12px", borderRadius: 6, background: "var(--surface3)", border: "1px solid var(--gold-dim)", color: "var(--gold)", fontSize: "0.8rem", fontFamily: "'Cinzel', serif" }}>
+            Attacco {segno(profB + spellMod)}
+          </span>
+          <span style={{ fontSize: "0.65rem", color: "var(--text3)" }}>
+            {spellAbility} {segno(spellMod)} · BP +{profB}
+          </span>
+        </div>
+      )}
       {levels.map(sl => {
         const max = char.spellSlots?.[sl] || 0;
         if (max === 0) return null;
@@ -1376,6 +1397,27 @@ function computeSlots(cls, level) {
   return result;
 }
 
+// Trova i dati classe per NOME: prima il DB inline, poi le classi importate dal
+// catalogo (normalizzate alla stessa forma di CLASSES_DB). syncClassToLevel
+// cercava SOLO in CLASSES_DB: con una classe importata (nome EN) il cambio
+// livello non aggiornava MAI gli slot — il "non sempre" segnalato da Stefano.
+function findClassData(name) {
+  if (!name) return null;
+  const inline = CLASSES_DB.find(c => c.name === name);
+  if (inline) return inline;
+  try {
+    const ic = loadJSON(K.importedClasses, []).filter(c => c.name === name).pop();
+    if (!ic) return null;
+    return {
+      name: ic.name,
+      hitDie: ic.hitDie || 8,
+      slots: ic.slotsPerLevel ? Object.fromEntries(ic.slotsPerLevel.map((row, i) => [i + 1, row])) : {},
+      // 5e.tools usa i codici in minuscolo ("int"): normalizziamo come l'inline
+      spellcasting: String(ic.spellcastingAbility || "").toUpperCase(),
+    };
+  } catch { return null; }
+}
+
 // ── RacePicker ────────────────────────────────────────────────────────────
 function RacePicker({ currentRace, onApply, onClose }) {
   const importedRaces = React.useMemo(() => {
@@ -2156,23 +2198,23 @@ function CharacterSheet({ char, onChange, onDelete }) {
       savingThrows: newSaves, spellSlots, usedSpellSlots: {},
       classSkills: classData.skills, classArmorProf: classData.armorProf,
       classWeaponProf: classData.weaponProf,
-      spellcastingAbility: classData.spellcasting || "",
+      // Le classi importate hanno il campo `spellcastingAbility` (minuscolo da
+      // 5e.tools), le inline `spellcasting`: senza il fallback i PG con classe
+      // importata restavano SENZA caratteristica da incantatore (niente CD)
+      spellcastingAbility: String(classData.spellcasting || classData.spellcastingAbility || "").toUpperCase(),
       classFeatures: classData.features,
     });
     setShowClassPicker(false);
   };
 
-  // ── Sync slots/HP when level changes (if class known in DB) ────────────
+  // ── Sync slots/HP when level changes (inline O importata dal catalogo) ──
   const syncClassToLevel = (newLevel) => {
-    const classData = CLASSES_DB.find(c => c.name === char.class);
+    const classData = findClassData(char.class);
     if (!classData) { update({ level: newLevel }); return; }
     const conMod = Math.floor(((char.abilities?.CON || 10) - 10) / 2);
     const avgPerLevel = Math.floor(classData.hitDie / 2) + 1;
     const newMaxHp = classData.hitDie + conMod + (avgPerLevel + conMod) * (newLevel - 1);
-    const slotRow = classData.slots[newLevel] || [];
-    const spellSlots = {};
-    slotRow.forEach((n, i) => { if (n > 0) spellSlots[i + 1] = n; });
-    update({ level: newLevel, maxHp: Math.max(1, newMaxHp), spellSlots, usedSpellSlots: {} });
+    update({ level: newLevel, maxHp: Math.max(1, newMaxHp), spellSlots: computeSlots(classData, newLevel), usedSpellSlots: {} });
   };
 
   return (
