@@ -21,7 +21,11 @@ come gitlink (submodule di fatto), quindi è l'unico che richiede il doppio comm
   è lo STESSO remote del repo esterno (`github.com/Olengard/syllabus.git`) ma con storia
   incompatibile — la `main` remota appartiene al repo esterno. Un push normale verrebbe
   rifiutato; un `--force` cancellerebbe l'intero workspace remoto. I commit di Syllabus/app
-  restano locali (il deploy passa da Vercel CLI, git non serve).
+  restano locali (il deploy passa da Vercel CLI, git non serve). ⚠️ Corollario scoperto
+  il 2026-07-18: il progetto Vercel di Syllabus aveva ANCHE l'integrazione Git collegata
+  a questo remote — ogni push rideployava un Syllabus stantio sopra i fix CLI. Scollegata
+  (vercel git disconnect): NON ricollegarla; se Syllabus "regredisce da solo", controllare
+  gli alias *-git-main-* del progetto.
 - Per repo estranei a Commonplace (DnDMaster segue le stesse regole ma ha il suo CLAUDE.md;
   Zeitgeist Wiki ha convenzioni proprie).
 

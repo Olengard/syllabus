@@ -1478,3 +1478,24 @@ I due difetti riportati:
 - **⚠️ Azioni richieste:** domattina (19/07) verificare che il backup contenga
   `projects.bogav` (transactions ≈70). Con questo, TUTTI i dati utente della suite
   hanno un backup giornaliero con procedura di ripristino documentata e testata.
+
+**Appendice #23 — INCIDENTE Syllabus "API key is invalid": auto-deploy Git fantasma. RISOLTO.**
+Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" e poi
+"VITE_ANTHROPIC_API_KEY mancante nel .env". Diagnosi (con prove):
+- La `ANTHROPIC_API_KEY` sul progetto Vercel `app` era ancora quella VECCHIA di giugno
+  (mai aggiornata il 13/07, a differenza di footnote/notes/digest) → aggiornata da
+  Stefano; eliminata anche la env-relitto `VITE_ANTHROPIC_API_KEY` (73 giorni, era
+  la porta del leak originale).
+- MA il vero mostro: **il progetto Vercel `app` aveva l'integrazione Git collegata al
+  repo del workspace** (prova: alias `app-git-main-…`): OGNI push su main rideployava
+  Syllabus da sorgente stantio pre-#18 (bundle con chiamata diretta api.anthropic.com,
+  SW v3), SCAVALCANDO il fix v5 deployato via CLI il 13/07. I "deploy fantasma" (16h e
+  20min prima) coincidevano coi nostri push. Il collaudo `collauda.cjs` l'ha inchiodato:
+  `syllabus proxy AI 405` + `sw v3 SOTTO il minimo v5`.
+- FIX (autorizzato): `npx vercel git disconnect` sul progetto `app` (l'integrazione NON
+  doveva esistere: il canale documentato è SOLO la CLI) + rebuild e redeploy v5.
+  VERIFICA live: SW v5, bundle senza api.anthropic.com né sk-ant, proxy 401 con body
+  valido, collaudo tutto verde. Il push di questo stesso commit è il contro-test:
+  nessun nuovo deployment deve apparire sul progetto `app`.
+- LEZIONE per il futuro: se un fix Vercel "regredisce da solo", controllare gli alias
+  `*-git-main-*` (= integrazione Git attiva) prima di incolpare cache o SW.
