@@ -1606,6 +1606,10 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
   unico), 8 policy + RLS attiva verificate, `join_code` colonna. Join RPC + UI = blocco 3.
   ⚠️ **prima dei dati veri**: aggiungere le due tabelle a `Backup/api/backup.js` (lista pchld)
   + redeploy cp-backup (lezione `dnd_saves`).
+- ✅ **Chiusure Fase 7 confermate (Stefano, 2026-07-19)** — llv **in pausa (verificato: REST
+  HTTP 000 vs pchld 401)**, env `SUPABASE_LLV_SERVICE_KEY` rimossa da cp-backup, cron-job.org
+  dismesso; Render `digest-blqp` ora dorme (503, ping rimosso), sospensione formale ~26/07.
+  piano-di-lavoro #1 aggiornato.
 - **Prossimo (schede condivise):** blocco 3 = RPC `join_campaign` (SECURITY DEFINER) + UI
   (vista giocatore; vista master con diff Accetta/Ignora sul canale amministrativo + vitali
   live). Prima: sciogliere le 3 decisioni di dettaglio (linking al primo share, campi nel

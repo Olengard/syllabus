@@ -20,10 +20,13 @@
 
 ## Priorità (2026-07-17)
 
-1. **[Stefano — minuti]** Chiusure Fase 7: pausa progetto llv, env `SUPABASE_LLV_SERVICE_KEY`
+1. ~~**[Stefano — minuti]** Chiusure Fase 7: pausa progetto llv, env `SUPABASE_LLV_SERVICE_KEY`
    via da cp-backup, dismissione cron-job.org + sospensione Render (~26/07), verifica
-   backup del giorno dopo (`pchld.channels` 37). Più: categorie feed Digest, una
-   generazione da loggato nelle 4 app AI.
+   backup del giorno dopo.~~ → ✅ **FATTE (Stefano, 2026-07-19)**: llv **in pausa —
+   verificato** (REST HTTP 000, vs pchld 401), env llv rimossa da cp-backup, cron-job.org
+   dismesso; Render `digest-blqp` ora dorme (503, ping rimosso) — **sospensione formale
+   ancora slated ~26/07**. Ancora aperti (minori, non-chiusura): categorie feed Digest da
+   riassegnare, una generazione da loggato nelle 4 app AI.
 2. ~~Backup Ledger (bogav)~~ ✅ **FATTO 2026-07-18**: env impostata da Stefano, 11 tabelle
    in backup.js, deployato, RIPRISTINO.md con la procedura Ledger trigger-aware
    (disable trigger user → ripristino → enable + trigger_tests.sql). ~~⚠️ Verifica del
