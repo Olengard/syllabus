@@ -116,6 +116,8 @@ const defaultChar = () => ({
   initiative: 0,
   passivePerception: 10,
   inspiration: false,
+  hitDiceUsed: 0,      // dadi vita spesi (max = livello; tipo dado = char.hitDie, dalla classe)
+  conditions: [],      // condizioni attive (5e); vitale live nelle schede condivise
   deathSaves: { successes: 0, failures: 0 },
   abilities: { STR: 10, DEX: 10, CON: 10, INT: 10, WIS: 10, CHA: 10 },
   savingThrows: { STR: false, DEX: false, CON: false, INT: false, WIS: false, CHA: false },
@@ -2442,6 +2444,21 @@ function CharacterSheet({ char, onChange, onDelete }) {
                   </div>
                 </div>
 
+                {/* Dadi vita (max = livello, tipo = dado della classe) */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                  <span className="hp-label">DADI VITA</span>
+                  <button className="btn btn-sm" title="Spendi un dado vita"
+                    disabled={(char.hitDiceUsed || 0) >= (char.level || 1)}
+                    onClick={() => update({ hitDiceUsed: Math.min(char.level || 1, (char.hitDiceUsed || 0) + 1) })}>−</button>
+                  <span style={{ fontFamily: "'Cinzel', serif", fontSize: "1.1rem", minWidth: 56, textAlign: "center" }}>
+                    {Math.max(0, (char.level || 1) - (char.hitDiceUsed || 0))}/{char.level || 1}
+                    <span style={{ color: "var(--text3)", fontSize: "0.8rem", marginLeft: 3 }}>d{char.hitDie || 8}</span>
+                  </span>
+                  <button className="btn btn-sm" title="Recupera un dado vita"
+                    disabled={(char.hitDiceUsed || 0) <= 0}
+                    onClick={() => update({ hitDiceUsed: Math.max(0, (char.hitDiceUsed || 0) - 1) })}>+</button>
+                </div>
+
                 <div className="grid-3" style={{ marginBottom: 12 }}>
                   <div className="stat-badge"><div className="stat-badge-label">CLASSE ARMATURA</div>
                     <input type="number" value={char.armorClass} onChange={e => update({ armorClass: +e.target.value, acAuto: false })} style={{ textAlign: "center", fontSize: "1.3rem", fontFamily: "'Cinzel', serif", fontWeight: 700, background: "transparent", border: "none" }} />
@@ -2463,6 +2480,25 @@ function CharacterSheet({ char, onChange, onDelete }) {
                     <div className="stat-badge-label">ISPIRAZIONE</div>
                     <input type="checkbox" className="checkbox" checked={char.inspiration} onChange={e => update({ inspiration: e.target.checked })} />
                   </div>
+                </div>
+
+                {/* Condizioni (riusa COND_META del Combat Tracker; vitale live nelle schede condivise) */}
+                <hr className="divider" />
+                <div style={{ fontSize: "0.7rem", color: "var(--text3)", fontFamily: "'Cinzel', serif", letterSpacing: "0.1em", marginBottom: 8 }}>CONDIZIONI</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {CONDITIONS.map(cond => {
+                    const active = (char.conditions || []).includes(cond);
+                    return (
+                      <button key={cond} className="btn btn-sm" title={COND_META[cond].short}
+                        onClick={() => update({ conditions: active ? char.conditions.filter(x => x !== cond) : [...(char.conditions || []), cond] })}
+                        style={{ fontSize: "0.66rem", padding: "2px 8px",
+                          background: active ? COND_META[cond].color : "transparent",
+                          color: active ? "#fff" : "var(--text3)",
+                          border: `1px solid ${active ? COND_META[cond].color : "var(--border)"}` }}>
+                        {cond}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Saving throws */}

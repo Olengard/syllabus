@@ -249,9 +249,26 @@ SELECT esteso ai membri via helper.
 - **Non deployato/non pushato.** Il deploy porterà anche il blocco 1 (migrazione roster già
   avvenuta sull'account reale al login col dev server, non distruttiva).
 
-**Prossimo: blocco A** (concordato) — aggiungere `conditions` e dadi vita come campi
-persistenti della scheda PG + editor, poi una riga in `VITALI_FIELDS`; rifinitura Realtime +
-cosmesi diff. Follow-up backup (le 3 tabelle in `Backup/api/backup.js`) ancora aperto.
+✅ **3b+3c DEPLOYATI** (2026-07-19, Netlify, verificato live: bundle contiene `Tavolo`/
+`join_campaign`) e **pushati** (`main`→origin). Follow-up backup **chiuso**: le 3 tabelle
+aggiunte a `Backup/api/backup.js`, cp-backup ridistribuito (`Backup/` è fuori da git).
+
+✅ **Blocco A FATTO (2026-07-19, Opus) — condizioni + dadi vita come campi persistenti:**
+- `defaultChar`: `hitDiceUsed: 0` (max = livello; tipo dado = `char.hitDie`, già impostato dal
+  picker classe, fallback d8) e `conditions: []`. Retro-riempiti sui PG esistenti dal merge di
+  `defaultChar()` all'avvio.
+- `CharacterSheet` (blocco COMBATTIMENTO): controllo **DADI VITA** (`n/max dX` con −/+ per
+  spendere/recuperare) sotto i PF; riga **CONDIZIONI** con chip toggle che **riusano
+  `COND_META`/`CONDITIONS`** (le stesse del Combat Tracker), attive colorate.
+- `SessionPage` riposo lungo: recupera **metà dadi vita** (min 1), oltre a PF/slot/TS morte.
+- `VITALI_FIELDS += ["conditions","hitDiceUsed"]` (sono contatori che si consumano in gioco →
+  sync live nelle schede condivise; il master li vede in `VitaliView`, con le condizioni come
+  chip e i dadi vita rimasti). **NON** amministrativi (niente diff/accept). Test aggiornati.
+- 168 test verdi, build verde. **Verificato in-app** (spesa dado vita + toggle condizione
+  persistiti su `char:<id>`; PG di test ripristinato). **Non deployato.**
+
+**Prossimo:** rifinitura Realtime (prova a due client) + cosmesi pannello diff. **Non
+verificato a runtime:** il recupero dadi vita del riposo lungo (logica inline, ispezione).
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il

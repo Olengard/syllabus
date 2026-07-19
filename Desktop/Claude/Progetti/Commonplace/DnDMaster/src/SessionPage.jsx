@@ -38,10 +38,12 @@ function SessionDashboard({ characters, onUpdateCharacters }) {
 
   const longRest = () => {
     if (!pcs.length) { window.alert("Nessun personaggio nel gruppo."); return; }
-    if (!window.confirm(`🌙 Riposo lungo per ${pcs.length} PG?\nPF al massimo, slot ripristinati, TS morte azzerati, +8 ore.`)) return;
+    if (!window.confirm(`🌙 Riposo lungo per ${pcs.length} PG?\nPF al massimo, slot ripristinati, TS morte azzerati, metà dadi vita recuperati, +8 ore.`)) return;
     onUpdateCharacters(pcs.map(c => ({
       ...c, currentHp: c.maxHp, tempHp: 0, usedSpellSlots: {},
       deathSaves: { successes: 0, failures: 0 },
+      // 5e: recupera metà dei dadi vita totali (= livello), minimo 1
+      hitDiceUsed: Math.max(0, (c.hitDiceUsed || 0) - Math.max(1, Math.floor((c.level || 1) / 2))),
     })));
     save(advanceClock(clock, 8 * 60));
   };

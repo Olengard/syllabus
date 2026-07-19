@@ -12,7 +12,7 @@ const baseChar = () => ({
   alignment: "LB", languages: "Comune", xp: 900,
   maxHp: 28, currentHp: 20, tempHp: 0,
   armorClass: 16, acAuto: true, speed: 30, initiative: 2, passivePerception: 12,
-  inspiration: false, deathSaves: { successes: 0, failures: 0 },
+  inspiration: false, hitDiceUsed: 0, conditions: [], deathSaves: { successes: 0, failures: 0 },
   abilities: { STR: 16, DEX: 12, CON: 14, INT: 10, WIS: 11, CHA: 8 },
   savingThrows: { STR: true, DEX: false, CON: true, INT: false, WIS: false, CHA: false },
   skills: { athletics: true },

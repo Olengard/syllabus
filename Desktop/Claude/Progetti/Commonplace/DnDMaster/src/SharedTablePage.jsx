@@ -26,15 +26,21 @@ function VitaliView({ char }) {
   const spent = Object.entries(c.usedSpellSlots || {}).filter(([, n]) => n > 0);
   const ds = c.deathSaves || { successes: 0, failures: 0 };
   const hasDeath = ds.successes || ds.failures;
+  const conds = c.conditions || [];
+  const hdLeft = c.level != null ? Math.max(0, c.level - (c.hitDiceUsed || 0)) : null;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, fontSize: "0.78rem", color: "var(--text2)" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontSize: "0.78rem", color: "var(--text2)" }}>
       <span title="Punti ferita">❤️ <b>{c.currentHp ?? "—"}</b>{c.maxHp ? ` / ${c.maxHp}` : ""}</span>
       {c.tempHp ? <span title="PF temporanei">🛡 +{c.tempHp}</span> : null}
+      {hdLeft != null ? <span title="Dadi vita rimasti">🎲 {hdLeft}/{c.level}</span> : null}
       {c.inspiration ? <span title="Ispirazione">⭐</span> : null}
       {spent.length > 0 && (
         <span title="Slot incantesimo spesi">🔮 {spent.map(([lv, n]) => `L${lv}:${n}`).join(" ")}</span>
       )}
       {hasDeath ? <span title="Tiri salvezza contro morte">💀 {ds.successes}✓/{ds.failures}✗</span> : null}
+      {conds.map((cond) => (
+        <span key={cond} style={{ fontSize: "0.7rem", padding: "1px 7px", borderRadius: 10, background: "var(--red2, #c0392b)", color: "#fff" }}>{cond}</span>
+      ))}
     </div>
   );
 }

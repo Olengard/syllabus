@@ -11,10 +11,10 @@
 //  ④ MASTER  — fuori dallo scope del giocatore (anti-cheat), non viaggia nel diff.
 
 // ── Partizione dei campi (sui campi reali di defaultChar) ────────────────────
-// ① Vitali: contatori che si consumano in gioco. In v1 conditions/hitDice NON
-//    esistono ancora come campi persistenti sul PG: entreranno qui con una riga
-//    quando verranno aggiunti alla scheda (pickVitali prende solo i campi presenti).
-export const VITALI_FIELDS = ["currentHp", "tempHp", "usedSpellSlots", "deathSaves", "inspiration"];
+// ① Vitali: contatori che si consumano in gioco (giocatore autoritativo, live).
+//    `conditions` e `hitDiceUsed` sono campi persistenti della scheda (blocco A):
+//    condizioni attive e dadi vita spesi — vanno mostrati live al master.
+export const VITALI_FIELDS = ["currentHp", "tempHp", "usedSpellSlots", "deathSaves", "inspiration", "conditions", "hitDiceUsed"];
 
 // ② Amministrativo: struttura/roster. Accept per-CAMPO (top-level); gli array e
 //    gli oggetti sono un blocco unico (accetti/rifiuti l'intero campo). `armorClass`
