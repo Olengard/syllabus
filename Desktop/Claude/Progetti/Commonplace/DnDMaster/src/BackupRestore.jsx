@@ -52,7 +52,12 @@ export default function BackupModal({ user, onClose }) {
     const data = collect();
     const len = (key) => { try { const v = JSON.parse(data[key]); return Array.isArray(v) ? v.length : 0; } catch { return 0; } };
     let personaggi = 0;
-    try { personaggi = (JSON.parse(data["dnd5e-master-v1"])?.characters || []).length; } catch {}
+    try {
+      const idx = JSON.parse(data["dnd_char_index_v1"]);   // schema per-PG
+      personaggi = Array.isArray(idx?.order)
+        ? idx.order.length
+        : (JSON.parse(data["dnd5e-master-v1"])?.characters || []).length;  // fallback blob legacy
+    } catch {}
     return {
       blocchi: Object.keys(data).length,
       bytes: Object.values(data).reduce((n, v) => n + (v ? v.length : 0), 0),

@@ -18,7 +18,7 @@ import { SHOP_DB } from "./data/shop.js";
 import { RULES_DB } from "./data/rules.js";
 // Moduli estratti dal monolite (ondata 2)
 import { styles } from "./styles.js";
-import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON } from "./storage.js";
+import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON, loadAllChars, charKey, migrateCharsToPerPG } from "./storage.js";
 import NameGenerator from "./NameGenerator.jsx";
 import RulesModal from "./RulesModal.jsx";
 import SessionNotesPage from "./SessionNotesPage.jsx";
@@ -144,7 +144,8 @@ const defaultChar = () => ({
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = K.characters;
-const loadData = async () => loadJSON(K.characters, null);
+// Schema per-PG (indice + char:<id>); fallback al vecchio blob se non ancora migrato.
+const loadData = async () => loadAllChars() ?? loadJSON(K.characters, null);
 // NB: il salvataggio dei personaggi è debounced dentro App (vedi flushSave):
 // riserializzare tutti i PG (ritratti base64 inclusi) a ogni battitura è sprecato.
 
@@ -5582,22 +5583,65 @@ function App() {
   // pagina e su unmount (logout). La chiave utente è catturata al momento
   // della modifica: al flush l'utente potrebbe essere già sloggato.
   const saveTimer = React.useRef(null);
-  const pendingSave = React.useRef(null);
+  // Coda di scrittura accumulata (chiave PREFISSATA → dati) fino al flush: le
+  // chiavi si catturano ora, mentre l'utente è loggato (al flush potrebbe essere
+  // già sloggato). Confronto per identità: updateChar sostituisce SOLO l'oggetto
+  // del PG modificato → si scrive/sincronizza la sola scheda cambiata, non tutto
+  // il roster. `prevIdxSig` evita di ripushare l'indice se ordine e activeId non
+  // sono cambiati.
+  const pendingSave = React.useRef(new Map());
+  const prevCharRefs = React.useRef(null);
+  const prevIdxSig = React.useRef("");
   const flushSave = useCallback(() => {
-    const p = pendingSave.current;
-    if (!p) return;
-    pendingSave.current = null;
-    try { safeLsSet(p.key, JSON.stringify(p.data)); } catch {}
+    const m = pendingSave.current;
+    if (!m.size) return;
+    const entries = [...m.entries()];
+    pendingSave.current = new Map();
+    try { for (const [key, data] of entries) safeLsSet(key, JSON.stringify(data)); } catch {}
   }, []);
 
   useEffect(() => {
     if (loading) return;
-    pendingSave.current = { key: userKey(STORAGE_KEY), data: { characters, activeId } };
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(flushSave, 400);
-    // Sync: marcata qui (utente ancora loggato), non al flush — il push rilegge
-    // comunque il valore da localStorage al momento dell'invio.
-    sync.markDirty(STORAGE_KEY);
+    const order = characters.map(c => c.id);
+    const idxSig = JSON.stringify(order) + "|" + String(activeId);
+    // Primo giro dopo il load: registra lo stato base senza scrivere né marcare
+    // (le schede migrate le pusha già pullAll all'avvio).
+    if (prevCharRefs.current === null) {
+      const m = new Map();
+      for (const c of characters) m.set(c.id, c);
+      prevCharRefs.current = m;
+      prevIdxSig.current = idxSig;
+      return;
+    }
+    const prev = prevCharRefs.current;
+    const cur = new Map();
+    const changed = [];
+    for (const c of characters) {
+      cur.set(c.id, c);
+      if (prev.get(c.id) !== c) changed.push(c);   // ref diversa = PG nuovo o modificato
+    }
+    const removed = [];
+    for (const id of prev.keys()) if (!cur.has(id)) removed.push(id);
+    prevCharRefs.current = cur;
+
+    // Cancellazioni: subito (cache locale rimossa + tombstone per la delete remota).
+    for (const id of removed) sync.markDeleted(charKey(id));
+
+    // Scritture accumulate: l'indice solo se ordine/activeId cambiano, e SOLO i
+    // PG modificati. Sync marcato ORA (utente ancora loggato).
+    if (idxSig !== prevIdxSig.current) {
+      prevIdxSig.current = idxSig;
+      pendingSave.current.set(userKey(K.charIndex), { order, activeId });
+      sync.markDirty(K.charIndex);
+    }
+    for (const c of changed) {
+      pendingSave.current.set(userKey(charKey(c.id)), c);
+      sync.markDirty(charKey(c.id));
+    }
+    if (pendingSave.current.size) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(flushSave, 400);
+    }
     return () => clearTimeout(saveTimer.current);
   }, [characters, activeId, loading, flushSave]);
 
@@ -5991,7 +6035,8 @@ export default function AppRoot() {
     storeUser(profile);
     safeLsSet(AUTH_UID_KEY, session.user.id);
     sync.setUser(session.user.id);
-    migrateLegacyKey(STORAGE_KEY);                            // personaggi
+    migrateLegacyKey(STORAGE_KEY);                            // personaggi (blob unico legacy)
+    migrateCharsToPerPG();                                    // → schede per-PG (blob intatto, rollback)
     migrateLegacyKey(MONSTERS_STORAGE_KEY, { merge: true });  // mostri custom + importati
     setUser(profile);
     setPhase("sync");

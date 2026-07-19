@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON } from "./storage.js";
+import { getStoredUser, storeUser, clearUser, userKey, safeLsSet, migrateLegacyKey, K, loadJSON, saveJSON,
+  saveChar, loadChar, saveCharIndex, loadCharIndex, loadAllChars, migrateCharsToPerPG } from "./storage.js";
 
 // Mock minimale di localStorage (ambiente node): Map + API Web Storage.
 function makeLocalStorage() {
@@ -162,5 +163,64 @@ describe("migrateLegacyKey (chiave legacy → spazio utente)", () => {
     localStorage.setItem("Olengard__k", '"utente"');
     migrateLegacyKey("k", { merge: true });
     expect(localStorage.getItem("Olengard__k")).toBe('"utente"');
+  });
+});
+
+describe("schede per-PG (indice + migrazione)", () => {
+  beforeEach(() => storeUser("Olengard"));
+
+  it("saveChar/loadChar roundtrip sotto char:<id>", () => {
+    saveChar("a", { id: "a", name: "Thordak" });
+    expect(localStorage.getItem("Olengard__char:a")).toBe('{"id":"a","name":"Thordak"}');
+    expect(loadChar("a")).toEqual({ id: "a", name: "Thordak" });
+  });
+
+  it("loadAllChars ricompone ordine e activeId dall'indice", () => {
+    saveChar("a", { id: "a" });
+    saveChar("b", { id: "b" });
+    saveCharIndex({ order: ["b", "a"], activeId: "a" });
+    expect(loadAllChars()).toEqual({ characters: [{ id: "b" }, { id: "a" }], activeId: "a" });
+  });
+
+  it("loadAllChars salta gli id senza riga; null se non c'è indice", () => {
+    expect(loadAllChars()).toBeNull();
+    saveChar("a", { id: "a" });
+    saveCharIndex({ order: ["a", "mancante"], activeId: "a" });
+    expect(loadAllChars().characters).toEqual([{ id: "a" }]);
+  });
+
+  it("migrazione: splitta il blob in char:<id> + indice, blob INTATTO (rollback)", () => {
+    const blob = { characters: [{ id: "x", name: "Aldric" }, { id: "y", name: "Mialee" }], activeId: "y" };
+    safeLsSet(userKey(K.characters), JSON.stringify(blob));
+    const { migrated } = migrateCharsToPerPG();
+    expect(migrated).toBe(2);
+    expect(loadChar("x")).toEqual({ id: "x", name: "Aldric" });
+    expect(loadChar("y")).toEqual({ id: "y", name: "Mialee" });
+    expect(loadCharIndex()).toEqual({ order: ["x", "y"], activeId: "y" });
+    // il blob vecchio resta identico (rete di sicurezza)
+    expect(localStorage.getItem(userKey(K.characters))).toBe(JSON.stringify(blob));
+    // e loadAllChars ora ricostruisce lo stesso stato
+    expect(loadAllChars()).toEqual({ characters: blob.characters, activeId: "y" });
+  });
+
+  it("migrazione idempotente: seconda chiamata no-op", () => {
+    safeLsSet(userKey(K.characters), JSON.stringify({ characters: [{ id: "x" }], activeId: "x" }));
+    expect(migrateCharsToPerPG().migrated).toBe(1);
+    expect(migrateCharsToPerPG().migrated).toBe(0);   // indice già presente
+  });
+
+  it("nessun blob (o blob vuoto) → nessuna migrazione", () => {
+    expect(migrateCharsToPerPG().migrated).toBe(0);
+    safeLsSet(userKey(K.characters), JSON.stringify({ characters: [], activeId: null }));
+    expect(migrateCharsToPerPG().migrated).toBe(0);
+    expect(loadCharIndex()).toBeNull();
+  });
+
+  it("migrazione: un PG senza id riceve un id generato", () => {
+    safeLsSet(userKey(K.characters), JSON.stringify({ characters: [{ name: "SenzaId" }], activeId: null }));
+    expect(migrateCharsToPerPG().migrated).toBe(1);
+    const idx = loadCharIndex();
+    expect(idx.order).toHaveLength(1);
+    expect(loadChar(idx.order[0])).toMatchObject({ name: "SenzaId", id: idx.order[0] });
   });
 });

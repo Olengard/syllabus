@@ -6,21 +6,32 @@
 // e viene ripresa al ritorno online o al riavvio.
 // Conflitti: last-write-wins PER CHIAVE; una chiave sporca in locale vince
 // sempre sul remoto (verrà pushata).
-import { K, loadJSON, userKey, safeLsSet, setSaveListener, readRaw, writeRaw } from "./storage.js";
+import { K, loadJSON, userKey, safeLsSet, setSaveListener, readRaw, writeRaw, charKeysLocal, removeRaw } from "./storage.js";
 
 const META_KEY  = "dnd_sync_meta_v1";   // { [key]: updated_at remoto dell'ultimo sync }
 const DIRTY_KEY = "dnd_sync_dirty_v1";  // [key, ...] in attesa di push
-export const SYNC_STATE_KEYS = [META_KEY, DIRTY_KEY]; // escluse dal backup
+const TOMB_KEY  = "dnd_sync_deleted_v1"; // [key, ...] char-key da cancellare sul remoto
+export const SYNC_STATE_KEYS = [META_KEY, DIRTY_KEY, TOMB_KEY]; // escluse dal backup
 
 const SYNCED_KEYS = new Set(Object.values(K));
 const TABLE = "dnd_saves";
 const RETRY_MS = 15000;
 
+// Le schede personaggio sono chiavi DINAMICHE ("char:<id>", una riga per PG),
+// fuori dal registro fisso K: si sincronizzano come le altre ma vanno riconosciute
+// per prefisso e, alla cancellazione, richiedono la delete della riga remota
+// (senza, ricomparirebbero al pull successivo).
+const CHAR_PREFIX = "char:";
+export const isCharKey = (key) => typeof key === "string" && key.startsWith(CHAR_PREFIX);
+const isSyncedKey = (key) => SYNCED_KEYS.has(key) || isCharKey(key);
+
 // ── Stato di sync su localStorage (per-utente, via storage.js) ──────────────
 const readMeta   = () => loadJSON(META_KEY, {});
 const readDirty  = () => new Set(loadJSON(DIRTY_KEY, []));
+const readTombs  = () => loadJSON(TOMB_KEY, []);
 const writeMeta  = (m) => safeLsSet(userKey(META_KEY), JSON.stringify(m));
 const writeDirty = (d) => safeLsSet(userKey(DIRTY_KEY), JSON.stringify([...d]));
+const writeTombs = (t) => safeLsSet(userKey(TOMB_KEY), JSON.stringify(t));
 
 // Dopo un ripristino da backup: tutto il locale va ri-pushato e la memoria
 // dell'ultimo sync azzerata (il pull al reload NON deve sovrascrivere il
@@ -28,6 +39,7 @@ const writeDirty = (d) => safeLsSet(userKey(DIRTY_KEY), JSON.stringify([...d]));
 export function markAllForPush() {
   const dirty = readDirty();
   for (const key of SYNCED_KEYS) if (readRaw(key) != null) dirty.add(key);
+  for (const key of charKeysLocal()) dirty.add(key);   // schede per-PG (chiavi dinamiche)
   writeDirty(dirty);
   writeMeta({});
 }
@@ -49,10 +61,23 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
   }
 
   function markDirty(key) {
-    if (!SYNCED_KEYS.has(key)) return;
+    if (!isSyncedKey(key)) return;
     const dirty = readDirty();
     dirty.add(key);
     writeDirty(dirty);
+    notify("pending");
+    schedule();
+  }
+
+  // Cancellazione di una scheda per-PG: toglie la cache locale, la rimuove dalla
+  // coda dirty e mette la riga remota in coda di cancellazione (tombstone), così
+  // non ricompare al prossimo pull. Ripullabile solo se la delete remota fallisce.
+  function markDeleted(key) {
+    if (!isCharKey(key)) return;
+    removeRaw(key);
+    const dirty = readDirty(); dirty.delete(key); writeDirty(dirty);
+    const meta = readMeta(); if (key in meta) { delete meta[key]; writeMeta(meta); }
+    const tombs = readTombs(); if (!tombs.includes(key)) { tombs.push(key); writeTombs(tombs); }
     notify("pending");
     schedule();
   }
@@ -63,7 +88,8 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
   async function flush() {
     if (!uid || pushing) return;
     let dirty = readDirty();
-    if (!dirty.size) { notify("ok"); return; }
+    let tombs = readTombs();
+    if (!dirty.size && !tombs.length) { notify("ok"); return; }
     if (!online()) { notify("offline"); return; }
     pushing = true;
     notify("syncing");
@@ -84,10 +110,24 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
       meta[key] = updated_at;
       writeMeta(meta);
     }
+    // Cancellazioni remote delle schede eliminate (dopo i push: un PG
+    // modificato-e-poi-cancellato non lascia una riga fantasma).
+    if (!failed) {
+      for (const key of [...tombs]) {
+        try {
+          const { error } = await client.from(TABLE).delete().eq("user_id", uid).eq("key", key);
+          if (error) { failed = true; break; }
+        } catch { failed = true; break; }
+        writeTombs(readTombs().filter((k) => k !== key));
+        const meta = readMeta();
+        if (key in meta) { delete meta[key]; writeMeta(meta); }
+      }
+    }
     pushing = false;
     dirty = readDirty();
+    tombs = readTombs();
     if (failed) { notify(online() ? "error" : "offline"); schedule(RETRY_MS); }
-    else if (dirty.size) schedule();
+    else if (dirty.size || tombs.length) schedule();
     else notify("ok");
   }
 
@@ -102,7 +142,9 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
     const remote = new Map((data || []).map((r) => [r.key, r]));
     const dirty = readDirty();
     const meta = readMeta();
+    const tombs = new Set(readTombs());
     let pulled = 0;
+    // Chiavi fisse del registro K
     for (const key of SYNCED_KEYS) {
       const row = remote.get(key);
       if (row) {
@@ -116,9 +158,23 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
         dirty.add(key);
       }
     }
+    // Schede per-PG (char-key dinamiche): scoperte dalle righe remote. Una chiave
+    // in coda di cancellazione NON si ri-pulla (la delete è in volo).
+    for (const [key, row] of remote) {
+      if (!isCharKey(key) || tombs.has(key) || dirty.has(key)) continue;
+      if (meta[key] !== row.updated_at) {
+        writeRaw(key, JSON.stringify(row.value));
+        meta[key] = row.updated_at;
+        pulled++;
+      }
+    }
+    // Schede per-PG presenti solo in locale (mai pushate) → da pushare.
+    for (const key of charKeysLocal()) {
+      if (!remote.has(key) && !dirty.has(key) && !tombs.has(key)) dirty.add(key);
+    }
     writeMeta(meta);
     writeDirty(dirty);
-    if (dirty.size) await flush();
+    if (dirty.size || tombs.size) await flush();
     else notify("ok");
     return { pulled };
   }
@@ -143,6 +199,7 @@ export function createSyncEngine(client, { debounceMs = 2500 } = {}) {
     pullAll,
     flush,
     markDirty,
+    markDeleted,
     getStatus: () => status,
     pendingCount: () => readDirty().size,
     subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },

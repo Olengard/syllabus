@@ -88,8 +88,16 @@ principio non negoziabile: **la copia del Master è sempre la verità**.
 *I 4 pilastri (invariati):*
 1. *Prerequisito*: spezzare `characters` in una riga per PG (vedi 2B sopra) — senza, il
    last-write-wins sul blob renderebbe la condivisione un tritacarne di sovrascritture.
-   ⚠️ È l'intervento più rischioso: tocca il motore di sync **testato** (chiavi oggi da un
-   Set fisso `SYNCED_KEYS` → servono chiavi dinamiche prefix-aware) + migrazione del blob.
+   ✅ **FATTO (blocco 1, 2026-07-19, Opus)**: schede sotto `char:<id>` + indice
+   `dnd_char_index_v1` (ordine/activeId); motore di sync esteso alle char-key dinamiche
+   (`isCharKey`, `markDeleted` con coda tombstone `dnd_sync_deleted_v1`, pull/push/restore
+   per-PG); migrazione one-time NON distruttiva dal blob (`dnd5e-master-v1` tenuto INTATTO
+   come rollback, split in `AppRoot` prima del pull). `App.jsx`: `loadAllChars` + save-effect
+   che scrive/marca SOLO il PG modificato (confronto per identità), cancellazione via
+   `sync.markDeleted`. 13 test nuovi (129 totali verdi), build verde. ⏳ **Collaudo live
+   sul roster reale di olengard = AL DEPLOY** (login → migrazione reale + push per-PG; farlo
+   al deploy minimizza la finestra a versioni miste con la PWA vecchia). Rollback: torna al
+   codice vecchio, il blob è ancora la verità.
 2. *Modello a PROPOSTA, niente merge automatico*: gli aggiornamenti del giocatore NON toccano
    la copia del Master. Nella vista Master un badge "📬 aggiornamento da <giocatore>" apre il
    DIFF (PF, slot, equip, livello) con "Accetta" / "Ignora". Il diff è anche l'anti-cheat

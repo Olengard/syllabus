@@ -38,6 +38,15 @@ function makeClient({ rows = [], failUpsert = false, onUpsert = null } = {}) {
             error: null,
           }),
         }),
+        delete: () => ({
+          eq: () => ({
+            eq: async (_col, val) => {
+              const i = rows.findIndex((r) => r.key === val);
+              if (i >= 0) rows.splice(i, 1);
+              return { error: null };
+            },
+          }),
+        }),
       };
     },
   };
@@ -189,5 +198,88 @@ describe("markAllForPush (dopo un ripristino da backup)", () => {
     await engine.pullAll();
     expect(loadJSON(K.savedNames)).toEqual(["dal-backup"]);
     expect(client.rows.find((r) => r.key === K.savedNames).value).toEqual(["dal-backup"]);
+  });
+});
+
+describe("schede per-PG (char-key dinamiche)", () => {
+  it("markDirty accetta le char-key e flush le pusha come riga singola", async () => {
+    const client = makeClient();
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    saveJSON("char:abc", { id: "abc", name: "Thordak" });
+    expect(engine.pendingCount()).toBe(1);
+    await engine.flush();
+    expect(client.upserts.map((u) => u.key)).toContain("char:abc");
+    expect(client.rows.find((r) => r.key === "char:abc").value).toEqual({ id: "abc", name: "Thordak" });
+  });
+
+  it("pullAll scarica una char-key remota mai vista", async () => {
+    const client = makeClient({
+      rows: [{ key: "char:xyz", value: { id: "xyz", name: "Mialee" }, updated_at: "2026-07-19T10:00:00Z" }],
+    });
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    const { pulled } = await engine.pullAll();
+    expect(pulled).toBe(1);
+    expect(loadJSON("char:xyz")).toEqual({ id: "xyz", name: "Mialee" });
+  });
+
+  it("char-key presente solo in locale → pushata al pull", async () => {
+    safeLsSet(userKey("char:local1"), JSON.stringify({ id: "local1", name: "Aldric" }));
+    const client = makeClient();
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    await engine.pullAll();
+    expect(client.upserts.map((u) => u.key)).toContain("char:local1");
+    expect(engine.pendingCount()).toBe(0);
+  });
+
+  it("un PG modificato non tocca gli altri (push della sola chiave sporca)", async () => {
+    const client = makeClient();
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    saveJSON("char:a", { id: "a", hp: 10 });
+    saveJSON("char:b", { id: "b", hp: 20 });
+    await engine.flush();
+    client.upserts.length = 0;                  // azzero il registro degli upsert
+    saveJSON("char:a", { id: "a", hp: 7 });      // modifico SOLO a
+    await engine.flush();
+    expect(client.upserts.map((u) => u.key)).toEqual(["char:a"]);   // b non ripushato
+  });
+
+  it("markDeleted cancella locale e riga remota; il pull non la ripesca", async () => {
+    const client = makeClient({
+      rows: [{ key: "char:del1", value: { id: "del1", name: "Vecchio" }, updated_at: "2026-07-19T10:00:00Z" }],
+    });
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    await engine.pullAll();                        // porta char:del1 in locale
+    expect(loadJSON("char:del1")).not.toBeNull();
+    engine.markDeleted("char:del1");
+    expect(loadJSON("char:del1")).toBeNull();      // locale sparito subito
+    await engine.flush();
+    expect(client.rows.find((r) => r.key === "char:del1")).toBeUndefined();  // remoto cancellato
+    const { pulled } = await engine.pullAll();
+    expect(pulled).toBe(0);
+    expect(loadJSON("char:del1")).toBeNull();
+  });
+
+  it("markAllForPush include le char-key locali (restore da backup)", async () => {
+    safeLsSet(userKey("char:c1"), JSON.stringify({ id: "c1" }));
+    safeLsSet(userKey("char:c2"), JSON.stringify({ id: "c2" }));
+    safeLsSet(userKey(K.sessionNotes), JSON.stringify([{ text: "x" }]));
+    const client = makeClient();
+    const engine = createSyncEngine(client, { debounceMs: 999999 });
+    engine.attach();
+    engine.setUser(UID);
+    markAllForPush();
+    expect(engine.pendingCount()).toBe(3);
+    await engine.flush();
+    expect(client.upserts.map((u) => u.key).sort()).toEqual(["char:c1", "char:c2", K.sessionNotes].sort());
   });
 });
