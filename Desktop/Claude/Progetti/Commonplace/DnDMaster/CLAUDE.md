@@ -132,6 +132,24 @@ dnd_shared_chars(campaign_id, player_uid, char_id, char jsonb, updated_at, statu
   attuale: percorso di sync a sé (l'affermazione "l'offline lo copre la coda esistente" è
   ottimistica — quella coda è specifica di `dnd_saves`).
 
+✅ **Blocco 2 FATTO (2026-07-19, Opus)** — migration `dnd_schede_condivise_blocco2` su pchld:
+tabelle `campaigns` + `dnd_shared_chars` con RLS (8 policy verificate, RLS attiva). Scelte:
+- `campaigns` **owner-only** (tutte le policy `auth.uid() = master_uid`); `join_code` colonna
+  (default random 6 char, unique).
+- `dnd_shared_chars` (PK `campaign_id, player_uid, char_id`; `char jsonb`; FK→campaigns
+  on delete cascade): giocatore sulla PROPRIA riga (`auth.uid() = player_uid`) OR master via
+  `campaign_id in (select id from campaigns where master_uid = auth.uid())`.
+- **RLS NON ricorsiva** di proposito: campaigns non referenzia dnd_shared_chars → il
+  riferimento è a senso unico, niente "infinite recursion in policy". Conseguenza v1: il
+  giocatore NON fa SELECT diretta su `campaigns` (niente nome campagna via query) — glielo
+  darà la RPC di join nel blocco 3.
+- **NON ancora fatti (blocco 3):** RPC `join_campaign` (SECURITY DEFINER: valida il code,
+  crea la riga-slot del giocatore → lo rende visibile al master), e la UI.
+- ⚠️ **Follow-up prima che ci siano dati veri:** aggiungere `campaigns` e `dnd_shared_chars`
+  a `Backup/api/backup.js` (lista pchld) + redeploy cp-backup — **lezione `dnd_saves`**
+  (tabella nata a luglio e mai backuppata per settimane). Ora sono vuote, quindi non urge,
+  ma va fatto col blocco 3.
+
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il
 motore di sync: rimandato).

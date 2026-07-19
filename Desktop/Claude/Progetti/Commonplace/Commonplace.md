@@ -1600,7 +1600,13 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
 - ⚠️ **Azioni richieste (Stefano):** nessuna urgente da questa sessione. Solo da sapere: se un
   device ha la PWA DnD vecchia in cache può servire 1-2 reload per passare al codice nuovo
   (autoUpdate). Restano gli item tablet della #24 (chip CD, ecc.), già suoi.
-- **Prossimo (schede condivise):** blocco 2 = tabelle `campaigns` + `dnd_shared_chars` su
-  pchld (RLS, join-code); blocco 3 = UI (vista giocatore; vista master con diff Accetta/Ignora
-  + vitali live). Restano da sciogliere in fase di piano le 3 decisioni di dettaglio annotate
-  nel design (linking al primo share, campi nel diff, seed scheletro).
+- ✅ **Blocco 2 schede condivise: schema su pchld** — migration `dnd_schede_condivise_blocco2`:
+  `campaigns` (owner-only) + `dnd_shared_chars` (giocatore su propria riga; master su tutte le
+  righe delle sue campagne), **RLS non ricorsiva** (campaigns solo-master, riferimento a senso
+  unico), 8 policy + RLS attiva verificate, `join_code` colonna. Join RPC + UI = blocco 3.
+  ⚠️ **prima dei dati veri**: aggiungere le due tabelle a `Backup/api/backup.js` (lista pchld)
+  + redeploy cp-backup (lezione `dnd_saves`).
+- **Prossimo (schede condivise):** blocco 3 = RPC `join_campaign` (SECURITY DEFINER) + UI
+  (vista giocatore; vista master con diff Accetta/Ignora sul canale amministrativo + vitali
+  live). Prima: sciogliere le 3 decisioni di dettaglio (linking al primo share, campi nel
+  diff, seed scheletro).
