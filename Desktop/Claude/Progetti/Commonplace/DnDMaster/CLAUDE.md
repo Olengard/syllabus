@@ -148,7 +148,55 @@ tabelle `campaigns` + `dnd_shared_chars` con RLS (8 policy verificate, RLS attiv
 - ⚠️ **Follow-up prima che ci siano dati veri:** aggiungere `campaigns` e `dnd_shared_chars`
   a `Backup/api/backup.js` (lista pchld) + redeploy cp-backup — **lezione `dnd_saves`**
   (tabella nata a luglio e mai backuppata per settimane). Ora sono vuote, quindi non urge,
-  ma va fatto col blocco 3.
+  ma va fatto col blocco 3 (aggiungere anche `campaign_members`).
+
+### Blocco 3 — decisioni di dettaglio ratificate (2026-07-19)
+
+**Flusso join+seed (dec. 1) = Flow 2 (membership esplicita).** Tabella
+`campaign_members(campaign_id, player_uid, display_name, joined_at)`. Il giocatore entra con
+la RPC `join_campaign(code)` (SECURITY DEFINER: valida il code, registra la membership,
+ritorna id+nome campagna) → diventa visibile al master. Il master **assegna** creando la riga
+`dnd_shared_chars` con `char_id = l'id della sua copia di roster` (push-down, linking pulito,
+nessuna riconciliazione). RLS non ricorsiva via helper SECURITY DEFINER `is_campaign_master` /
+`is_campaign_member`.
+
+**Partizione dei campi (dec. 2) — 3 bucket + esclusioni** (sui campi reali di `defaultChar`):
+- ① **Vitali** (live, giocatore autoritativo, auto-sync, no approvazione): `currentHp`,
+  `tempHp`, `usedSpellSlots`, `deathSaves`, `inspiration`. In v1 il master li **vede** in
+  sola lettura (auto-popolamento del combat tracker fasato a dopo).
+- ② **Amministrativo** (propose → accept): `level`, `xp`, `maxHp`, `abilities`,
+  `savingThrows`, `skills`, `armorClass`(+`acAuto`), `speed`, `passivePerception`, `spells`,
+  `spellSlots` (massimi), `equipment`, `currency`, `attacks`, `choices`, `race`/`class`/
+  `subclass`/`background`/`alignment`/`languages`/`name`, testo di ruolo (`traits`/`ideals`/
+  `bonds`/`flaws`/`notes`).
+- ④ **Del master** (fuori dallo scope del giocatore, anti-cheat): `prestige`, `reputation`.
+- **Escluso dal diff**: `id`, `player`; `portrait` (solo flag "ritratto cambiato", niente
+  diff); `acAuto` (viaggia con `armorClass`); `pinnedFeatures` (vista locale, non condivisa);
+  `initiative` (combattimento = schermo master).
+
+**UX accept (dec. 3):** badge "📬 aggiornamento da <giocatore>" quando i campi ② divergono
+tra copia-di-roster del master e riga condivisa. Pannello diff raggruppato (scalari + sintesi
+array), **check per riga, tutti spuntati di default, deselezionabili**; gli **array sono un
+checkbox intero** (accetta/rifiuta l'intero cambiamento dell'array, NON per-oggetto — il merge
+per-elemento è fuori v1). "Accetta" copia i campi spuntati nella copia del master; "Ignora"/
+parziale = `lastSeenHash` dello snapshot amministrativo (il badge sparisce, ricompare solo a
+nuova modifica del giocatore). **Flusso a senso unico (B1):** un campo non accettato resta
+nella scheda del giocatore, NON nel master (divergono; in v1 il giocatore non è avvisato).
+v2: feedback "accettato", correzioni master→giocatore, `prestige`/`reputation` in lettura
+(tutti flussi master→giocatore).
+
+**Ordine implementativo blocco 3:** 3a DB (`campaign_members` + helper + RPC `join_campaign`
++ `campaigns` SELECT ai membri) → 3b client sync del layer condiviso (fuori dal motore
+`dnd_saves`, due canali) → 3c UI (vista giocatore; vista master con assegna + diff/accept +
+vitali live).
+
+✅ **3a FATTO (2026-07-19, Opus)** — migration `dnd_schede_condivise_blocco3a_membership` su
+pchld (verificata): tabella `campaign_members` (RLS: membro vede la propria riga, master vede
+i membri delle sue campagne; **nessuna policy INSERT** → l'unico ingresso è la RPC); helper
+`SECURITY DEFINER` `is_campaign_master`/`is_campaign_member` (spezzano la ricorsione mutua di
+RLS); RPC `join_campaign(code, display_name)` (SECURITY DEFINER, valida il code → registra la
+membership idempotente → ritorna id+nome campagna; grant solo a `authenticated`); `campaigns`
+SELECT esteso ai membri via helper. **Prossimo: 3b** (client sync del layer condiviso).
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il
