@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-19 -- Sessione #24. **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: verifica primo backup Ledger (mattina del 19/07).
+> Ultimo aggiornamento: 2026-07-19 -- Sessione #24. **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
 
 ---
 

@@ -26,8 +26,12 @@
    generazione da loggato nelle 4 app AI.
 2. ~~Backup Ledger (bogav)~~ ✅ **FATTO 2026-07-18**: env impostata da Stefano, 11 tabelle
    in backup.js, deployato, RIPRISTINO.md con la procedura Ledger trigger-aware
-   (disable trigger user → ripristino → enable + trigger_tests.sql). ⚠️ Verifica del
-   19/07: il backup deve avere `projects.bogav.transactions` (70 righe al 18/07).
+   (disable trigger user → ripristino → enable + trigger_tests.sql). ~~⚠️ Verifica del
+   19/07: il backup deve avere `projects.bogav.transactions` (70 righe al 18/07).~~
+   ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` ha `projects.bogav`
+   con le 11 tabelle Ledger — `transactions` 70 righe, zero tabelle in errore; il 18/07
+   non ha ancora `bogav` (il 19 è il primo). Nota: la env sorgente è
+   `SUPABASE_BOGAV_SERVICE_KEY` (in `backup.js`), non `LLV`.
 3. **[richiesto da Stefano, prossima sessione] GIRO DI DEBUG: Syllabus, Footnote,
    ListenS** + valutazione di un miglioramento generale di ListenS. Se il tempo
    (contratto Fable) finisce prima → documentare qui l'esito parziale per Opus.
