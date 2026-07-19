@@ -26,6 +26,7 @@ import SpellsPage from "./SpellsPage.jsx";
 import ShopPage from "./ShopPage.jsx";
 import DescriptionsPage from "./DescriptionsPage.jsx";
 import CampaignPage, { loadCampaign } from "./CampaignPage.jsx";
+import SharedTablePage from "./SharedTablePage.jsx";
 import { coherentWith, terrainAllows } from "./encounter.js";
 import { supabase } from "./supabaseClient.js";
 import { createSyncEngine } from "./sync.js";
@@ -2932,9 +2933,11 @@ function CharacterSheet({ char, onChange, onDelete }) {
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-        <button className="btn btn-danger" onClick={() => { if (confirm(`Eliminare ${char.name}?`)) onDelete(char.id); }}>🗑 Elimina Personaggio</button>
-      </div>
+      {onDelete && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <button className="btn btn-danger" onClick={() => { if (confirm(`Eliminare ${char.name}?`)) onDelete(char.id); }}>🗑 Elimina Personaggio</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -5735,6 +5738,7 @@ function App() {
             <button className={`tab-btn ${mainTab === "combat" ? "active" : ""}`} onClick={() => setMainTab("combat")}>⚔ Combattimento</button>
             <button className={`tab-btn ${mainTab === "monsters" ? "active" : ""}`} onClick={() => setMainTab("monsters")}>🐉 Mostri</button>
             <button className={`tab-btn ${mainTab === "campaign" ? "active" : ""}`} onClick={() => setMainTab("campaign")}>🗺 Campagna</button>
+            <button className={`tab-btn ${mainTab === "shared" ? "active" : ""}`} onClick={() => setMainTab("shared")}>🤝 Tavolo</button>
             <button className={`tab-btn ${mainTab === "names" ? "active" : ""}`} onClick={() => setMainTab("names")}>✨ Nomi</button>
             <button className={`tab-btn ${mainTab === "descriptions" ? "active" : ""}`} onClick={() => setMainTab("descriptions")}>📖 Descrizioni</button>
             <button className={`tab-btn ${mainTab === "shop" ? "active" : ""}`} onClick={() => setMainTab("shop")}>🏪 Prezzi</button>
@@ -5786,6 +5790,16 @@ function App() {
             <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)} />
           )}
           {!loading && mainTab === "campaign" && <ErrorBoundary><CampaignPage /></ErrorBoundary>}
+          {!loading && mainTab === "shared" && (
+            <ErrorBoundary>
+              <SharedTablePage
+                uid={getStoredUid()}
+                characters={characters}
+                onUpdateChar={updateChar}
+                renderSheet={(char, onChange) => <CharacterSheet char={char} onChange={onChange} onDelete={null} />}
+              />
+            </ErrorBoundary>
+          )}
           {!loading && mainTab === "shop" && <ShopPage />}
           {!loading && mainTab === "notes" && <SessionNotesPage characters={characters} />}
           {!loading && mainTab === "spells" && <SpellsPage />}

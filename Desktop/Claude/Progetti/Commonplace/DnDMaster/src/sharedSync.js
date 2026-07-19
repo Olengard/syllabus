@@ -35,6 +35,14 @@ export function createSharedSync(client) {
     return unwrap(res, "Elenco campagne fallito") || [];
   }
 
+  // Tutte le campagne VISIBILI all'utente (RLS: possedute + quelle di cui è
+  // membro). Serve al giocatore per mostrare il nome della campagna accanto alle
+  // sue schede condivise (le righe di dnd_shared_chars portano solo campaign_id).
+  async function listVisibleCampaigns() {
+    const res = await client.from("campaigns").select("id,name,join_code,master_uid");
+    return unwrap(res, "Elenco campagne fallito") || [];
+  }
+
   // I membri (giocatori) iscritti a una campagna: uid + nome scelto al join.
   async function listMembers(campaignId) {
     const res = await client.from("campaign_members").select("*").eq("campaign_id", campaignId);
@@ -113,7 +121,7 @@ export function createSharedSync(client) {
   }
 
   return {
-    createCampaign, listMyCampaigns, listMembers,
+    createCampaign, listMyCampaigns, listVisibleCampaigns, listMembers,
     seedSharedChar, listSharedForMaster, deleteSharedChar,
     joinCampaign, listSharedForMe, upsertMySharedChar,
     subscribeSharedForMaster,

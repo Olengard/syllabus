@@ -23,6 +23,7 @@ export const K = {
   campaign:            "dnd_campaign_v1",
   gameClock:           "dnd_game_clock_v1",
   charIndex:           "dnd_char_index_v1",  // ordine PG + activeId (schede per-PG)
+  sharedSeen:          "dnd_shared_seen_v1", // master: hash amministrativo "già visto" per riga condivisa (badge 📬)
 };
 
 // ─── API JSON per-utente ─────────────────────────────────────────────────────

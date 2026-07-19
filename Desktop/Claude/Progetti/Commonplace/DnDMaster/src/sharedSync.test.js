@@ -90,6 +90,14 @@ describe("master: campagne e assegnazione", () => {
     expect((await s.listMyCampaigns("master2")).map((c) => c.name)).toEqual(["Altrui"]);
   });
 
+  it("listVisibleCampaigns elenca tutte le campagne visibili (senza filtro master)", async () => {
+    await s.createCampaign("A");
+    client._currentUid = "master2";
+    await s.createCampaign("B");
+    const all = (await s.listVisibleCampaigns()).map((c) => c.name).sort();
+    expect(all).toEqual(["A", "B"]);
+  });
+
   it("seedSharedChar semina la riga col char_id del master (push-down)", async () => {
     const c = await s.createCampaign("C");
     await s.seedSharedChar(c.id, "player1", "char-7", { id: "char-7", name: "Scheletro" });

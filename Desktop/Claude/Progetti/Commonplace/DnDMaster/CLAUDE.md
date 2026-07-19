@@ -220,10 +220,38 @@ SELECT esteso ai membri via helper.
   canale). **Nessuna modifica** a `App.jsx`/`sync.js`/`storage.js` (il wiring è il 3c).
 - **Non deployato** (build locale; il deploy Netlify porta anche il blocco 1 non ancora live).
 
-**Prossimo: 3c UI** (vista giocatore che cura la sua scheda; vista master con "assegna" +
-pannello diff/accept + vitali live in sola lettura). **Blocco A** (concordato): aggiungere
-`conditions` e dadi vita come campi persistenti della scheda PG + editor, poi una riga in
-`VITALI_FIELDS`.
+✅ **3c FATTO (2026-07-19, Opus) — UI, verificata end-to-end live su account reale:**
+- Nuovo tab **🤝 Tavolo** (`SharedTablePage.jsx`; «Campagna» era già l'import wiki). Un utente
+  può essere sia master sia giocatore (toggle di ruolo). Trasporto tutto in `sharedSync.js`.
+- **Vista Giocatore:** "Entra in campagna" (join-code) + lista schede assegnate; apre e cura
+  la scheda **riusando `CharacterSheet`** — passata da `App.jsx` come prop `renderSheet` per
+  evitare l'**import circolare** (CharacterSheet vive dentro App.jsx). Le modifiche fanno un
+  upsert debounced (800ms) della riga condivisa. Guardia aggiunta: il bottone "Elimina
+  Personaggio" della CharacterSheet ora è condizionale a `onDelete` (nella vista condivisa è
+  nascosto). Impatto su `App.jsx`: solo import + tab + mount + questa guardia.
+- **Vista Master:** crea campagna + join-code (copiabile), membri, **assegna un PG esistente
+  del roster** (scelta di Stefano: campagna già in corso → `char_id` = id del roster, linking
+  automatico), vitali live in sola lettura, pannello **diff per-campo** (`diffAdmin`) con
+  accept selettivo → `applyAccepted` → `updateChar` (fluisce su `dnd_saves`). `lastSeenHash`
+  per il badge in `K.sharedSeen` (sincronizzato). Realtime via `subscribeSharedForMaster`.
+- `sharedSync.js`: aggiunto `listVisibleCampaigns` (nomi campagna lato giocatore) + test.
+  Totale **168 test verdi**, build verde.
+- ⚠️ **BUG del 3a corretto (root cause):** la RPC `join_campaign` falliva al **primo join
+  reale** con *"column reference campaign_id is ambiguous"* — `on conflict (campaign_id,
+  player_uid)` era ambiguo con il parametro OUT omonimo `campaign_id` di `RETURNS TABLE`. Fix:
+  `on conflict on constraint campaign_members_pkey` (migration `fix_join_campaign_ambiguous_
+  campaign_id`). Il 3a era documentato "verificato" ma la RPC non era mai stata chiamata.
+- **Collaudo E2E** (Olengard, un account: entra nella propria campagna, è master+giocatore):
+  crea → join → assegna → il giocatore modifica Lv → badge 📬 → diff (`level`/`maxHp`/
+  `spellSlots`) → accept → roster aggiornato. Dati di prova poi ripuliti; PG di test
+  ripristinato. **Non verificato in isolamento: il Realtime vero** (gli update passavano anche
+  via refresh manuali). Cosmetico: allineamento checkbox/etichetta nel pannello diff.
+- **Non deployato/non pushato.** Il deploy porterà anche il blocco 1 (migrazione roster già
+  avvenuta sull'account reale al login col dev server, non distruttiva).
+
+**Prossimo: blocco A** (concordato) — aggiungere `conditions` e dadi vita come campi
+persistenti della scheda PG + editor, poi una riga in `VITALI_FIELDS`; rifinitura Realtime +
+cosmesi diff. Follow-up backup (le 3 tabelle in `Backup/api/backup.js`) ancora aperto.
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il

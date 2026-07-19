@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-19 -- Sessione #25 (Opus 4.8, handover da Fable 5). **▶ RIPARTENZA prossima sessione: blocco 3b schede condivise DnD** (modulo client di sync a due canali; poi 3c = UI giocatore + master) — spec completa e stato in `DnDMaster/CLAUDE.md`, sezione «Schede condivise coi giocatori». Blocchi 1 (schede per-PG, deployate e live), 2 (tabelle `campaigns`/`dnd_shared_chars`) e 3a (`campaign_members` + RPC `join_campaign` + helper RLS) FATTI su pchld. ⚠️ follow-up: aggiungere le 3 tabelle a `Backup/api/backup.js` + redeploy cp-backup prima dei dati veri. — **Blocco 1 schede condivise DnD deployato**: schede personaggio ora una-riga-per-PG (`char:<id>` + indice `dnd_char_index_v1`), motore di sync esteso (char-key dinamiche, `markDeleted`/tombstone), migrazione non distruttiva (blob `dnd5e-master-v1` intatto = rollback) — su Netlify, **verificato live da Stefano**. Prima: design schede condivise esteso al **modello a campagna** (multi-master, join-code) e verifica primo backup Ledger 19/07 (✅ `projects.bogav`, 70 transazioni). Stato: piano-di-lavoro.md; diario in coda. — Precedente (#24). **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
+> Ultimo aggiornamento: 2026-07-19 -- Sessione #26 (Opus 4.8). **▶ RIPARTENZA prossima sessione: blocco A DnD** — aggiungere condizioni + dadi vita alla scheda PG come campi persistenti, poi includerli nei vitali; rifinire il Realtime delle schede condivise + cosmesi del pannello diff. Schede condivise DnD: **blocchi 3b + 3c FATTI e verificati end-to-end live** (nuovo tab 🤝 Tavolo; RPC `join_campaign` fixata: `campaign_id` era ambiguo con l'OUT param). ⚠️ **deploy 3b+3c da autorizzare** (porta anche il blocco 1, già migrato sull'account reale in modo non distruttivo); follow-up `backup.js` (3 tabelle) ancora aperto. Dettaglio in `DnDMaster/CLAUDE.md`, sezione «Schede condivise coi giocatori». — Precedente #25 (Opus 4.8, handover da Fable 5): Blocchi 1 (schede per-PG, deployate e live), 2 (tabelle `campaigns`/`dnd_shared_chars`) e 3a (`campaign_members` + RPC `join_campaign` + helper RLS) FATTI su pchld. ⚠️ follow-up: aggiungere le 3 tabelle a `Backup/api/backup.js` + redeploy cp-backup prima dei dati veri. — **Blocco 1 schede condivise DnD deployato**: schede personaggio ora una-riga-per-PG (`char:<id>` + indice `dnd_char_index_v1`), motore di sync esteso (char-key dinamiche, `markDeleted`/tombstone), migrazione non distruttiva (blob `dnd5e-master-v1` intatto = rollback) — su Netlify, **verificato live da Stefano**. Prima: design schede condivise esteso al **modello a campagna** (multi-master, join-code) e verifica primo backup Ledger 19/07 (✅ `projects.bogav`, 70 transazioni). Stato: piano-di-lavoro.md; diario in coda. — Precedente (#24). **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
 
 ---
 
@@ -1614,3 +1614,48 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
   (vista giocatore; vista master con diff Accetta/Ignora sul canale amministrativo + vitali
   live). Prima: sciogliere le 3 decisioni di dettaglio (linking al primo share, campi nel
   diff, seed scheletro).
+
+## 2026-07-19 — Sessione #26 (Opus 4.8)
+
+Schede condivise DnD **blocchi 3b + 3c completati e verificati end-to-end live** (dettaglio
+tecnico in `DnDMaster/CLAUDE.md`, sezione «Schede condivise»).
+
+- ✅ **Blocco 3b — moduli client di sync (fuori dal motore `dnd_saves`)**: `sharedChar.js`
+  (puro: partizione vitali/amministrativo sui campi reali di `defaultChar`, `diffAdmin`
+  per-campo con array a blocco, `applyAccepted`, `adminHash`/badge) + `sharedSync.js`
+  (trasporto Supabase: campagne, membri, seed push-down, RPC join, `upsertMySharedChar`,
+  Realtime). Migration `dnd_schede_condivise_blocco3b_realtime` (tabella `dnd_shared_chars`
+  in publication `supabase_realtime`). **38 test nuovi** (129→**168** verdi).
+- ✅ **Blocco 3c — UI**: nuovo tab **🤝 Tavolo** (`SharedTablePage.jsx`; il nome «Campagna»
+  era già preso dall'import wiki). Vista Giocatore = riusa la **CharacterSheet** sulla riga
+  condivisa (passata come prop `renderSheet`, per evitare l'import circolare — CharacterSheet
+  vive in `App.jsx`; guardia su `onDelete` per nascondere l'elimina). Vista Master = crea
+  campagna + join-code, assegna un **PG esistente del roster** (scelta di Stefano: campagna
+  già in corso), vitali live in sola lettura, pannello diff/accept per-campo. `lastSeenHash`
+  in `K.sharedSeen` (sincronizzato). Impatto su `App.jsx`: solo import + tab + mount + guardia.
+- ✅ **BUG del blocco 3a trovato e corretto (root cause):** la RPC `join_campaign` falliva
+  al **primo join reale** con *"column reference campaign_id is ambiguous"* — il target
+  `on conflict (campaign_id, player_uid)` era ambiguo con il parametro OUT omonimo `campaign_id`
+  di `RETURNS TABLE`. Fix: `on conflict on constraint campaign_members_pkey` (migration
+  `fix_join_campaign_ambiguous_campaign_id`). **Il 3a era documentato come "verificato" ma la
+  RPC non era mai stata chiamata davvero** — emerso solo col collaudo E2E.
+- ✅ **Collaudo E2E live su account reale (Olengard)** — trucco a un account: Olengard entra
+  nella *propria* campagna (la RPC registra chiunque, master incluso) ed è sia master sia
+  giocatore. Giro completo verificato: crea campagna → join → assegna Norana → il giocatore
+  modifica Lv5→6 (`salvato ✓`) → badge 📬 lato master → diff (`level` 5→6, `maxHp` 38→45,
+  `spellSlots`) → accept → roster a Lv6. Poi **dati di prova ripuliti** (3 tabelle a 0) e
+  **Norana ripristinata esattamente a Lv5/maxHp 38/slot {1:4,2:3,3:2}** (il cambio livello
+  ricalcola in discesa; valori confrontati col blob intatto).
+- ⚠️ **Non verificato in isolamento:** il **Realtime** vero (postgres_changes) — nel collaudo
+  gli aggiornamenti passavano anche via refresh manuali; serve una prova a due client/finestre.
+  Cosmetico: allineamento checkbox/etichetta nel pannello diff da rifinire.
+- ⚠️ **Azioni richieste (Stefano):**
+  - **Deploy 3b+3c da autorizzare** (Netlify): porterà anche il blocco 1, il cui collaudo era
+    previsto "al deploy". Codice committato, **non ancora pushato né deployato**.
+  - **Migrazione blocco 1 già eseguita sull'account reale** durante il collaudo (login col dev
+    server nuovo): `migrateCharsToPerPG` ha spezzato il roster in righe `char:<id>` su
+    `dnd_saves` reale — **non distruttivo, blob `dnd5e-master-v1` intatto**. Solo da sapere.
+  - **Follow-up backup** (dalla #25, ancora aperto): aggiungere `campaigns`, `dnd_shared_chars`,
+    `campaign_members` a `Backup/api/backup.js` + redeploy cp-backup, prima dei dati veri.
+- **Prossimo:** blocco A concordato (aggiungere `conditions` e dadi vita come campi persistenti
+  della scheda PG + editor, poi una riga in `VITALI_FIELDS`); rifinitura Realtime + cosmesi diff.
