@@ -81,25 +81,83 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-fi
 ## Roadmap
 **Supabase fase 2B: FATTA (2026-07-07)** — auth vera + sync cross-device via `dnd_saves`. Limite noto e accettato: conflitti last-write-wins per chiave intera (es. tutti i PG in un blob) — se servisse, spezzare `characters` in una riga per PG senza cambiare l'API. Vedi memoria `dnd-master-roadmap`.
 
-**Schede condivise coi giocatori (design 2026-07-18, richiesto da Stefano — DA IMPLEMENTARE, ~2-3 sessioni):**
-principio non negoziabile: **la copia del Master è sempre la verità**. Disegno:
-1. *Prerequisito*: spezzare `characters` in una riga per PG (già previsto sopra) — senza, il
+**Schede condivise coi giocatori (design 2026-07-18, esteso al modello a campagna
+2026-07-19 — richiesto da Stefano, DA IMPLEMENTARE):**
+principio non negoziabile: **la copia del Master è sempre la verità**.
+
+*I 4 pilastri (invariati):*
+1. *Prerequisito*: spezzare `characters` in una riga per PG (vedi 2B sopra) — senza, il
    last-write-wins sul blob renderebbe la condivisione un tritacarne di sovrascritture.
-2. Tabella `dnd_shared_chars` (player_uid, char_id, char jsonb, updated_at) su pchld, RLS:
-   il giocatore scrive SOLO la propria riga; il Master (uid Olengard) legge tutte. Il giocatore
-   usa la STESSA app (ha già login/registrazione): vede e cura solo la sua scheda.
-3. *Modello a PROPOSTA, niente merge automatico*: gli aggiornamenti del giocatore NON toccano
+   ⚠️ È l'intervento più rischioso: tocca il motore di sync **testato** (chiavi oggi da un
+   Set fisso `SYNCED_KEYS` → servono chiavi dinamiche prefix-aware) + migrazione del blob.
+2. *Modello a PROPOSTA, niente merge automatico*: gli aggiornamenti del giocatore NON toccano
    la copia del Master. Nella vista Master un badge "📬 aggiornamento da <giocatore>" apre il
-   DIFF (PF, slot, equip, livello) con "Accetta" / "Ignora". Il controllo del diff è anche
-   l'anti-cheat naturale.
+   DIFF (PF, slot, equip, livello) con "Accetta" / "Ignora". Il diff è anche l'anti-cheat
+   naturale (forte quanto l'attenzione del master: va bene per un gioco tra amici, non è una
+   proprietà di sicurezza).
+3. *Snapshot completi*: la scheda condivisa viaggia con incantesimi/attacchi/privilegi
+   **materializzati nel char** (come i pin di Sessione) — MAI riferimenti per nome da
+   risolvere nell'archivio del Master, che potrebbe avere import 5e.tools diversi dal
+   giocatore. Requisito "giocatore ha il catalogo completo" → GIÀ VERO (`dnd_imported_*`
+   è per-utente, ogni account ha il suo 📥 Importa).
 4. In sessione fa fede lo schermo del Master (il combat tracker usa già le sue copie); il
    giocatore aggiorna la scheda "amministrativa" (level up, acquisti) fuori sessione.
-Problemi previsti e mitigati dal disegno: conflitti concorrenti (risolti dal modello a
-proposta), cheating/errori (diff visibile), offline (coda sync esistente), privacy (RLS
-per riga: un giocatore non vede schede altrui né mostri/note del Master).
-**Decisioni ratificate da Stefano (2026-07-18):** modello a proposta approvato; requisito:
-i giocatori devono avere il catalogo 5e.tools completo → GIÀ VERO (dnd_imported_* è
-per-utente, ogni account ha il suo 📥 Importa: zero lavoro). Conseguenza di design:
-la scheda condivisa viaggia con SNAPSHOT completi (incantesimi/attacchi/privilegi
-materializzati nel char, come i pin di Sessione) — MAI riferimenti per nome da risolvere
-nell'archivio del Master, che potrebbe non avere gli stessi import del giocatore.
+
+*Modello a CAMPAGNA (ratificato 2026-07-19).* L'app è multi-master: **più master
+indipendenti, ognuno con più campagne, giocatori e PG diversi per campagna**. La campagna è
+l'aggregato che rende netti sia il raggruppamento sia la RLS (e cancella l'uid-master
+cablato: "essere master" = possedere ≥1 campagna, non un'identità hardcoded). Bozza schema
+(pchld):
+```
+campaigns(id, master_uid, name, join_code, created_at)         -- 1 proprietario per campagna
+dnd_shared_chars(campaign_id, player_uid, char_id, char jsonb, updated_at, status)
+   PK (campaign_id, player_uid, char_id)
+   RLS SELECT: player_uid = auth.uid()
+            OR campaign_id IN (select id from campaigns where master_uid = auth.uid())
+   RLS INSERT/UPDATE/DELETE: solo il giocatore sulla PROPRIA riga (player_uid = auth.uid())
+```
+- **Ingresso in campagna = join-code** (il master lo genera, lo passa fuori-app, il giocatore
+  lo inserisce). Membership **implicita**: sei nella campagna se hai una scheda lì / hai usato
+  il code. Niente tabella membri né flusso di approvazione nella v1.
+- **Un solo proprietario per campagna** (niente co-DM; i giocatori non sono co-master).
+- Il layer condiviso (`campaigns` + `dnd_shared_chars`) vive **fuori** dal motore `dnd_saves`
+  attuale: percorso di sync a sé (l'affermazione "l'offline lo copre la coda esistente" è
+  ottimistica — quella coda è specifica di `dnd_saves`).
+
+*Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
+locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il
+motore di sync: rimandato).
+
+*Decisioni ratificate (2026-07-19):*
+- **Seed + linking (era #1+#3): il master semina (push-down).** Il master crea il PG nel suo
+  roster e lo spinge in `dnd_shared_chars`: la riga condivisa nasce **col `char_id` del
+  master** → il linking roster↔scheda condivisa è automatico e permanente (nessuna UI di
+  aggancio). Flusso comodo: il master crea uno **scheletro** (nome/razza/classe/livello,
+  assegnato al giocatore), il giocatore lo **completa** (caratteristiche, equip, incantesimi).
+  Ordine: il giocatore entra prima in campagna col join-code (così il master ne vede l'uid),
+  poi il master assegna. Coerente col principio "la copia del master è la verità".
+- **Granularità Accetta (era #2): DUE CANALI di sync diversi nella stessa scheda.**
+  1. *Canale VITALI (live, autorità pratica al giocatore, niente approvazione, LWW):* i
+     contatori che deplettano in gioco — **PF correnti, PF temporanei, dadi vita rimasti,
+     slot incantesimo SPESI, TS contro morte, condizioni**. Il giocatore li aggiorna in
+     tempo reale, il master li vede live. Motivazione: al tavolo il master non tiene traccia
+     dei PF di tutti, il giocatore sì; così i PF arrivano allo schermo del master invece di
+     essere digitati a mano.
+  2. *Canale AMMINISTRATIVO (propose → accept, tra sessioni, master = verità):* la struttura
+     — **livello, PF MAX, caratteristiche, competenze, CA base, incantesimi noti/preparati,
+     slot MASSIMI, equipaggiamento, talenti/ASI, privilegi, background**. Accetta **v1
+     tutto-o-niente** con diff leggibile e raggruppato; per-campo sui soli scalari eventuale
+     v2 (gli array equip/incantesimi restano a blocco: diffarli per-voce è troppo per la v1).
+  Confine netto: **struttura/roster = amministrativo; contatori che si consumano in gioco =
+  vitali.** (PF *max* amministrativo / PF *correnti* live; slot *massimi* amministrativo /
+  slot *spesi* live.) **Override del master sempre disponibile su qualunque campo, vitali
+  inclusi** — il principio "master = verità" regge dove conta (struttura + override).
+  Diff amministrativo: escludere ritratto base64 (solo flag "ritratto cambiato"),
+  timestamp/metadati, `activeId`.
+- *Consumo dei vitali dal combat tracker:* fasato — prima il master **vede** i PF live nella
+  vista schede condivise; l'auto-popolamento del tracker (iniziativa/HP nel round) è
+  rifinitura successiva (il tracker oggi è comunque poco usato).
+
+*TO-DO futuri (fuori v1):* campagna-scopare il roster locale del master + filtro campagna
+nella UI; superare la canonicalizzazione profilo Olengard/Manu (`EMAIL_PROFILE`) verso un
+multi-utente vero; eventuale tabella membri/inviti se il join-code non bastasse.
