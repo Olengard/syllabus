@@ -265,10 +265,21 @@ aggiunte a `Backup/api/backup.js`, cp-backup ridistribuito (`Backup/` è fuori d
   sync live nelle schede condivise; il master li vede in `VitaliView`, con le condizioni come
   chip e i dadi vita rimasti). **NON** amministrativi (niente diff/accept). Test aggiornati.
 - 168 test verdi, build verde. **Verificato in-app** (spesa dado vita + toggle condizione
-  persistiti su `char:<id>`; PG di test ripristinato). **Non deployato.**
+  persistiti su `char:<id>`; PG di test ripristinato). **Deployato 2026-07-19** (Netlify) coi
+  fix rifiniture.
 
-**Prossimo:** rifinitura Realtime (prova a due client) + cosmesi pannello diff. **Non
-verificato a runtime:** il recupero dadi vita del riposo lungo (logica inline, ispezione).
+✅ **Rifiniture FATTE (2026-07-19, Opus):**
+- **Realtime VERIFICATO in isolamento** (due tab, stessa sessione Olengard): la tab master in
+  `subscribeSharedForMaster` si aggiorna **senza refresh** quando il giocatore (altra tab)
+  modifica la riga condivisa — provati sia un vitale (PF 38→12, `VitaliView` live) sia il badge
+  📬 amministrativo. Postgres_changes rispetta la RLS (arriva solo al master della campagna).
+- **Cosmetico diff RISOLTO (era un bug):** il checkbox del pannello diff ereditava
+  `input{width:100%}` globale → largo 1227px, spingeva etichetta e valore fuori schermo. Fix:
+  `width:16` sul checkbox + `justify-content:flex-start`/`text-transform:none` sulla riga.
+  Verificato coi bounding-rect (checkbox 16px, campi impacchettati a sinistra).
+
+**Prossimo:** nessun blocco aperto obbligatorio. **Non verificato a runtime:** il recupero dadi
+vita del riposo lungo (logica inline, ispezione). TO-DO futuri sotto.
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il

@@ -69,9 +69,9 @@ function DiffPanel({ rosterChar, sharedChar, onAccept, onIgnore, onClose }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {diff.map((d) => (
-          <label key={d.field} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.82rem", cursor: "pointer" }}>
-            <input type="checkbox" checked={checked.has(d.field)} onChange={() => toggle(d.field)} />
-            <span style={{ minWidth: 130, fontWeight: 600 }}>{d.field}</span>
+          <label key={d.field} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8, fontSize: "0.82rem", textTransform: "none", letterSpacing: "normal", cursor: "pointer" }}>
+            <input type="checkbox" checked={checked.has(d.field)} onChange={() => toggle(d.field)} style={{ flex: "0 0 auto", width: 16, height: 16, margin: 0 }} />
+            <span style={{ flex: "0 0 130px", fontWeight: 600 }}>{d.field}</span>
             <span style={{ color: "var(--text2)" }}>
               {d.kind === "array" ? `📦 ${d.summary} oggetti` : d.kind === "portrait" ? "🖼 ritratto cambiato" : d.kind === "object" ? "modificato" : d.summary}
             </span>
