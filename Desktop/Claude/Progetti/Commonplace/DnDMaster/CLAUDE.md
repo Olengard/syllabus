@@ -196,7 +196,34 @@ i membri delle sue campagne; **nessuna policy INSERT** → l'unico ingresso è l
 `SECURITY DEFINER` `is_campaign_master`/`is_campaign_member` (spezzano la ricorsione mutua di
 RLS); RPC `join_campaign(code, display_name)` (SECURITY DEFINER, valida il code → registra la
 membership idempotente → ritorna id+nome campagna; grant solo a `authenticated`); `campaigns`
-SELECT esteso ai membri via helper. **Prossimo: 3b** (client sync del layer condiviso).
+SELECT esteso ai membri via helper.
+
+✅ **3b FATTO (2026-07-19, Opus)** — moduli client del layer condiviso, FUORI dal motore
+`dnd_saves`, con `npm test` verde (129 baseline → **167**, +38) e build verde:
+- `src/sharedChar.js` (**puro**, nessuna dip. Supabase/localStorage): partizione dei campi
+  reali di `defaultChar` — `VITALI_FIELDS` (`currentHp,tempHp,usedSpellSlots,deathSaves,
+  inspiration`; conditions/hitDice NON esistono ancora come campi PG → entreranno qui con una
+  riga quando aggiunti alla scheda, blocco A concordato), `ADMIN_FIELDS`, `MASTER_ONLY_FIELDS`
+  (`prestige,reputation`), esclusi. `pickVitali`/`pickAdmin`; `diffAdmin` (accept per-CAMPO
+  top-level; array `equipment/spells/attacks` a blocco con sintesi conteggi; `armorClass`
+  trascina `acAuto`; `portrait` solo flag, mai base64 nel diff); `applyAccepted` (immutabile,
+  deep-clone); `adminHash`+`hasPendingAdmin` per il badge 📬 (hash breve del ritratto).
+- `src/sharedSync.js` (trasporto, wrapper su `supabase`, RLS = sicurezza): `createCampaign`,
+  `listMyCampaigns(uid)`, `listMembers`, `seedSharedChar` (push-down, upsert), `listSharedFor
+  Master`, `deleteSharedChar`; `joinCampaign` (RPC, mappa `CODICE_NON_VALIDO`), `listSharedFor
+  Me(uid)`, `upsertMySharedChar`; `subscribeSharedForMaster` (Realtime).
+- Migration `dnd_schede_condivise_blocco3b_realtime` su pchld (verificata): `dnd_shared_chars`
+  aggiunta a `supabase_realtime` (vitali live al master senza refresh; REPLICA IDENTITY di
+  default = PK, basta ai DELETE). **Realtime ratificato da Stefano 2026-07-19** (i vitali sono
+  LWW sola-lettura per il master; l'accept amministrativo resta manuale tra le sessioni).
+- Test: `sharedChar.test.js` (26), `sharedSync.test.js` (12, fake-client per 3 tabelle+rpc+
+  canale). **Nessuna modifica** a `App.jsx`/`sync.js`/`storage.js` (il wiring è il 3c).
+- **Non deployato** (build locale; il deploy Netlify porta anche il blocco 1 non ancora live).
+
+**Prossimo: 3c UI** (vista giocatore che cura la sua scheda; vista master con "assegna" +
+pannello diff/accept + vitali live in sola lettura). **Blocco A** (concordato): aggiungere
+`conditions` e dadi vita come campi persistenti della scheda PG + editor, poi una riga in
+`VITALI_FIELDS`.
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il
