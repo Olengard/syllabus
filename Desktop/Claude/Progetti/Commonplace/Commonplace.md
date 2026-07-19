@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-19 -- Sessione #24. **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
+> Ultimo aggiornamento: 2026-07-19 -- Sessione #25 (Opus 4.8, handover da Fable 5). **Blocco 1 schede condivise DnD deployato**: schede personaggio ora una-riga-per-PG (`char:<id>` + indice `dnd_char_index_v1`), motore di sync esteso (char-key dinamiche, `markDeleted`/tombstone), migrazione non distruttiva (blob `dnd5e-master-v1` intatto = rollback) — su Netlify, **verificato live da Stefano**. Prima: design schede condivise esteso al **modello a campagna** (multi-master, join-code) e verifica primo backup Ledger 19/07 (✅ `projects.bogav`, 70 transazioni). Stato: piano-di-lavoro.md; diario in coda. — Precedente (#24). **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
 
 ---
 
@@ -310,6 +310,7 @@ Commonplace
 - **Mobile bottom nav** â€” nav bar fisso â‰¤768px con tutti i 9 tab, scroll orizzontale, gold attivo â€” 2026-03-26
 
 **Stato attuale:** âœ… Funzionante — ridistribuito 2026-07-07 (versione 2B: catalogo 5e.tools, palette ⌘K, registro Campagna, dadi globali, Supabase). Il dettaglio vive in `DnDMaster/CLAUDE.md`.
+**2026-07-19 (Opus):** schede personaggio migrate a **per-PG** (`char:<id>` + indice `dnd_char_index_v1`) — prerequisito delle schede condivise; deployato su Netlify e verificato live. Il blob `dnd5e-master-v1` è tenuto intatto come rollback.
 
 **Roadmap:**
 - Tabelle loot casuali
@@ -1561,3 +1562,45 @@ Al collaudo da loggato di Stefano, Syllabus rispondeva "API key is invalid 401" 
   `projects.bogav` (~70 transazioni) — la fa Claude su richiesta; sul tablet:
   ritoccare il livello dei PG con classe importata (ricalcolo slot), controllare i
   chip CD, cercare "dardo tracciante"; ri-aggiungere l'icona Digest alla home.
+
+## 2026-07-19 — Sessione #25 (Opus 4.8, handover da Fable 5)
+
+- ✅ **Verifica primo backup Ledger (19/07)** — `backup-2026-07-19.json` (cron 05:07 UTC)
+  ha `projects.bogav` con le 11 tabelle Ledger, `transactions` **70 righe**, zero tabelle
+  in errore; il 18/07 non ha ancora `bogav` (il 19 è il primo, come da RIPRISTINO.md).
+  Ispezione diretta del repo privato `commonplace-backups`. Nota: la env sorgente è
+  `SUPABASE_BOGAV_SERVICE_KEY` (in `backup.js`) — il piano #2 citava `LLV` per errore.
+  Header + piano-di-lavoro #2 annotati. Commit `f9f9db1`.
+- ✅ **Design schede condivise DnD → modello a campagna (ratificato)** — esteso da
+  "master unico" a **multi-master, più campagne per master**: la campagna è l'aggregato
+  (`campaigns.master_uid` + `dnd_shared_chars.campaign_id`, RLS via subquery) — elimina
+  l'uid-master cablato. Join-code con membership implicita, un proprietario per campagna.
+  Sciolte le 3 decisioni: (1)+(3) seed = **il master semina** (push-down; linking
+  roster↔scheda automatico via `char_id` del master); (2) **due canali di sync** — vitali
+  live player-autoritativi (PF correnti, slot spesi, TS morte, condizioni) + amministrativo
+  propose/accept tutto-o-niente, **override del master sempre**. Design in `DnDMaster/CLAUDE.md`.
+  Commit `37d3ad2`.
+- ✅ **Blocco 1 schede condivise: schede personaggio PER-PG — IMPLEMENTATO e DEPLOYATO** —
+  prerequisito del design. **Root idea:** il last-write-wins per chiave intera sul blob
+  `characters` rendeva impossibile accettare l'update di un PG senza clobberare gli altri →
+  dal blob unico a una **riga per PG** (`char:<id>`) + indice `dnd_char_index_v1`
+  (ordine/activeId).
+  - `sync.js`: char-key dinamiche (`isCharKey`); `markDeleted` con coda **tombstone**
+    (`dnd_sync_deleted_v1`) — cancellare un PG toglie la riga da `dnd_saves`, senza la quale
+    ripullerebbe come fantasma; pull/push per-PG; `markAllForPush` (restore) include le char-key.
+  - `storage.js`: API per-PG + **migrazione one-time NON distruttiva** (`migrateCharsToPerPG`
+    in `AppRoot` prima del pull) — il blob `dnd5e-master-v1` resta **INTATTO come rollback**;
+    le nuove righe le scopre e pusha `pullAll` (`charKeysLocal`).
+  - `App.jsx`: `loadAllChars` (indice + righe); save-effect che scrive/marca **solo il PG
+    modificato** (confronto per identità: `updateChar` sostituisce solo il suo oggetto);
+    cancellazione via `sync.markDeleted`. `BackupRestore`: conteggio PG dall'indice.
+  - **13 test nuovi (129 totali verdi)**, build verde. Deploy Netlify verificato live
+    (marker `dnd_char_index_v1` nel bundle) e **collaudo end-to-end confermato da Stefano**
+    (roster reale caricato identico, edit di un PG persistito, altri PG intatti). Commit `ae1e2ab`.
+- ⚠️ **Azioni richieste (Stefano):** nessuna urgente da questa sessione. Solo da sapere: se un
+  device ha la PWA DnD vecchia in cache può servire 1-2 reload per passare al codice nuovo
+  (autoUpdate). Restano gli item tablet della #24 (chip CD, ecc.), già suoi.
+- **Prossimo (schede condivise):** blocco 2 = tabelle `campaigns` + `dnd_shared_chars` su
+  pchld (RLS, join-code); blocco 3 = UI (vista giocatore; vista master con diff Accetta/Ignora
+  + vitali live). Restano da sciogliere in fase di piano le 3 decisioni di dettaglio annotate
+  nel design (linking al primo share, campi nel diff, seed scheletro).
