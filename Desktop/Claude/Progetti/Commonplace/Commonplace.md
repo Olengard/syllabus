@@ -1770,7 +1770,8 @@ auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico
   Filtro rigoroso (i non assegnati solo con «Tutte»), con le due trappole gestite: un PG nuovo
   eredita la campagna del filtro (altrimenti spariva appena creato) e eliminare una campagna
   non cancella i suoi PG. Nuovo modulo puro `src/roster.js` (21 test).
-  ⚠️ **Non deployato**: il deploy del prestigio è live, questo no.
+  ✅ **Deployato e pushato** (2026-07-20, bundle live `index-8SaFqFTk.js`: `Tutte le campagne`,
+  `roster-filter`, `senza campagna`). `origin/main` = `8f34a1e`.
 - **211 → 232 test verdi.** Verifiche: build verde, console pulita, logica e layout provati nel
   browser reale (il select del filtro a 230px non sfonda la barra — stesso gotcha
   `input{width:100%}` che aveva colpito il checkbox del diff).
