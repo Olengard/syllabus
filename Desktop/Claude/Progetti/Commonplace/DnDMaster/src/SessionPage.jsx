@@ -26,6 +26,13 @@ export function clockTime(clock) {
   return `${h}:${m}`;
 }
 
+// 5e: il riposo lungo recupera metà dei dadi vita totali (= livello del PG), minimo 1.
+export function hitDiceAfterLongRest(char) {
+  const used = char.hitDiceUsed || 0;
+  const recuperati = Math.max(1, Math.floor((char.level || 1) / 2));
+  return Math.max(0, used - recuperati);
+}
+
 // Cruscotto di sessione: orologio di gioco + riposi brevi/lunghi per il party.
 function SessionDashboard({ characters, onUpdateCharacters }) {
   const [clock, setClock] = React.useState(loadClock);
@@ -42,8 +49,7 @@ function SessionDashboard({ characters, onUpdateCharacters }) {
     onUpdateCharacters(pcs.map(c => ({
       ...c, currentHp: c.maxHp, tempHp: 0, usedSpellSlots: {},
       deathSaves: { successes: 0, failures: 0 },
-      // 5e: recupera metà dei dadi vita totali (= livello), minimo 1
-      hitDiceUsed: Math.max(0, (c.hitDiceUsed || 0) - Math.max(1, Math.floor((c.level || 1) / 2))),
+      hitDiceUsed: hitDiceAfterLongRest(c),
     })));
     save(advanceClock(clock, 8 * 60));
   };
