@@ -285,8 +285,10 @@ aggiunte a `Backup/api/backup.js`, cp-backup ridistribuito (`Backup/` è fuori d
   `width:16` sul checkbox + `justify-content:flex-start`/`text-transform:none` sulla riga.
   Verificato coi bounding-rect (checkbox 16px, campi impacchettati a sinistra).
 
-**Prossimo:** nessun blocco aperto obbligatorio. **Non verificato a runtime:** il recupero dadi
-vita del riposo lungo (logica inline, ispezione). TO-DO futuri sotto.
+**Prossimo:** nessun blocco aperto obbligatorio. Il recupero dadi vita del riposo lungo è
+**coperto da test** (2026-07-20): estratto come helper puro `hitDiceAfterLongRest` in
+`SessionPage.jsx` (pattern di `advanceClock`), 4 casi in `SessionPage.test.js` — la formula
+era già corretta, nessun cambio di comportamento. 172 test verdi. TO-DO futuri sotto.
 
 *Ambito v1:* campagna-scopare **solo il layer condiviso** (giocatore→master). Il **roster
 locale del master resta globale** per ora (scoparlo tocca la persistenza `characters` + il
