@@ -3,7 +3,7 @@ import {
   VITALI_FIELDS, ADMIN_FIELDS, MASTER_ONLY_FIELDS,
   pickVitali, pickAdmin, stableStringify,
   diffAdmin, applyAccepted, adminHash, hasPendingAdmin,
-  applyVitaliToCombatant,
+  applyVitaliToCombatant, publicPrestige, diffPrestige, mergePlayerPrestige,
 } from "./sharedChar.js";
 
 // Char minimale coi campi reali di defaultChar che ci servono nei test.
@@ -258,5 +258,114 @@ describe("applyVitaliToCombatant (auto-popolamento Combat Tracker)", () => {
     const out = applyVitaliToCombatant(pc(), shared);
     out.conditions.push("Cieco");
     expect(shared.conditions).toEqual(["Prono"]);
+  });
+});
+
+describe("prestigio: visibilita' per-voce (alias / hidden)", () => {
+  // Caso reale: Teofilo crede di avere prestigio con la «Famiglia»; il master
+  // sa che quel valore e' del «Clero». Gli Obscurati non esistono, per lui.
+  const masterPrestige = () => [
+    { id: 1, name: "Flint", value: 3 },
+    { id: 4, name: "Clero", value: 2, alias: "Famiglia" },
+    { id: 5, name: "Obscurati", value: 1, hidden: true },
+  ];
+
+  describe("publicPrestige (cio' che parte verso il giocatore)", () => {
+    it("sostituisce il nome con l'alias e omette le voci nascoste", () => {
+      expect(publicPrestige(masterPrestige())).toEqual([
+        { id: 1, name: "Flint", value: 3 },
+        { id: 4, name: "Famiglia", value: 2 },
+      ]);
+    });
+
+    it("non fa trapelare i metadati del master", () => {
+      // Sapere che una voce HA un alias e' gia' meta' segreto svelato.
+      for (const v of publicPrestige(masterPrestige())) {
+        expect(v).not.toHaveProperty("alias");
+        expect(v).not.toHaveProperty("hidden");
+      }
+    });
+
+    it("il nome vero di una voce aliasata non compare da nessuna parte", () => {
+      expect(JSON.stringify(publicPrestige(masterPrestige()))).not.toContain("Clero");
+      expect(JSON.stringify(publicPrestige(masterPrestige()))).not.toContain("Obscurati");
+    });
+
+    it("lista vuota o assente → array vuoto", () => {
+      expect(publicPrestige([])).toEqual([]);
+      expect(publicPrestige(null)).toEqual([]);
+    });
+  });
+
+  describe("diffPrestige (cosa vede il master nel pannello)", () => {
+    it("etichetta le variazioni col nome VERO, non con l'alias", () => {
+      const dal = [{ id: 4, name: "Famiglia", value: 5 }];
+      expect(diffPrestige(masterPrestige(), dal)).toEqual([
+        { id: 4, name: "Clero", before: 2, after: 5 },
+      ]);
+    });
+
+    it("nessuna variazione → diff vuoto", () => {
+      expect(diffPrestige(masterPrestige(), publicPrestige(masterPrestige()))).toEqual([]);
+    });
+
+    it("le voci nascoste non entrano mai nel diff", () => {
+      // Anche se il giocatore inventasse una riga con l'id di una voce nascosta.
+      const malevolo = [{ id: 5, name: "Obscurati", value: 10 }];
+      expect(diffPrestige(masterPrestige(), malevolo)).toEqual([]);
+    });
+
+    it("le voci che il giocatore non ha rimandato non risultano azzerate", () => {
+      expect(diffPrestige(masterPrestige(), [])).toEqual([]);
+    });
+  });
+
+  describe("mergePlayerPrestige (accept)", () => {
+    it("applica il valore proposto conservando il nome vero e l'alias", () => {
+      const out = mergePlayerPrestige(masterPrestige(), [{ id: 4, name: "Famiglia", value: 5 }]);
+      expect(out[1]).toEqual({ id: 4, name: "Clero", value: 5, alias: "Famiglia" });
+    });
+
+    it("REGRESSIONE: un accept non distrugge le voci segrete", () => {
+      // Il giocatore rimanda 2 voci su 3: senza merge per id, un accept
+      // sostituirebbe la lista e cancellerebbe gli Obscurati.
+      const out = mergePlayerPrestige(masterPrestige(), publicPrestige(masterPrestige()));
+      expect(out).toHaveLength(3);
+      expect(out[2]).toEqual({ id: 5, name: "Obscurati", value: 1, hidden: true });
+    });
+
+    it("una voce nascosta non e' modificabile dal giocatore", () => {
+      const out = mergePlayerPrestige(masterPrestige(), [{ id: 5, name: "Obscurati", value: 99 }]);
+      expect(out[2].value).toBe(1);
+    });
+
+    it("ignora le voci inventate dal giocatore (la lista e' del master)", () => {
+      const out = mergePlayerPrestige(masterPrestige(), [{ id: 99, name: "Corona", value: 7 }]);
+      expect(out).toHaveLength(3);
+      expect(out.find((e) => e.id === 99)).toBeUndefined();
+    });
+
+    it("il giocatore non puo' rinominare una voce", () => {
+      const out = mergePlayerPrestige(masterPrestige(), [{ id: 1, name: "Pizzeria", value: 3 }]);
+      expect(out[0].name).toBe("Flint");
+    });
+
+    it("e' immutabile: la lista del master non viene toccata", () => {
+      const base = masterPrestige();
+      mergePlayerPrestige(base, [{ id: 4, name: "Famiglia", value: 9 }]);
+      expect(base[1].value).toBe(2);
+    });
+
+    it("giro completo: seed → il giocatore segna +1 → accept", () => {
+      const master = masterPrestige();
+      const alGiocatore = publicPrestige(master);
+      const modificato = alGiocatore.map((e) => e.id === 4 ? { ...e, value: e.value + 1 } : e);
+      const d = diffPrestige(master, modificato);
+      expect(d).toEqual([{ id: 4, name: "Clero", before: 2, after: 3 }]);
+      const out = mergePlayerPrestige(master, modificato);
+      expect(out[1].value).toBe(3);
+      expect(out[1].name).toBe("Clero");
+      expect(out[2].hidden).toBe(true);
+    });
   });
 });

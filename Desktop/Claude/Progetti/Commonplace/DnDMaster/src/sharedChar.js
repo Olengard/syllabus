@@ -29,7 +29,11 @@ export const ADMIN_FIELDS = [
 ];
 
 // ④ Del master: anti-cheat, non condivisi col giocatore.
-export const MASTER_ONLY_FIELDS = ["prestige", "reputation"];
+// `prestige` NON è più qui (2026-07-20): viaggia al giocatore in forma PUBBLICA
+// (vedi publicPrestige) perché ha senso che tracci la propria reputazione, ma
+// con alias e voci nascoste decisi dal master. `reputation` resta master-only:
+// è dichiarato in defaultChar ma non usato da nessuna UI (lista sempre vuota).
+export const MASTER_ONLY_FIELDS = ["reputation"];
 
 // Esclusi da OGNI diff/canale (identità, metadati, viste locali, combattimento).
 export const EXCLUDED_FIELDS = ["id", "player", "initiative", "pinnedFeatures", "acAuto", "updated_at", "created_at"];
@@ -134,6 +138,57 @@ export function adminHash(char) {
 export function hasPendingAdmin(masterChar, sharedChar, lastSeenHash) {
   if (diffAdmin(masterChar, sharedChar).length === 0) return false;
   return adminHash(sharedChar) !== lastSeenHash;
+}
+
+// ── Prestigio: visibilità per-voce (2026-07-20) ──────────────────────────────
+// Il giocatore traccia la propria reputazione, ma il master decide COSA vede.
+// Due metadati opzionali sulla singola voce di `prestige` (`{id, name, value}`):
+//   • `hidden: true`  → la voce non lascia mai il device del master (fazione di
+//     cui il PG non sospetta nemmeno l'esistenza).
+//   • `alias: "..."`  → il giocatore la vede sotto un altro nome. Caso reale:
+//     il master sa che il 2 di Teofilo è col «Clero», Teofilo crede sia con la
+//     «Famiglia» perché le connessioni non sono ancora emerse.
+// Gli `id` sono stabili: sono LORO a riconciliare le due copie, mai i nomi.
+
+// Forma pubblica di `prestige` da mettere nella riga condivisa: niente voci
+// nascoste, niente metadati del master (alias/hidden non devono trapelare —
+// sapere che una voce HA un alias è già mezzo segreto svelato).
+export function publicPrestige(list) {
+  return (list || [])
+    .filter((e) => e && !e.hidden)
+    .map((e) => ({ id: e.id, name: e.alias || e.name, value: e.value || 0 }));
+}
+
+// Le variazioni proposte dal giocatore, etichettate col nome VERO (il master
+// deve leggere «Clero», non l'alias). Solo voci visibili e solo il `value`:
+// una voce nascosta non può essere toccata, e i nomi restano del master.
+export function diffPrestige(masterList, playerList) {
+  const daGiocatore = new Map((playerList || []).map((e) => [e.id, e]));
+  const out = [];
+  for (const m of masterList || []) {
+    if (!m || m.hidden) continue;
+    const p = daGiocatore.get(m.id);
+    if (!p) continue;
+    const before = m.value || 0;
+    const after = p.value || 0;
+    if (before !== after) out.push({ id: m.id, name: m.name, before, after });
+  }
+  return out;
+}
+
+// Riconciliazione: copia SOLO i valori proposti, per id. Le voci nascoste, i
+// nomi veri, gli alias e le voci che il giocatore non conosce restano intatti;
+// le voci che lui avesse aggiunto di suo sono ignorate (la lista è del master).
+// Immutabile. Questa funzione è ciò che impedisce a un accept di distruggere le
+// voci segrete: la lista del giocatore non sostituisce MAI quella del master.
+export function mergePlayerPrestige(masterList, playerList) {
+  const daGiocatore = new Map((playerList || []).map((e) => [e.id, e]));
+  return (masterList || []).map((m) => {
+    if (!m || m.hidden) return m;
+    const p = daGiocatore.get(m.id);
+    if (!p || (p.value || 0) === (m.value || 0)) return m;
+    return { ...m, value: p.value || 0 };
+  });
 }
 
 // ── Vitali → Combat Tracker (auto-popolamento, 2026-07-20) ───────────────────

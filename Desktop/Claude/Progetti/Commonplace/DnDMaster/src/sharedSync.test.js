@@ -230,3 +230,69 @@ describe("vitaliByCharId (auto-popolamento Combat Tracker)", () => {
     expect(m["42"].currentHp).toBe(3);
   });
 });
+
+describe("seedSharedChar: sanificazione prima di partire verso il giocatore", () => {
+  const charMaster = () => ({
+    id: 7, name: "Teofilo", level: 3, currentHp: 20,
+    reputation: [{ nota: "segreta" }],
+    prestige: [
+      { id: 1, name: "Flint", value: 3 },
+      { id: 4, name: "Clero", value: 2, alias: "Famiglia" },
+      { id: 5, name: "Obscurati", value: 1, hidden: true },
+    ],
+  });
+
+  it("la riga condivisa non contiene i campi master-only", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "p1", 7, charMaster());
+    const [riga] = await s.listSharedForMaster(c.id);
+    expect(riga.char).not.toHaveProperty("reputation");
+  });
+
+  it("il prestigio parte in forma pubblica: alias applicato, voci nascoste assenti", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "p1", 7, charMaster());
+    const [riga] = await s.listSharedForMaster(c.id);
+    expect(riga.char.prestige).toEqual([
+      { id: 1, name: "Flint", value: 3 },
+      { id: 4, name: "Famiglia", value: 2 },
+    ]);
+  });
+
+  it("nessun segreto del master finisce nel JSON che il giocatore puo' leggere", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "p1", 7, charMaster());
+    const [riga] = await s.listSharedForMaster(c.id);
+    const json = JSON.stringify(riga.char);
+    expect(json).not.toContain("Clero");
+    expect(json).not.toContain("Obscurati");
+    expect(json).not.toContain("segreta");
+    expect(json).not.toContain("alias");
+    expect(json).not.toContain("hidden");
+  });
+
+  it("non muta il char del roster del master", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    const originale = charMaster();
+    await s.seedSharedChar(c.id, "p1", 7, originale);
+    expect(originale.prestige).toHaveLength(3);
+    expect(originale.prestige[1].name).toBe("Clero");
+    expect(originale).toHaveProperty("reputation");
+  });
+
+  it("i campi normali passano intatti", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "p1", 7, charMaster());
+    const [riga] = await s.listSharedForMaster(c.id);
+    expect(riga.char.name).toBe("Teofilo");
+    expect(riga.char.level).toBe(3);
+    expect(riga.char.currentHp).toBe(20);
+  });
+
+  it("char senza prestige non esplode", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "p1", 8, { id: 8, name: "Senza" });
+    const righe = await s.listSharedForMaster(c.id);
+    expect(righe.find((r) => r.char_id === "8").char.name).toBe("Senza");
+  });
+});

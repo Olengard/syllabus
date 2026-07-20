@@ -11,8 +11,21 @@
 // Convenzione: i metodi ritornano i dati oppure lanciano Error con messaggio
 // leggibile (l'uid dell'utente lo passa il chiamante — App lo conosce dal login).
 
+import { MASTER_ONLY_FIELDS, publicPrestige } from "./sharedChar.js";
+
 const TABLE = "dnd_shared_chars";
 const now = () => new Date().toISOString();
+
+// Tutto ciò che parte verso il giocatore passa DA QUI, non dalla UI: così
+// nessun chiamante futuro può dimenticarsene. Toglie i campi master-only e
+// riduce `prestige` alla sua forma pubblica (voci nascoste via, alias applicati).
+// Vale per ogni scrittura del master sulla riga condivisa.
+function sanificaPerGiocatore(char) {
+  const out = { ...(char || {}) };
+  for (const f of MASTER_ONLY_FIELDS) delete out[f];
+  if (out.prestige) out.prestige = publicPrestige(out.prestige);
+  return out;
+}
 
 // Normalizza {data,error} di Supabase: lancia su error, ritorna data.
 function unwrap({ data, error }, msg) {
@@ -53,7 +66,7 @@ export function createSharedSync(client) {
   // char_id = l'id della copia di roster del master → linking automatico e
   // permanente. Upsert sulla PK (campaign_id, player_uid, char_id).
   async function seedSharedChar(campaignId, playerUid, charId, char) {
-    const row = { campaign_id: campaignId, player_uid: playerUid, char_id: String(charId), char, updated_at: now() };
+    const row = { campaign_id: campaignId, player_uid: playerUid, char_id: String(charId), char: sanificaPerGiocatore(char), updated_at: now() };
     const res = await client.from(TABLE).upsert(row);
     unwrap(res, "Assegnazione scheda fallita");
     return row;
