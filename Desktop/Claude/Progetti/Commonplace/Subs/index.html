@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Subs — Abbonamenti</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f0e0b;
+      --surface:  #171612;
+      --border:   #2a2520;
+      --gold:     #c8903a;
+      --gold-dim: #7a5c22;
+      --text:     #e8e0d4;
+      --muted:    #7a6e64;
+      --alert:    #c05a3e;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Playfair Display', Georgia, serif;
+      min-height: 100vh;
+      padding: 0 1.5rem 5rem;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      padding: 4rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .site-title {
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .site-title span { color: var(--gold); }
+    .site-subtitle {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-top: 0.9rem;
+    }
+
+    .mono, input, select, button {
+      font-family: 'DM Mono', monospace;
+    }
+
+    .section-label {
+      margin: 3rem 0 1.2rem;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Bottoni ── */
+    button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.6rem 1.1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    button:hover { border-color: var(--gold); color: var(--gold); }
+    button.primary { border-color: var(--gold-dim); color: var(--gold); }
+    button.primary:hover { border-color: var(--gold); }
+    button.ghost {
+      border: none;
+      padding: 0.3rem 0.5rem;
+      font-size: 0.6rem;
+      color: var(--muted);
+    }
+    button.ghost:hover { color: var(--gold); }
+    button.ghost.danger:hover { color: var(--alert); }
+
+    /* ── Form ── */
+    #form-card {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 1.6rem;
+      margin-top: 1.5rem;
+    }
+    #form-card[hidden] { display: none; }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1.1rem;
+    }
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .field label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    input, select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.55rem 0.7rem;
+      font-size: 0.85rem;
+      width: 100%;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--gold-dim); }
+    .form-actions {
+      display: flex;
+      gap: 0.8rem;
+      margin-top: 1.4rem;
+      align-items: center;
+    }
+    .form-error {
+      color: var(--alert);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      margin-left: auto;
+    }
+
+    /* ── Lista ── */
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 1rem;
+      align-items: baseline;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .row-name { font-size: 1.15rem; }
+    .row-meta {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.63rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-top: 0.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+    }
+    .row-cost {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--gold);
+      white-space: nowrap;
+    }
+    .row-cost small {
+      display: block;
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 0.25rem;
+      text-align: right;
+    }
+    .row-actions { display: flex; gap: 0.2rem; }
+
+    /* ── Totali ── */
+    #totali {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-top: 1.5rem;
+    }
+    .totale {
+      background: var(--surface);
+      padding: 1.4rem 1.6rem;
+    }
+    .totale-etichetta {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .totale-cifra {
+      font-size: 1.9rem;
+      color: var(--gold);
+      margin-top: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+    .totale-nota {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+    }
+
+    /* ── Scadenze ── */
+    #scadenze[hidden] { display: none; }
+    .avviso {
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--gold-dim);
+      background: var(--surface);
+      padding: 0.9rem 1.2rem;
+      margin-bottom: 1px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .avviso.scaduto { border-left-color: var(--alert); }
+    .avviso-nome { font-size: 1.05rem; flex: 1; min-width: 140px; }
+    .avviso-quando {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.63rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .avviso.scaduto .avviso-quando { color: var(--alert); }
+    .avviso-costo {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .empty {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 2.5rem 0;
+      text-align: center;
+    }
+
+    /* ── Piè di pagina: dati e link alla suite ── */
+    footer {
+      margin-top: 3.5rem;
+      padding-top: 1.6rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    footer .esito {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+    }
+    footer .esito.errore { color: var(--alert); }
+    .suite-link {
+      margin-left: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: color 0.15s;
+    }
+    .suite-link:hover { color: var(--gold); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1 class="site-title">Sub<span>s</span></h1>
+        <p class="site-subtitle">Abbonamenti ricorrenti</p>
+      </div>
+      <button class="primary" id="btn-nuovo">+ Nuovo abbonamento</button>
+    </header>
+
+    <section id="scadenze" hidden>
+      <p class="section-label">In scadenza</p>
+      <div id="scadenze-lista"></div>
+    </section>
+
+    <p class="section-label">Spesa ricorrente</p>
+    <div id="totali"></div>
+
+    <form id="form-card" hidden autocomplete="off">
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-nome">Servizio</label>
+          <input id="f-nome" name="nome" type="text" required/>
+        </div>
+        <div class="field">
+          <label for="f-costo">Costo (€)</label>
+          <input id="f-costo" name="costo" type="number" step="0.01" min="0" required/>
+        </div>
+        <div class="field">
+          <label for="f-ciclo">Frequenza</label>
+          <select id="f-ciclo" name="ciclo">
+            <option value="mensile">Mensile</option>
+            <option value="annuale">Annuale</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-rinnovo">Prossimo rinnovo</label>
+          <input id="f-rinnovo" name="rinnovo" type="date" required/>
+        </div>
+        <div class="field">
+          <label for="f-categoria">Categoria</label>
+          <input id="f-categoria" name="categoria" type="text" list="dl-categorie"/>
+          <datalist id="dl-categorie"></datalist>
+        </div>
+        <div class="field">
+          <label for="f-metodo">Metodo di pagamento</label>
+          <input id="f-metodo" name="metodo" type="text" list="dl-metodi"/>
+          <datalist id="dl-metodi"></datalist>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary" id="btn-salva">Salva</button>
+        <button type="button" id="btn-annulla">Annulla</button>
+        <span class="form-error" id="form-error"></span>
+      </div>
+    </form>
+
+    <p class="section-label" id="lbl-elenco">Elenco</p>
+    <div id="elenco"></div>
+
+    <footer>
+      <button id="btn-esporta">Esporta</button>
+      <button id="btn-importa">Importa</button>
+      <input type="file" id="file-importa" accept="application/json,.json" hidden/>
+      <span class="esito" id="esito-dati"></span>
+      <a class="suite-link" href="https://commonplaceapp.org">&#8592; Commonplace</a>
+    </footer>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  const CHIAVE = 'subs.abbonamenti.v1';
+
+  // ── Persistenza ────────────────────────────────────────────────
+  let voci = caricare();
+
+  function caricare() {
+    try {
+      const grezzo = localStorage.getItem(CHIAVE);
+      const dati = grezzo ? JSON.parse(grezzo) : [];
+      return Array.isArray(dati) ? dati : [];
+    } catch (e) {
+      console.error('Dati illeggibili in localStorage, riparto da zero.', e);
+      return [];
+    }
+  }
+
+  function salvare() {
+    localStorage.setItem(CHIAVE, JSON.stringify(voci));
+  }
+
+  // ── Utilità ────────────────────────────────────────────────────
+  const euro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+  const dataLunga = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  function formattaData(iso) {
+    const [a, m, g] = iso.split('-').map(Number);
+    return dataLunga.format(new Date(a, m - 1, g));
+  }
+
+  function nuovoId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  // Confronti fra date fatti su stringhe ISO: niente fusi orari, niente ore.
+  function oggiIso() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function isoPiuGiorni(iso, giorni) {
+    const [a, m, g] = iso.split('-').map(Number);
+    const d = new Date(a, m - 1, g + giorni);
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  // Avanza di un ciclo tenendo il giorno del mese: 31 gennaio + 1 mese = 28/29 febbraio.
+  function prossimoCiclo(iso, ciclo) {
+    const [a, m, g] = iso.split('-').map(Number);
+    const anno = ciclo === 'annuale' ? a + 1 : a;
+    const mese = ciclo === 'annuale' ? m : m + 1;
+    const ultimoGiorno = new Date(anno, mese, 0).getDate();
+    const d = new Date(anno, mese - 1, Math.min(g, ultimoGiorno));
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  function giorniDiDistanza(iso, daIso) {
+    const [a1, m1, g1] = daIso.split('-').map(Number);
+    const [a2, m2, g2] = iso.split('-').map(Number);
+    return Math.round((Date.UTC(a2, m2 - 1, g2) - Date.UTC(a1, m1 - 1, g1)) / 86400000);
+  }
+
+  // ── Form ───────────────────────────────────────────────────────
+  const form      = document.getElementById('form-card');
+  const erroreEl  = document.getElementById('form-error');
+  const elenco    = document.getElementById('elenco');
+  let idInModifica = null;
+
+  function apriForm(voce) {
+    idInModifica = voce ? voce.id : null;
+    erroreEl.textContent = '';
+    form.reset();
+    if (voce) {
+      form.nome.value      = voce.nome;
+      form.costo.value     = voce.costo;
+      form.ciclo.value     = voce.ciclo;
+      form.rinnovo.value   = voce.rinnovo;
+      form.categoria.value = voce.categoria;
+      form.metodo.value    = voce.metodo;
+    }
+    document.getElementById('btn-salva').textContent = voce ? 'Aggiorna' : 'Salva';
+    form.hidden = false;
+    form.nome.focus();
+  }
+
+  function chiudiForm() {
+    form.hidden = true;
+    idInModifica = null;
+    form.reset();
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    const nome  = form.nome.value.trim();
+    const costo = parseFloat(form.costo.value);
+
+    if (!nome)                       return mostraErrore('Serve il nome del servizio.');
+    if (!isFinite(costo) || costo < 0) return mostraErrore('Costo non valido.');
+    if (!form.rinnovo.value)         return mostraErrore('Serve la data di rinnovo.');
+
+    const dati = {
+      nome:      nome,
+      costo:     costo,
+      ciclo:     form.ciclo.value,
+      rinnovo:   form.rinnovo.value,
+      categoria: form.categoria.value.trim(),
+      metodo:    form.metodo.value.trim()
+    };
+
+    if (idInModifica) {
+      const i = voci.findIndex(v => v.id === idInModifica);
+      voci[i] = Object.assign({}, voci[i], dati);
+    } else {
+      voci.push(Object.assign({ id: nuovoId() }, dati));
+    }
+
+    salvare();
+    chiudiForm();
+    disegna();
+  });
+
+  function mostraErrore(testo) {
+    erroreEl.textContent = testo;
+  }
+
+  document.getElementById('btn-nuovo').addEventListener('click', () => apriForm(null));
+  document.getElementById('btn-annulla').addEventListener('click', chiudiForm);
+
+  // ── Suggerimenti (categorie / metodi già usati) ────────────────
+  function aggiornaSuggerimenti() {
+    riempiDatalist('dl-categorie', voci.map(v => v.categoria));
+    riempiDatalist('dl-metodi',    voci.map(v => v.metodo));
+  }
+
+  function riempiDatalist(id, valori) {
+    const unici = [...new Set(valori.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'it'));
+    document.getElementById(id).innerHTML =
+      unici.map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // ── Render ─────────────────────────────────────────────────────
+  function disegnaTotali() {
+    const mensile = voci.reduce((somma, v) =>
+      somma + (v.ciclo === 'mensile' ? v.costo : v.costo / 12), 0);
+    const annuale = voci.reduce((somma, v) =>
+      somma + (v.ciclo === 'mensile' ? v.costo * 12 : v.costo), 0);
+
+    const quanteMensili = voci.filter(v => v.ciclo === 'mensile').length;
+    const quanteAnnuali = voci.length - quanteMensili;
+
+    document.getElementById('totali').innerHTML = `
+      <div class="totale">
+        <div class="totale-etichetta">Al mese</div>
+        <div class="totale-cifra">${euro.format(mensile)}</div>
+        <div class="totale-nota">annuali ripartiti su 12 mesi</div>
+      </div>
+      <div class="totale">
+        <div class="totale-etichetta">All'anno</div>
+        <div class="totale-cifra">${euro.format(annuale)}</div>
+        <div class="totale-nota">${quanteMensili} mensili · ${quanteAnnuali} annuali</div>
+      </div>`;
+  }
+
+  function disegnaScadenze() {
+    const oggi   = oggiIso();
+    const limite = isoPiuGiorni(oggi, 7);
+
+    const imminenti = voci
+      .filter(v => v.rinnovo <= limite)
+      .sort((a, b) => a.rinnovo.localeCompare(b.rinnovo));
+
+    const sezione = document.getElementById('scadenze');
+    sezione.hidden = imminenti.length === 0;
+    if (imminenti.length === 0) return;
+
+    document.getElementById('scadenze-lista').innerHTML = imminenti.map(v => {
+      const scaduto = v.rinnovo < oggi;
+      const giorni  = giorniDiDistanza(v.rinnovo, oggi);
+      let quando;
+      if (scaduto)          quando = `Scaduto da ${-giorni} ${-giorni === 1 ? 'giorno' : 'giorni'}`;
+      else if (giorni === 0) quando = 'Oggi';
+      else if (giorni === 1) quando = 'Domani';
+      else                   quando = `Fra ${giorni} giorni`;
+
+      return `
+        <div class="avviso ${scaduto ? 'scaduto' : ''}" data-id="${v.id}">
+          <span class="avviso-nome">${escapeHtml(v.nome)}</span>
+          <span class="avviso-quando">${quando}</span>
+          <span class="avviso-costo">${euro.format(v.costo)}</span>
+          <button class="ghost" data-azione="rinnova">Rinnovato</button>
+        </div>`;
+    }).join('');
+  }
+
+  // «Rinnovato»: sposta la data al primo ciclo non ancora passato.
+  document.getElementById('scadenze-lista').addEventListener('click', function (ev) {
+    if (!ev.target.closest('button[data-azione="rinnova"]')) return;
+    const id = ev.target.closest('.avviso').dataset.id;
+    const voce = voci.find(v => v.id === id);
+    if (!voce) return;
+
+    const oggi = oggiIso();
+    let data = prossimoCiclo(voce.rinnovo, voce.ciclo);
+    while (data < oggi) data = prossimoCiclo(data, voce.ciclo);
+    voce.rinnovo = data;
+
+    salvare();
+    disegna();
+  });
+
+  function disegna() {
+    aggiornaSuggerimenti();
+    disegnaTotali();
+    disegnaScadenze();
+
+    if (voci.length === 0) {
+      elenco.innerHTML = '<p class="empty">Nessun abbonamento registrato.</p>';
+      return;
+    }
+
+    const ordinate = [...voci].sort((a, b) => a.rinnovo.localeCompare(b.rinnovo));
+
+    elenco.innerHTML = ordinate.map(v => `
+      <div class="row" data-id="${v.id}">
+        <div>
+          <div class="row-name">${escapeHtml(v.nome)}</div>
+          <div class="row-meta">
+            <span>Rinnovo ${formattaData(v.rinnovo)}</span>
+            ${v.categoria ? `<span>${escapeHtml(v.categoria)}</span>` : ''}
+            ${v.metodo ? `<span>${escapeHtml(v.metodo)}</span>` : ''}
+          </div>
+        </div>
+        <div class="row-cost">
+          ${euro.format(v.costo)}
+          <small>${v.ciclo === 'mensile' ? '/ mese' : '/ anno'}</small>
+        </div>
+        <div class="row-actions">
+          <button class="ghost" data-azione="modifica">Modifica</button>
+          <button class="ghost danger" data-azione="elimina">Elimina</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  elenco.addEventListener('click', function (ev) {
+    const bottone = ev.target.closest('button[data-azione]');
+    if (!bottone) return;
+    const id = bottone.closest('.row').dataset.id;
+    const voce = voci.find(v => v.id === id);
+    if (!voce) return;
+
+    if (bottone.dataset.azione === 'modifica') {
+      apriForm(voce);
+      form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else if (bottone.dataset.azione === 'elimina') {
+      if (confirm(`Eliminare «${voce.nome}»?`)) {
+        voci = voci.filter(v => v.id !== id);
+        salvare();
+        disegna();
+      }
+    }
+  });
+
+  // ── Export / import ────────────────────────────────────────────
+  const esitoEl = document.getElementById('esito-dati');
+
+  function mostraEsito(testo, errore) {
+    esitoEl.textContent = testo;
+    esitoEl.classList.toggle('errore', !!errore);
+  }
+
+  document.getElementById('btn-esporta').addEventListener('click', function () {
+    const contenuto = JSON.stringify({
+      formato: 'subs',
+      versione: 1,
+      esportatoIl: new Date().toISOString(),
+      abbonamenti: voci
+    }, null, 2);
+
+    const url = URL.createObjectURL(new Blob([contenuto], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `subs-${oggiIso()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    mostraEsito(`Esportati ${voci.length} abbonamenti.`, false);
+  });
+
+  document.getElementById('btn-importa').addEventListener('click', function () {
+    document.getElementById('file-importa').click();
+  });
+
+  document.getElementById('file-importa').addEventListener('change', function (ev) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const lettore = new FileReader();
+    lettore.onload = () => {
+      importa(lettore.result);
+      ev.target.value = '';   // così reimportare lo stesso file riparte
+    };
+    lettore.onerror = () => {
+      mostraEsito('Impossibile leggere il file.', true);
+      ev.target.value = '';
+    };
+    lettore.readAsText(file);
+  });
+
+  function importa(testo) {
+    let pacchetto;
+    try {
+      pacchetto = JSON.parse(testo);
+    } catch (e) {
+      return mostraEsito('Il file non è JSON valido.', true);
+    }
+
+    // Accetto sia il pacchetto completo sia un array nudo di abbonamenti.
+    const grezzi = Array.isArray(pacchetto) ? pacchetto : pacchetto && pacchetto.abbonamenti;
+    if (!Array.isArray(grezzi)) {
+      return mostraEsito('Il file non contiene un elenco di abbonamenti.', true);
+    }
+
+    const validi = [];
+    for (const v of grezzi) {
+      const costo = parseFloat(v && v.costo);
+      const nome  = v && typeof v.nome === 'string' ? v.nome.trim() : '';
+      const data  = v && typeof v.rinnovo === 'string' ? v.rinnovo : '';
+      if (!nome || !isFinite(costo) || costo < 0) continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) continue;
+      validi.push({
+        id:        typeof v.id === 'string' && v.id ? v.id : nuovoId(),
+        nome:      nome,
+        costo:     costo,
+        ciclo:     v.ciclo === 'annuale' ? 'annuale' : 'mensile',
+        rinnovo:   data,
+        categoria: typeof v.categoria === 'string' ? v.categoria.trim() : '',
+        metodo:    typeof v.metodo === 'string' ? v.metodo.trim() : ''
+      });
+    }
+
+    if (validi.length === 0) {
+      return mostraEsito('Nessun abbonamento leggibile nel file.', true);
+    }
+
+    const scartati = grezzi.length - validi.length;
+    const conferma = voci.length === 0
+      ? `Importare ${validi.length} abbonamenti?`
+      : `Sostituire i ${voci.length} abbonamenti attuali con i ${validi.length} del file?\n\n` +
+        `I dati ora presenti su questo computer verranno persi.`;
+    if (!confirm(conferma)) return mostraEsito('Importazione annullata.', false);
+
+    voci = validi;
+    salvare();
+    disegna();
+    mostraEsito(
+      `Importati ${validi.length} abbonamenti` +
+      (scartati > 0 ? ` (${scartati} righe illeggibili ignorate).` : '.'),
+      false
+    );
+  }
+
+  disegna();
+})();
+</script>
+</body>
+</html>

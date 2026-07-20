@@ -30,6 +30,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5182", "--directory", "Progetti/Commonplace/ListenS"],
       "port": 5182
+    },
+    {
+      "name": "subs-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5183", "--directory", "Progetti/Commonplace/Subs"],
+      "port": 5183
     }
   ]
 }
