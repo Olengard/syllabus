@@ -2,6 +2,19 @@
 
 App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-first**: cache `localStorage` (prefissata per-utente) + **sync Supabase** (tabella `dnd_saves` sul progetto Commonplace condiviso, auth email+password). Pensata per tablet.
 
+## Manuale d'uso
+
+`Manuale DnD Master.docx` (radice del progetto, 2026-07-20) — manuale per gli utenti finali,
+scritto per essere condiviso con gli amici del tavolo. Struttura: cap. 3 **autosufficiente per
+i giocatori** (entrare col codice, curare la scheda, cosa arriva al master subito vs. cosa passa
+dall'approvazione), cap. 4 per il master, cap. 5 riferimento rapido + tabella «chi vede cosa»,
+cap. 6 problemi comuni. Generato con `docx` (npm); se va rigenerato, lo script sta nella
+scratchpad di sessione — più semplice editare il .docx a mano per correzioni piccole.
+⚠️ **Il cap. 4 rivela il meccanismo dei segreti** (voci di prestigio nascoste/rinominabili):
+non svela nessun segreto specifico, ma dandolo ai giocatori sanno che l'app può mostrare nomi
+diversi. Se serve, farne una versione «solo giocatori» senza il cap. 4.
+⚠️ **Da tenere allineato**: parla di tab, flussi e comportamenti che cambiano col codice.
+
 ## Avvio / build / test
 - `npm run dev` — Vite, porta 5175 (incrementa se occupata). Oppure doppio click su `avvia-gestionale.bat`.
 - `npm run build` — genera `dist/` (PWA con service worker).

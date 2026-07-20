@@ -1780,3 +1780,14 @@ auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico
   già per-PG è bastato un campo sul char e un filtro, senza toccare il motore di sync.
 - **Non verificato in-app** (dietro login): l'aspetto dei controlli 👁/alias nel tab 🏛 e del
   selettore campagna nella barra. Da guardare al primo utilizzo.
+
+- ✅ **Manuale d'uso di DnDMaster** (2026-07-20, fine #27): `DnDMaster/Manuale DnD Master.docx`,
+  ~12 pagine, scritto per essere condiviso con gli amici del tavolo (master e giocatori).
+  Principio: **il cap. 3 è autosufficiente per i giocatori** e dichiarato tale, così non devono
+  leggere il manuale del master. Include una tabella «chi vede cosa» (nasce dalla domanda di
+  Stefano sugli account master/giocatore). ⚠️ Il cap. 4 rivela il *meccanismo* dei segreti di
+  prestigio: se lo si gira ai giocatori, sanno che l'app può mostrare nomi diversi da quelli
+  veri — all'occorrenza se ne fa una versione senza il cap. 4. Generato con `docx` (npm).
+  ⚠️ **Non verificato visivamente**: su questa macchina mancano LibreOffice e i convertitori
+  PDF, quindi la formattazione è stata controllata ispezionando il file (22 parti, 7 tabelle,
+  43 elenchi, TOC con updateFields, 26 titoli), non guardando le pagine renderizzate.
