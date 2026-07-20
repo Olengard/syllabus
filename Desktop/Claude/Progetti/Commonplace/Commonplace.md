@@ -1718,3 +1718,36 @@ auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico
   campagna con un giocatore assegnato) — lo scioglie Stefano al primo combattimento vero.
 - ⚠️ **Azioni richieste:** nessuna sul dashboard. Da autorizzare: **deploy Netlify + push**
   del tracker (il fix del tab Tavolo è già live e pushato).
+
+**Coda di #27 — nota di sicurezza/design emersa a fine sessione (da una domanda di Stefano:
+«c'è differenza tra account master e account giocatore?»).**
+
+- **Non esistono tipi di account**: "essere master" = possedere una campagna, "essere giocatore"
+  = avere una riga in una campagna altrui; lo stesso account fa entrambe le cose (il toggle nel
+  tab Tavolo è solo una vista locale).
+- ✅ **Note, registro Campagna, roster, incontri sono al sicuro** — verificato sulle policy reali
+  di pchld: `dnd_saves SELECT → auth.uid() = user_id`, owner-only **a livello Postgres**. Un
+  giocatore non li legge nemmeno via API a mano. Il suo tab Campagna mostra i suoi dati (vuoti).
+- ⚠️ **Ma il PG assegnato viaggia INTERO**: `seedSharedChar(..., c)` manda tutto il char,
+  `prestige`/`reputation` compresi; `dsc_select_own` fa leggere al giocatore l'intera riga e
+  `CharacterSheet` (riusata dalla vista giocatore) ha il tab 🏛 Reputazione **editabile**.
+  `MASTER_ONLY_FIELDS` è usato solo dal diff/test: **nessuno filtra il seed**. Il roster del
+  master resta protetto (il diff esclude quei campi); il problema è **in lettura**.
+  `dnd_shared_chars` è **vuota** (verificato) → nessun dato reale ancora esposto.
+- **Decisione di Stefano: NON si filtra il campo.** Ha senso che i giocatori vedano la propria
+  reputazione; serve invece una **visibilità per-VOCE** decisa dal master (es. *Clero* e
+  *Famiglia* sono la stessa entità ma i PG non lo sanno: devono vedere Famiglia, non Clero).
+  **Valuta con calma** — nessun lavoro avviato. Spec e punto d'intervento (al seed, in
+  `sharedSync.js`) in `DnDMaster/CLAUDE.md`. ⚠️ **Da sciogliere prima di assegnare il primo PG
+  a un giocatore vero.**
+- ✅ **Ridimensionato il "multi-utente vero"**: `profileFromSession` fa `return canon || raw`,
+  quindi un terzo account ottiene il **proprio** prefisso e non collassa su Olengard/Manu →
+  **non è un prerequisito** per far giocare altri. Unica collisione: stesso local-part di email
+  sullo stesso device.
+- ⚠️ **Scarto segnalato sull'auto-popolamento**: il backlog diceva "HP/**iniziativa**", ma
+  l'iniziativa NON è inclusa e non per svista — `initiative` sta in `EXCLUDED_FIELDS` per la
+  scelta "combattimento = schermo del master". Portarla ai vitali è una **decisione di design**
+  da cambiare, non un bug (lavoro piccolo, ~mezz'ora).
+- **Prova del backup:** le 3 tabelle sono in `Backup/api/backup.js` (verificato, riga 34); il
+  contenuto del JSON di stamattina **non è verificabile dall'operatore** (repo privato, `gh` non
+  installato, token solo su Vercel) → resta a Stefano, o si autoconferma.

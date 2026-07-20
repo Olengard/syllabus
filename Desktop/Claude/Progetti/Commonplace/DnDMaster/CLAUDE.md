@@ -350,8 +350,36 @@ roster.
   una campagna con un giocatore assegnato; verificate a runtime la console pulita (nessun
   ciclo di import) e `applyVitaliToCombatant` eseguita nel browser via dynamic import.
 
-*TO-DO futuri (fuori v1):* campagna-scopare il roster locale del master + filtro campagna
-nella UI; superare la canonicalizzazione profilo Olengard/Manu (`EMAIL_PROFILE`) verso un
-multi-utente vero; eventuale tabella membri/inviti se il join-code non bastasse; TS morte
-editabili nel tracker; flussi master→giocatore v2 (feedback "accettato", correzioni,
-prestige/reputation in lettura).
+### ⚠️ Da decidere PRIMA di assegnare un PG a un giocatore vero (aperto 2026-07-20, #27)
+
+**Visibilità per-voce di `prestige`/`reputation`.** Stato verificato oggi: `seedSharedChar`
+riceve il char **intero** (`seedSharedChar(sel.id, assignMember, c.id, c)` in
+`SharedTablePage.jsx`), quindi `prestige`/`reputation` finiscono nella riga condivisa; la RLS
+`dsc_select_own` permette al giocatore di leggere **tutta** la propria riga, e `CharacterSheet`
+(riusata dalla vista giocatore) ha un tab **🏛 Reputazione** che li mostra **editabili**.
+`MASTER_ONLY_FIELDS` esiste ma è usato **solo** da `diffAdmin`/test: **nessuno filtra il seed**.
+Il roster del master resta protetto (il diff esclude quei campi → le modifiche del giocatore
+non rientrano), il problema è **in lettura**.
+
+**Non è però un bug da tappare filtrando i campi** (decisione di Stefano, 2026-07-20): ha senso
+che i giocatori vedano la propria reputazione. Il requisito reale è **selettivo per-VOCE**:
+alcune fazioni sono note al PG, altre no — es. *Clero* e *Famiglia* sono la stessa entità ma i
+personaggi non lo sanno, quindi devono vedere il prestigio con la Famiglia e non quello col
+Clero. Serve quindi un **flag di visibilità sulla singola voce** di `prestige`/`reputation`
+(deciso dal master), applicato **al seed** in `sharedSync.js` — non nella UI, così vale per
+qualunque chiamante futuro — più il test "la riga condivisa non contiene mai le voci nascoste".
+Da valutare insieme: cosa mostrare al giocatore nel tab 🏛 (le sole voci visibili) e se le sue
+modifiche lì debbano tornare al master o essere in sola lettura.
+⚠️ **Finché non è deciso, assegnare un PG espone al giocatore TUTTE le voci di prestigio**
+(`defaultChar` popola `prestige` di suo → riguarda ogni PG, non è un caso raro).
+Oggi `dnd_shared_chars` è **vuota** (verificato): nessun dato reale ancora esposto.
+
+*TO-DO futuri (fuori v1):* flussi master→giocatore v2 (feedback "accettato", correzioni);
+**iniziativa nei vitali** — oggi `initiative` è in `EXCLUDED_FIELDS` per scelta di design
+("combattimento = schermo del master"), portarla ai vitali significa cambiare quel principio;
+campagna-scopare il roster locale del master + filtro campagna nella UI; eventuale tabella
+inviti se il join-code non bastasse; TS morte editabili nel tracker.
+**Ridimensionato (verificato 2026-07-20):** il "multi-utente vero" NON è un prerequisito per
+far entrare giocatori reali — `profileFromSession` (App.jsx) fa `return canon || raw`, quindi
+un account diverso da Olengard/Manu ottiene **il proprio** prefisso, non collassa sui canonici.
+Unico caso di collisione: due utenti con lo stesso local-part di email **sullo stesso device**.
