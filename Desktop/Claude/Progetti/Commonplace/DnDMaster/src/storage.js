@@ -24,6 +24,11 @@ export const K = {
   gameClock:           "dnd_game_clock_v1",
   charIndex:           "dnd_char_index_v1",  // ordine PG + activeId (schede per-PG)
   sharedSeen:          "dnd_shared_seen_v1", // master: hash amministrativo "già visto" per riga condivisa (badge 📬)
+  // Campagne del ROSTER (locali, indipendenti dalle campagne condivise del tab
+  // Tavolo): servono a raggruppare i PG del master. NB: `campaign` qui sopra è
+  // un'altra cosa — il registro importato dalla wiki Obsidian.
+  rosterCampaigns:     "dnd_roster_campaigns_v1", // [{id, name}]
+  rosterFilter:        "dnd_roster_filter_v1",    // id campagna attiva, "" = tutte
 };
 
 // ─── API JSON per-utente ─────────────────────────────────────────────────────

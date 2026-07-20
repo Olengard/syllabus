@@ -31,6 +31,7 @@ import { coherentWith, terrainAllows } from "./encounter.js";
 import { supabase } from "./supabaseClient.js";
 import { createSharedSync } from "./sharedSync.js";
 import { applyVitaliToCombatant } from "./sharedChar.js";
+import { TUTTE, filterByCampaign, countByCampaign, addCampaign, renameCampaign, removeCampaign, filterAfterRemoval, activeAfterFilter } from "./roster.js";
 import { createSyncEngine } from "./sync.js";
 
 // ─── Auth (Supabase, fase 2B) ─────────────────────────────────────────────────
@@ -2082,7 +2083,7 @@ function weaponToAttack(item, char) {
 
 // `secretsEditable`: false nella vista condivisa (il giocatore non deve nemmeno
 // sapere che una voce di prestigio PUÒ essere aliasata o nascosta).
-function CharacterSheet({ char, onChange, onDelete, secretsEditable = true }) {
+function CharacterSheet({ char, onChange, onDelete, secretsEditable = true, campaigns = [] }) {
   const [tab, setTab] = useState("stats");
   const [showRacePicker, setShowRacePicker]   = useState(false);
   const [showClassPicker, setShowClassPicker] = useState(false);
@@ -2275,6 +2276,18 @@ function CharacterSheet({ char, onChange, onDelete, secretsEditable = true }) {
               <label>Giocatore</label>
               <input value={char.player} onChange={e => update({ player: e.target.value })} />
             </div>
+            {/* Campagna del roster: solo vista master (il giocatore non vede
+                l'organizzazione interna del roster). Vuoto = non assegnato. */}
+            {secretsEditable && campaigns.length > 0 && (
+              <div className="field">
+                <label>Campagna</label>
+                <select value={char.campaignId || ""}
+                  onChange={e => update({ campaignId: e.target.value || undefined })}>
+                  <option value="">— nessuna —</option>
+                  {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           <div className="grid-3">
             {/* Race picker */}
@@ -5637,6 +5650,17 @@ function App() {
   const [characters, setCharacters] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Campagne del roster (locali, vedi roster.js) + filtro attivo. Il filtro
+  // vale per la barra dei PG, il setup del combattimento e i riposi: sono i
+  // tre punti dove avere PG di un'altra storia in mezzo dà davvero fastidio.
+  const [rosterCampaigns, setRosterCampaigns] = useState(() => {
+    try { return loadJSON(K.rosterCampaigns, []); } catch { return []; }
+  });
+  const [rosterFilter, setRosterFilter] = useState(() => {
+    try { return loadJSON(K.rosterFilter, TUTTE); } catch { return TUTTE; }
+  });
+  const saveRosterCampaigns = (list) => { setRosterCampaigns(list); saveJSON(K.rosterCampaigns, list); };
+  const saveRosterFilter = (f) => { setRosterFilter(f); saveJSON(K.rosterFilter, f); };
   const [mainTab, setMainTab] = useState("characters");
   const [showRules, setShowRules] = useState(false); // "characters" | "combat" | "monsters"
   const [pendingCombatant, setPendingCombatant] = useState(null);
@@ -5821,7 +5845,9 @@ function App() {
   };
 
   const addChar = () => {
-    const c = defaultChar();
+    // Nasce nella campagna che stai guardando: col filtro rigoroso, un PG nuovo
+    // senza campagna sparirebbe dalla barra nell'istante in cui lo crei.
+    const c = { ...defaultChar(), ...(rosterFilter ? { campaignId: rosterFilter } : {}) };
     setCharacters(cs => [...cs, c]);
     setActiveId(c.id);
   };
@@ -5831,6 +5857,42 @@ function App() {
   };
 
   const activeChar = characters.find(c => c.id === activeId);
+  // PG visibili col filtro corrente: la barra, il setup del combattimento e i
+  // riposi lavorano su questi, non sul roster intero.
+  const visibleChars = React.useMemo(
+    () => filterByCampaign(characters, rosterFilter), [characters, rosterFilter],
+  );
+  const conteggi = React.useMemo(
+    () => countByCampaign(characters, rosterCampaigns), [characters, rosterCampaigns],
+  );
+  // Cambio filtro: se il PG aperto non è più visibile passa al primo della
+  // campagna, così non resta a schermo la scheda di un PG che il filtro nasconde.
+  const cambiaFiltro = (f) => {
+    saveRosterFilter(f);
+    setActiveId(activeAfterFilter(characters, f, activeId));
+  };
+  const nuovaCampagna = () => {
+    const nome = window.prompt("Nome della campagna:");
+    if (!nome || !nome.trim()) return;
+    const lista = addCampaign(rosterCampaigns, nome);
+    saveRosterCampaigns(lista);
+    cambiaFiltro(lista[lista.length - 1].id);
+  };
+  const rinominaCampagna = () => {
+    const c = rosterCampaigns.find(x => x.id === rosterFilter);
+    if (!c) return;
+    const nome = window.prompt("Nuovo nome:", c.name);
+    if (!nome || !nome.trim()) return;
+    saveRosterCampaigns(renameCampaign(rosterCampaigns, c.id, nome));
+  };
+  const eliminaCampagna = () => {
+    const c = rosterCampaigns.find(x => x.id === rosterFilter);
+    if (!c) return;
+    const n = conteggi.perCampagna[c.id] || 0;
+    if (!window.confirm(`Eliminare la campagna «${c.name}»?\n${n ? `I suoi ${n} personaggi NON vengono cancellati: tornano fra i non assegnati.` : "Non ha personaggi assegnati."}`)) return;
+    saveRosterCampaigns(removeCampaign(rosterCampaigns, c.id));
+    cambiaFiltro(filterAfterRemoval(rosterFilter, c.id));
+  };
 
   return (
     <>
@@ -5862,7 +5924,23 @@ function App() {
 
         {mainTab === "characters" && (
           <div className="char-list">
-            {characters.map(c => (
+            {/* Filtro campagna del roster */}
+            <select className="roster-filter" value={rosterFilter}
+              onChange={e => { if (e.target.value === "__new") nuovaCampagna(); else cambiaFiltro(e.target.value); }}
+              title="Mostra solo i personaggi di una campagna">
+              <option value={TUTTE}>🗂 Tutte le campagne ({characters.length})</option>
+              {rosterCampaigns.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({conteggi.perCampagna[c.id] || 0})</option>
+              ))}
+              <option value="__new">＋ Nuova campagna…</option>
+            </select>
+            {rosterFilter !== TUTTE && (
+              <>
+                <button className="roster-camp-btn" onClick={rinominaCampagna} title="Rinomina la campagna">✎</button>
+                <button className="roster-camp-btn" onClick={eliminaCampagna} title="Elimina la campagna (i personaggi restano)">🗑</button>
+              </>
+            )}
+            {visibleChars.map(c => (
               <div key={c.id} className={`char-chip ${c.id === activeId ? "active" : ""}`} onClick={() => setActiveId(c.id)}>
                 {c.inspiration && <span title="Ispirazione" style={{ marginRight: 3 }}>⭐</span>}
                 {c.name}
@@ -5870,6 +5948,11 @@ function App() {
               </div>
             ))}
             <div className="char-chip-add" onClick={addChar} title="Nuovo personaggio">＋</div>
+            {rosterFilter === TUTTE && conteggi.nonAssegnati > 0 && rosterCampaigns.length > 0 && (
+              <span className="roster-hint" title="Assegna la campagna dalla scheda del personaggio">
+                {conteggi.nonAssegnati} senza campagna
+              </span>
+            )}
           </div>
         )}
 
@@ -5884,7 +5967,7 @@ function App() {
             </div>
           )}
           {!loading && mainTab === "characters" && activeChar && (
-            <CharacterSheet char={activeChar} onChange={updateChar} onDelete={deleteChar} />
+            <CharacterSheet char={activeChar} onChange={updateChar} onDelete={deleteChar} campaigns={rosterCampaigns} />
           )}
           {!loading && mainTab === "session" && (
             <SessionPage
@@ -5892,14 +5975,14 @@ function App() {
               onTogglePin={togglePin}
               onClearAll={clearPins}
               onOpenSearch={() => setShowSearch(true)}
-              characters={characters}
+              characters={visibleChars}
               onUpdateCharacters={(updated) => {
                 setCharacters(cs => cs.map(c => updated.find(u => u.id === c.id) || c));
               }}
             />
           )}
           {!loading && mainTab === "combat" && (
-            <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)}
+            <CombatTracker characters={visibleChars} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)}
               fetchLiveVitals={() => sharedForCombat.vitaliByCharId(getStoredUid())} />
           )}
           {!loading && mainTab === "campaign" && <ErrorBoundary><CampaignPage /></ErrorBoundary>}

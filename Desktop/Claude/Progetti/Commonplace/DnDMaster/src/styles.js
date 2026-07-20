@@ -82,6 +82,26 @@ export const styles = `
   }
   .char-chip-add:hover { border-color: var(--gold); color: var(--gold); }
 
+  /* Filtro campagna del roster. width esplicita: la .char-list è flex e il
+     globale input/select{width:100%} allargherebbe il select a tutta la barra. */
+  .roster-filter {
+    flex: 0 0 auto; width: auto; max-width: 230px; align-self: center;
+    font-family: 'Cinzel', serif; font-size: 0.75rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 10px; color: var(--text2); cursor: pointer;
+  }
+  .roster-filter:hover { border-color: var(--gold); color: var(--gold); }
+  .roster-camp-btn {
+    flex: 0 0 auto; align-self: center;
+    background: none; border: none; cursor: pointer;
+    font-size: 0.8rem; color: var(--text3); padding: 2px 3px;
+  }
+  .roster-camp-btn:hover { color: var(--gold); }
+  .roster-hint {
+    flex: 0 0 auto; align-self: center;
+    font-size: 0.7rem; font-style: italic; color: var(--text3); margin-left: 4px;
+  }
+
   /* Main content */
   .main { flex: 1; padding: 12px 16px; max-width: 900px; margin: 0 auto; width: 100%; }
 
