@@ -1751,3 +1751,31 @@ auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico
 - **Prova del backup:** le 3 tabelle sono in `Backup/api/backup.js` (verificato, riga 34); il
   contenuto del JSON di stamattina **non è verificabile dall'operatore** (repo privato, `gh` non
   installato, token solo su Vercel) → resta a Stefano, o si autoconferma.
+
+**Seconda parte di #27 (2026-07-20) — DnD riaperto su richiesta di Stefano: due feature.**
+
+- ✅ **Visibilità per-voce del prestigio** (nata dalla domanda «c'è differenza tra account
+  master e account giocatore?», vedi nota sopra). Il requisito reale **non era nascondere il
+  campo**: ha senso che i giocatori traccino la propria reputazione, ma alcune voci vanno
+  **aliasate**. Caso principe: Teofilo vede «Famiglia: 2», il master sa che quel 2 è del
+  «Clero» perché le connessioni non sono ancora emerse; gli Obscurati non devono comparire
+  affatto. Implementati `hidden` e `alias` per-voce, con la sanificazione **nel trasporto**
+  (`sharedSync.seedSharedChar`) e non nella UI. **Il punto delicato**: il giocatore rimanda
+  meno voci di quante ne ha il master, quindi un accept ingenuo avrebbe **cancellato le voci
+  segrete** — la riconciliazione è per ID e tocca solo i valori (`mergePlayerPrestige`, test
+  `REGRESSIONE`). Esteso anche il badge 📬, che sul solo prestigio non si accendeva.
+  **Deployato e verificato live.**
+- ✅ **Campagna-scoping del roster**: campagne **locali** (indipendenti dal tab Tavolo →
+  funzionano offline e senza giocatori), filtro su **barra PG + setup combattimento + riposi**.
+  Filtro rigoroso (i non assegnati solo con «Tutte»), con le due trappole gestite: un PG nuovo
+  eredita la campagna del filtro (altrimenti spariva appena creato) e eliminare una campagna
+  non cancella i suoi PG. Nuovo modulo puro `src/roster.js` (21 test).
+  ⚠️ **Non deployato**: il deploy del prestigio è live, questo no.
+- **211 → 232 test verdi.** Verifiche: build verde, console pulita, logica e layout provati nel
+  browser reale (il select del filtro a 230px non sfonda la barra — stesso gotcha
+  `input{width:100%}` che aveva colpito il checkbox del diff).
+- **Ridimensionata la stima di backlog**: il campagna-scoping era archiviato come "tocca
+  persistenza/sync, più grosso", ma quella valutazione **precedeva il blocco 1**: con le schede
+  già per-PG è bastato un campo sul char e un filtro, senza toccare il motore di sync.
+- **Non verificato in-app** (dietro login): l'aspetto dei controlli 👁/alias nel tab 🏛 e del
+  selettore campagna nella barra. Da guardare al primo utilizzo.

@@ -350,7 +350,47 @@ roster.
   una campagna con un giocatore assegnato; verificate a runtime la console pulita (nessun
   ciclo di import) e `applyVitaliToCombatant` eseguita nel browser via dynamic import.
 
-### ⚠️ Da decidere PRIMA di assegnare un PG a un giocatore vero (aperto 2026-07-20, #27)
+✅ **Visibilità per-voce del prestigio FATTA (2026-07-20, #27)** — chiude il punto qui sotto.
+Il giocatore traccia la propria reputazione, il master decide cosa vede. Due metadati
+opzionali sulla voce di `prestige`: **`hidden`** (non lascia mai il device del master) e
+**`alias`** (il giocatore la vede sotto un altro nome). Caso reale: Teofilo crede di avere 2
+con la «Famiglia», il master sa che è il «Clero».
+- `sharedChar.js`: `publicPrestige` (forma pubblica; non fa trapelare nemmeno i metadati —
+  sapere che una voce HA un alias è mezzo segreto svelato), `diffPrestige` (variazioni
+  etichettate col nome VERO), `mergePlayerPrestige` (riconcilia **per ID, solo i valori**).
+- ⚠️ **`mergePlayerPrestige` è ciò che impedisce a un accept di distruggere le voci segrete**:
+  il giocatore rimanda meno voci di quante ne abbia il master (le nascoste mancano), quindi
+  sostituire la lista le cancellerebbe. C'è un test chiamato `REGRESSIONE` apposta.
+- La sanificazione sta nel **trasporto** (`sharedSync.seedSharedChar` → `sanificaPerGiocatore`),
+  non nella UI: nessun chiamante futuro può dimenticarsene. Toglie anche i `MASTER_ONLY_FIELDS`.
+- `prestige` esce da `MASTER_ONLY_FIELDS`; **`reputation` resta** (dichiarato in `defaultChar`
+  ma non usato da nessuna UI: il tab 🏛 mostra solo `prestige`).
+- Badge 📬: `hasPendingAdmin` considera anche `diffPrestige` e `adminHash` include id+valore
+  delle voci — senza, una modifica al solo prestigio non accendeva il badge e dopo un «Ignora»
+  non sarebbe più ricomparso.
+- UI: nel tab 🏛 (solo vista master, dietro la nuova prop **`secretsEditable`** di
+  `CharacterSheet`) ogni voce ha un occhio 👁/🙈 e un campo «il giocatore la vede come…».
+  Nel pannello diff le variazioni compaiono come `prestige:<id>` accanto ai campi
+  amministrativi; l'accept le smista su `mergePlayerPrestige`.
+- **Deployato e verificato live** (bundle: `il giocatore la vede come`, `prestige-alias-input`).
+
+✅ **Campagna-scoping del roster FATTO (2026-07-20, #27)** — il roster del master non è più
+globale. Le campagne del roster sono **locali e indipendenti** da quelle condivise del tab
+Tavolo (scelta di Stefano: funzionano senza giocatori collegati e offline).
+- `src/roster.js` (**puro**, 21 test): `filterByCampaign`, `countByCampaign`, `add`/`rename`/
+  `removeCampaign`, `filterAfterRemoval`, `activeAfterFilter`. ⚠️ Da non confondere con
+  `campaign.js`, che è il parser della wiki Obsidian: ambiti diversi. Chiavi nuove
+  `K.rosterCampaigns` / `K.rosterFilter` (`K.campaign` è la wiki).
+- **Filtro rigoroso**: i PG non assegnati si vedono solo con «Tutte». Due conseguenze gestite:
+  un PG nuovo **eredita la campagna del filtro attivo** (altrimenti sparirebbe appena creato)
+  e al cambio filtro il PG aperto passa al primo visibile.
+- **Eliminare una campagna non cancella i PG**: tornano fra i non assegnati (anche quelli con
+  `campaignId` orfano, vedi `countByCampaign`), e il filtro torna a «Tutte».
+- Il filtro agisce su **barra PG, setup del Combat Tracker e cruscotto Sessione**: un riposo
+  lungo non cura più i PG di un'altra storia.
+- 232 test verdi.
+
+### ⚠️ Da decidere PRIMA di assegnare un PG a un giocatore vero — ✅ RISOLTO (vedi sopra)
 
 **Visibilità per-voce di `prestige`/`reputation`.** Stato verificato oggi: `seedSharedChar`
 riceve il char **intero** (`seedSharedChar(sel.id, assignMember, c.id, c)` in
