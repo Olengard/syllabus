@@ -2,7 +2,7 @@
 
 > Documento di contesto per la suite di app personali di Stefano.
 > Da condividere all'inizio di ogni sessione Cowork o Claude.
-> Ultimo aggiornamento: 2026-07-19 -- Sessione #26 (Opus 4.8). **▶ RIPARTENZA prossima sessione: nessun blocco obbligatorio aperto** sulle schede condivise DnD — **blocchi 3b + 3c + A + rifiniture FATTI, deployati e pushati** (tab 🤝 Tavolo: giocatore cura la scheda, master assegna + diff/accept + vitali live via Realtime **verificato**; blocco A = condizioni + dadi vita come campi persistenti; RPC `join_campaign` fixata). **Stefano valuta di CHIUDERE DnD domani e passare ad altro progetto** (candidato naturale se si continua: auto-popolamento del Combat Tracker dai vitali live). TO-DO futuri (non urgenti): campagna-scopare il roster del master, feedback master→giocatore (v2), auto-popolamento combat tracker dai vitali. **Non verificato a runtime**: recupero dadi vita del riposo lungo (ispezione). ✅ **3b+3c deployati e live** (Netlify, verificato: bundle contiene `Tavolo`/`join_campaign`) e **pushati** su GitHub; portano anche il blocco 1 ora live. Follow-up `backup.js` **chiuso** (3 tabelle aggiunte, cp-backup ridistribuito). Dettaglio in `DnDMaster/CLAUDE.md`, sezione «Schede condivise coi giocatori». — Precedente #25 (Opus 4.8, handover da Fable 5): Blocchi 1 (schede per-PG, deployate e live), 2 (tabelle `campaigns`/`dnd_shared_chars`) e 3a (`campaign_members` + RPC `join_campaign` + helper RLS) FATTI su pchld. ⚠️ follow-up: aggiungere le 3 tabelle a `Backup/api/backup.js` + redeploy cp-backup prima dei dati veri. — **Blocco 1 schede condivise DnD deployato**: schede personaggio ora una-riga-per-PG (`char:<id>` + indice `dnd_char_index_v1`), motore di sync esteso (char-key dinamiche, `markDeleted`/tombstone), migrazione non distruttiva (blob `dnd5e-master-v1` intatto = rollback) — su Netlify, **verificato live da Stefano**. Prima: design schede condivise esteso al **modello a campagna** (multi-master, join-code) e verifica primo backup Ledger 19/07 (✅ `projects.bogav`, 70 transazioni). Stato: piano-di-lavoro.md; diario in coda. — Precedente (#24). **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
+> Ultimo aggiornamento: 2026-07-20 -- Sessione #27 (Opus 4.8). **▶ DnDMaster è CHIUSO: le prossime sessioni tornano sul resto di Commonplace, ripartendo da `piano-di-lavoro.md` (punto 3: giro di debug Syllabus/Footnote/ListenS).** In #27: trovata la ROOT CAUSE del "non vedo le modifiche" — **non era la cache**, il tab 🤝 Tavolo era assente dalla **bottom nav mobile** (sotto i 768px `.header-tabs` è `display:none`), quindi irraggiungibile su telefono pur essendo nel bundle; fix di 1 riga, deployato e **confermato da Stefano**. Fatto anche l'**auto-popolamento del Combat Tracker dai vitali** (snapshot all'avvio + ↻ per-PG, niente Realtime) e chiusa la coda dei **dadi vita del riposo lungo** (estratto `hitDiceAfterLongRest` + 4 test; la formula era già corretta). 186 test verdi. ⚠️ Deploy+push del tracker **da autorizzare**. — Precedente #26 (Opus 4.8): **nessun blocco obbligatorio aperto** sulle schede condivise DnD — **blocchi 3b + 3c + A + rifiniture FATTI, deployati e pushati** (tab 🤝 Tavolo: giocatore cura la scheda, master assegna + diff/accept + vitali live via Realtime **verificato**; blocco A = condizioni + dadi vita come campi persistenti; RPC `join_campaign` fixata). **Stefano valuta di CHIUDERE DnD domani e passare ad altro progetto** (candidato naturale se si continua: auto-popolamento del Combat Tracker dai vitali live). TO-DO futuri (non urgenti): campagna-scopare il roster del master, feedback master→giocatore (v2), auto-popolamento combat tracker dai vitali. **Non verificato a runtime**: recupero dadi vita del riposo lungo (ispezione). ✅ **3b+3c deployati e live** (Netlify, verificato: bundle contiene `Tavolo`/`join_campaign`) e **pushati** su GitHub; portano anche il blocco 1 ora live. Follow-up `backup.js` **chiuso** (3 tabelle aggiunte, cp-backup ridistribuito). Dettaglio in `DnDMaster/CLAUDE.md`, sezione «Schede condivise coi giocatori». — Precedente #25 (Opus 4.8, handover da Fable 5): Blocchi 1 (schede per-PG, deployate e live), 2 (tabelle `campaigns`/`dnd_shared_chars`) e 3a (`campaign_members` + RPC `join_campaign` + helper RLS) FATTI su pchld. ⚠️ follow-up: aggiungere le 3 tabelle a `Backup/api/backup.js` + redeploy cp-backup prima dei dati veri. — **Blocco 1 schede condivise DnD deployato**: schede personaggio ora una-riga-per-PG (`char:<id>` + indice `dnd_char_index_v1`), motore di sync esteso (char-key dinamiche, `markDeleted`/tombstone), migrazione non distruttiva (blob `dnd5e-master-v1` intatto = rollback) — su Netlify, **verificato live da Stefano**. Prima: design schede condivise esteso al **modello a campagna** (multi-master, join-code) e verifica primo backup Ledger 19/07 (✅ `projects.bogav`, 70 transazioni). Stato: piano-di-lavoro.md; diario in coda. — Precedente (#24). **Giro debug+features su segnalazioni di Stefano**: DnD (slot importate FIXATI, chip CD/attacco, ricerca incantesimi in italiano via dizionario 138 voci, design schede-giocatori ratificato), ListenS (pulsanti auto ⏮⏭, limite Android Auto chiarito), Digest (icona scura). Tutto deployato e verificato. Stato: piano-di-lavoro.md; diario in coda. In sospeso: ~~verifica primo backup Ledger (mattina del 19/07)~~ → ✅ **verificato 2026-07-19** (Opus): `backup-2026-07-19.json` (cron 05:07 UTC) contiene `projects.bogav` con 11 tabelle Ledger, `transactions` 70 righe, zero tabelle in errore; il 18/07 non ha ancora `bogav` — il 19 è il primo, come da RIPRISTINO.md.
 
 ---
 
@@ -1674,3 +1674,47 @@ tecnico in `DnDMaster/CLAUDE.md`, sezione «Schede condivise»).
   e **pushati**.
 - **Prossimo:** nessun blocco obbligatorio aperto. TO-DO futuri: campagna-scopare il roster del
   master, feedback master→giocatore (v2), auto-popolamento combat tracker dai vitali.
+
+## 2026-07-20 — Sessione #27 (Opus 4.8)
+
+**DnDMaster chiuso.** Root cause del "non vedo le modifiche" trovata (NON era la cache),
+auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico in
+`DnDMaster/CLAUDE.md`.
+
+- ✅ **ROOT CAUSE — il tab 🤝 Tavolo era invisibile su mobile (la diagnosi di #26 era
+  SBAGLIATA).** #26 aveva concluso "cache PWA, servono 1-2 reload" perché il bundle live
+  conteneva i marker giusti. Falso: sotto i 768px `.header-tabs` è `display:none !important`
+  (styles.js) e la navigazione passa alla **bottom nav mobile**, che elencava 11 tab su 12 —
+  mancava proprio `shared`. Sul telefono di Stefano il tab non era raggiungibile **in nessun
+  modo**, pur essendo nel bundle. L'indizio che ha chiuso il caso: `grep -c "Tavolo"` sul
+  bundle live dava **1** invece di 2 (solo la barra desktop). Fix di **una riga**; deployato
+  e **confermato da Stefano sul telefono**. Perché era sfuggito: il collaudo E2E di #26 era
+  a due tab **desktop**, l'unico formato dove il tab si vedeva.
+  → **Lezione annotata nei Gotcha di `DnDMaster/CLAUDE.md`**: i tab vanno aggiunti in DUE
+  posti (`.header-tabs` + `mobile-nav`), altrimenti sono irraggiungibili su un formato
+  senza dare alcun errore.
+- ✅ **Combat Tracker auto-popolato dai vitali dei giocatori** — i PG entrano in combattimento
+  con PF correnti, condizioni e TS morte riportati dai giocatori sulle schede condivise
+  (prima il master li ridigitava). **SNAPSHOT, non live** (scelta di Stefano): all'avvio dello
+  scontro + bottone **↻ per-PG**; durante il combattimento il tracker resta la copia di lavoro
+  del master — coerente con "in sessione fa fede lo schermo del Master", niente sovrascritture
+  a sorpresa dei danni che registra lui. Conseguenza architetturale: **nessuna subscription
+  Realtime**, solo una fetch quando serve. `sharedChar.applyVitaliToCombatant` (puro; non tocca
+  maxHp/ac/note/effects né `dead`) + `sharedSync.vitaliByCharId(uid)`. Il linking è gratis:
+  `char_id` = id del roster (push-down del seed). Le condizioni riusano i badge già presenti
+  nella riga → **zero UI nuova**. 172 → **186 test verdi**.
+  ⚠️ **Limite dichiarato:** i TS morte sono in **sola lettura** e appaiono solo a 0 PF — il
+  combattente del tracker non ha un editor di TS morte (esiste solo nella scheda PG) e
+  aggiungerlo era fuori proporzione. Li tira il giocatore, il master li guarda.
+- ✅ **Coda di #26 chiusa: recupero dadi vita del riposo lungo.** Era "non verificato a
+  runtime". Estratto `hitDiceAfterLongRest()` da `longRest` come helper puro (pattern di
+  `advanceClock` nello stesso file) e coperto con 4 casi: arrotondamento per difetto, minimo 1
+  ai livelli bassi, floor a zero, PG senza i campi. **La formula era già corretta** — nessun
+  cambio di comportamento, ma ora una regressione la fa fallire.
+- **Verifiche fatte:** 186 test verdi, build verde, app montata sul dev server con **console
+  pulita** (nessun ciclo di import: `App.jsx` ora importa il layer condiviso) e
+  `applyVitaliToCombatant` **eseguita nel browser reale** via dynamic import, con l'esito
+  atteso. **NON verificato:** il flusso completo del tracker in-app (richiede login + una
+  campagna con un giocatore assegnato) — lo scioglie Stefano al primo combattimento vero.
+- ⚠️ **Azioni richieste:** nessuna sul dashboard. Da autorizzare: **deploy Netlify + push**
+  del tracker (il fix del tab Tavolo è già live e pushato).

@@ -324,6 +324,34 @@ motore di sync: rimandato).
   vista schede condivise; l'auto-popolamento del tracker (iniziativa/HP nel round) è
   rifinitura successiva (il tracker oggi è comunque poco usato).
 
+✅ **Auto-popolamento Combat Tracker FATTO (2026-07-20, Opus)** — ultimo pezzo previsto dal
+design ("il consumo dei vitali dal tracker è fasato a dopo"). I PG entrano in combattimento
+coi **PF correnti, condizioni e TS morte** riportati dai giocatori invece che coi valori del
+roster.
+- **SNAPSHOT, non live** (scelta di Stefano): si applica in `confirmSetupAndRun` e sul bottone
+  **↻** della riga di ogni PG. Durante lo scontro il tracker resta la copia di lavoro del
+  master — coerente con "in sessione fa fede lo schermo del Master": i danni che registra lui
+  non vengono sovrascritti dal client del giocatore. **Conseguenza: nessuna subscription
+  Realtime nel tracker**, solo una fetch on-demand (niente da tenere vivo, niente da smontare).
+- `sharedChar.applyVitaliToCombatant(combatant, sharedChar)` — puro e immutabile: versa
+  `currentHp`/`conditions`/`deathSaves`, **non tocca** `maxHp`/`ac`/`note`/`effects` (del
+  master) né **`dead`** (dichiarare un PG KO è decisione del master). PF a 0 sono un valore
+  valido, non un campo assente (test di regressione apposta).
+- `sharedSync.vitaliByCharId(uid)` — mappa `char_id → char` su tutte le campagne del master.
+  Il linking è **gratis**: `char_id` = id della copia di roster (push-down del seed).
+- `confirmSetupAndRun` è **best-effort**: se il layer condiviso non risponde (offline, nessuna
+  campagna) il combattimento parte coi valori del roster invece di bloccarsi.
+- Le condizioni **riusano i badge già presenti** in `CombatantRow` → zero UI nuova.
+- ⚠️ **Limite:** i **TS morte sono in sola lettura** e compaiono solo a 0 PF. Il combattente
+  del tracker non ha un editor di TS morte (esiste solo nella scheda PG) e aggiungerlo era
+  fuori proporzione: li tira il giocatore, il master li guarda. Se servisse renderli
+  editabili, è UI nuova in `CombatantRow`.
+- 172 → **186 test verdi**. **Non verificato in-app**: il flusso completo richiede login +
+  una campagna con un giocatore assegnato; verificate a runtime la console pulita (nessun
+  ciclo di import) e `applyVitaliToCombatant` eseguita nel browser via dynamic import.
+
 *TO-DO futuri (fuori v1):* campagna-scopare il roster locale del master + filtro campagna
 nella UI; superare la canonicalizzazione profilo Olengard/Manu (`EMAIL_PROFILE`) verso un
-multi-utente vero; eventuale tabella membri/inviti se il join-code non bastasse.
+multi-utente vero; eventuale tabella membri/inviti se il join-code non bastasse; TS morte
+editabili nel tracker; flussi master→giocatore v2 (feedback "accettato", correzioni,
+prestige/reputation in lettura).

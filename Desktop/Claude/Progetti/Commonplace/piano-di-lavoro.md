@@ -1,9 +1,14 @@
 # Commonplace — Piano di lavoro
 
-> Ultimo aggiornamento: **2026-07-17 — Sessione #22** (rinnovato: il piano di aprile resta
+> Ultimo aggiornamento: **2026-07-20 — Sessione #27** (il piano di aprile resta
 > in coda come archivio). Fonte di verità sullo STATO è `Commonplace.md` (header + diario);
 > questo file elenca solo le PRIORITÀ. Regole operative: MANUALE-OPERATIVO.md + skill in
 > `.claude/skills/`. Priorità ratificate (#20): 1) manutenzione/bugfix, 2) sprint build.
+>
+> **▶ DnDMaster è CHIUSO (2026-07-20, #27)**: schede condivise complete e live, Combat
+> Tracker auto-popolato dai vitali, code aperte chiuse. Non è più una priorità — quel che
+> resta (loot tables, Capacitor) sta nei punti 5-6 come lavoro opzionale. **Le prossime
+> sessioni tornano sul resto di Commonplace: si riparte dal punto 3.**
 
 ## Stato per app (sintesi al 2026-07-17 — verifica sempre con `node Suite/collauda.cjs`)
 
@@ -14,7 +19,7 @@
 | Dashboard | ✅ login suite, su pchld (#21) |
 | Syllabus | ✅ v5 — incidente chiave chiuso (#21) |
 | **Platea** | ✅ **migrata a pchld 7/7** (#21-22), build d065eef6 collaudata |
-| DnDMaster | ✅ 2B (catalogo, Supabase) |
+| DnDMaster | ✅ **CHIUSO #27** — 2B + schede condivise coi giocatori (tab 🤝 Tavolo) + Combat Tracker dai vitali; 186 test |
 | Ledger | ✅ funzionante — backup ATTIVO dal 2026-07-18 (verifica primo giro: backup del 19/07 con `projects.bogav`) |
 | ReadS | 🔶 staged: build EAS da lanciare |
 
