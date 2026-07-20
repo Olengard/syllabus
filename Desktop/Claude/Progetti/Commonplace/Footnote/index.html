@@ -1212,7 +1212,12 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
   }
   return (
     <div>
-      <div className="fu" style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:14,padding:'18px 24px',marginBottom:16,boxShadow:`0 2px 12px ${t.shadow}`}}>
+      {/* `fu` applica un'animazione, e un'animazione CSS crea uno stacking context: lo z-index
+          del menu di rigenerazione vale solo DENTRO questa card, quindi le card successive
+          (sorelle più avanti nel DOM) gli passerebbero sopra e intercetterebbero i click.
+          Alzare la card mentre il menu è aperto è ciò che lo rende davvero cliccabile. */}
+      <div className="fu" style={{background:t.bgCard,border:`1px solid ${t.borderLight}`,borderRadius:14,padding:'18px 24px',marginBottom:16,boxShadow:`0 2px 12px ${t.shadow}`,
+        ...(menuOpen?{position:'relative',zIndex:30}:{})}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,flexWrap:'wrap'}}>
           <div>
             <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontStyle:'italic',color:t.text,marginBottom:2}}>{book.title}</h2>
