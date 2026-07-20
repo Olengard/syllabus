@@ -74,6 +74,13 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-fi
 - **Performance**: NON fare `JSON.parse` di localStorage a ogni render (con ~525 incantesimi importati bloccava la ricerca) → memoizza il caricamento; limita le liste renderizzate (slice).
 - **Collisione slug IT/EN**: inline è in italiano ma con slug inglesi (es. "Palla di Fuoco" → slug `fireball`), come gli importati EN → deduplicare le liste combinate per slug (inline vince) per evitare chiavi React duplicate.
 - Pattern attuale per leggere gli importati: alcune pagine ri-leggono localStorage a ogni apertura (la cache non si aggiorna se importi mentre la pagina è montata; basta rientrare nel tab).
+- **I tab principali sono elencati in DUE posti**: `.header-tabs` in `App.jsx` (desktop) e la
+  **bottom nav mobile** (`<nav className="mobile-nav">`, stesso file, in fondo al render) —
+  sotto i 768px `.header-tabs` è `display:none !important` (styles.js) e la navigazione passa
+  interamente alla bottom nav. Aggiungere un tab in un solo elenco lo rende **irraggiungibile**
+  sull'altro formato, senza alcun errore. Successo col tab 🤝 Tavolo, invisibile su telefono
+  dal deploy 3c fino al 2026-07-20: la diagnosi iniziale ("cache PWA") era sbagliata, il
+  bundle era giusto — `grep -c Tavolo` sul bundle live dava 1 invece di 2.
 - **Un solo dev server**: se la 5175 risponde già (avvia-gestionale.bat dell'utente), NON avviarne un secondo — due watcher Vite sulla stessa cartella confliggono e quello perdente serve moduli stantii con status 200. Se "non vedo la modifica" con build/test verdi: `curl localhost:PORTA/src/File.jsx | grep <codice nuovo>`.
 - I **dati importati vecchi** possono avere forme diverse da quelle attese (es. razze con `abilityScoreIncrease` stringa invece di `abilityBonuses` oggetto): quando cambi un parser, aggiungi la conversione di compatibilità nel punto di lettura (vedi `parseAsiLegacy`) e normalizza alla forma dei dati inline.
 - Il bump tablet (`@media max-width:1400px`) imposta padding/min-height dei `.btn` con `!important`: gli stili inline compatti nei componenti vengono scavalcati — serve una regola CSS con specificità maggiore (vedi `.dice-tray .btn`).
