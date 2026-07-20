@@ -1948,3 +1948,33 @@ obbedisca**. In tutta la sessione le risposte AI sono state simulate: è verific
 istruzioni ARRIVANO al modello, non che vengano rispettate. Test concordato: rifare il
 percorso "oltre McCarthy" mettendo *Cormac McCarthy* nel campo **«Non le voglio»** e
 controllare che sparisca — dalle risorse e in particolare dalla prima tappa.
+
+**Coda di #28b — il test di Stefano e il pulsante matita (2026-07-21).**
+
+- ✅ **Le esclusioni FUNZIONANO, verificato da Stefano su un percorso vero.** Rifatto
+  "oltre McCarthy" con *Cormac McCarthy* nel campo «Non le voglio»: McCarthy **non compare
+  più** tra le risorse. Resta un riferimento nominato in una descrizione (commento di Bloom),
+  che è il comportamento **voluto**: le opere escluse possono essere citate per situare
+  un'altra opera, purché non siano da leggere. Questo chiude l'incertezza lasciata aperta
+  in #28b: non solo i divieti arrivano al modello, il modello li rispetta.
+- ✅ **Pulsante «modifica» (Curriculum.jsx): mostrava l'escape al posto della matita.**
+  Root cause: l'escape unicode era **testo nudo dentro il JSX**, dove NON viene interpretato
+  e finisce a schermo alla lettera. Gli altri escape dello stesso file (righe 187, 764)
+  stanno dentro stringhe JavaScript e sono corretti — **la differenza è quella, non il
+  carattere**. Seconda occorrenza dello stesso errore: `fd29e5f` l'aveva già corretto su
+  × e ↺ nei pulsanti risorse, questo era sfuggito. Cercato in tutta la suite: **nessun altro**
+  (l'unico riscontro, `Syllabus/mockup.html`, è dentro una stringa JS ed è corretto).
+- ⚠️ **Trappola da conoscere prima di toccare questi file.** Scrivere il carattere con gli
+  strumenti di modifica standard **non ha funzionato**: veniva ri-convertito in escape, e la
+  stessa cosa è successa al commento che si stava aggiungendo (× e ↺ diventati `×` e
+  `↺`). È servito uno script che costruisce il carattere da `String.fromCodePoint(0x270f)`.
+  Stessa famiglia del problema UTF-8 documentato nella skill `app-single-file`. Se un
+  carattere non-ASCII "non entra", non insistere con l'editor: passare da uno script.
+- 🔍 **Lezione di metodo, a mio carico.** L'escape era **visibile nell'output del collaudo di
+  #28** (il testo della pagina stampava `PDF / ✏ / Elimina`) e l'operatore l'ha letto
+  senza fermarsi, perché stava guardando le tappe. L'ha dovuto segnalare Stefano. Quando si
+  ispeziona una vista, **leggere TUTTO l'output**, non solo la parte che riguarda il compito.
+
+✅ **Deployato e pushato**: Syllabus SW v7→v8, bundle live `index-lL_Lc1u0.js` = build locale,
+verificato sui byte del bundle servito: **1 carattere U+270F reale, 0 escape letterali**,
+marker delle esclusioni intatti. `SW_MIN` syllabus → 8, `collauda.cjs` tutto verde.
