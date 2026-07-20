@@ -1,7 +1,7 @@
 import React from "react";
 import { supabase } from "./supabaseClient.js";
 import { createSharedSync } from "./sharedSync.js";
-import { diffAdmin, applyAccepted, adminHash, hasPendingAdmin } from "./sharedChar.js";
+import { diffAdmin, applyAccepted, adminHash, hasPendingAdmin, diffPrestige, mergePlayerPrestige } from "./sharedChar.js";
 import { K, loadJSON, saveJSON } from "./storage.js";
 
 // Tab 🤝 Tavolo: schede condivise coi giocatori (blocco 3c).
@@ -47,7 +47,18 @@ function VitaliView({ char }) {
 
 // ── Pannello diff/accept amministrativo (master) ─────────────────────────────
 function DiffPanel({ rosterChar, sharedChar, onAccept, onIgnore, onClose }) {
-  const diff = React.useMemo(() => diffAdmin(rosterChar, sharedChar), [rosterChar, sharedChar]);
+  const diffAmm = React.useMemo(() => diffAdmin(rosterChar, sharedChar), [rosterChar, sharedChar]);
+  // Il prestigio ha un canale suo: si confronta per ID e si etichetta col nome
+  // VERO (il master deve leggere «Clero», non l'alias che vede il giocatore).
+  // Le voci nascoste non compaiono: non sono modificabili da chi non le vede.
+  const diffPrest = React.useMemo(
+    () => diffPrestige(rosterChar?.prestige, sharedChar?.prestige).map((p) => ({
+      field: `prestige:${p.id}`, kind: "prestige",
+      label: `🏛 ${p.name}`, summary: `${p.before} → ${p.after}`,
+    })),
+    [rosterChar, sharedChar],
+  );
+  const diff = React.useMemo(() => [...diffAmm, ...diffPrest], [diffAmm, diffPrest]);
   // Check per campo, tutti spuntati di default (deselezionabili).
   const [checked, setChecked] = React.useState(() => new Set(diff.map((d) => d.field)));
   const toggle = (f) => setChecked((s) => { const n = new Set(s); n.has(f) ? n.delete(f) : n.add(f); return n; });
@@ -71,7 +82,7 @@ function DiffPanel({ rosterChar, sharedChar, onAccept, onIgnore, onClose }) {
         {diff.map((d) => (
           <label key={d.field} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 8, fontSize: "0.82rem", textTransform: "none", letterSpacing: "normal", cursor: "pointer" }}>
             <input type="checkbox" checked={checked.has(d.field)} onChange={() => toggle(d.field)} style={{ flex: "0 0 auto", width: 16, height: 16, margin: 0 }} />
-            <span style={{ flex: "0 0 130px", fontWeight: 600 }}>{d.field}</span>
+            <span style={{ flex: "0 0 130px", fontWeight: 600 }}>{d.label || d.field}</span>
             <span style={{ color: "var(--text2)" }}>
               {d.kind === "array" ? `📦 ${d.summary} oggetti` : d.kind === "portrait" ? "🖼 ritratto cambiato" : d.kind === "object" ? "modificato" : d.summary}
             </span>
@@ -220,7 +231,20 @@ function MasterPanel({ uid, characters, onUpdateChar }) {
                       onClose={() => setDiffFor(null)}
                       onIgnore={() => { const s = loadSeen(); s[key] = adminHash(r.char); saveSeen(s); setSeenTick((t) => t + 1); setDiffFor(null); }}
                       onAccept={(fields) => {
-                        const updated = applyAccepted(rosterChar, r.char, fields);
+                        // Due canali: i campi amministrativi passano da
+                        // applyAccepted; le voci di prestigio (`prestige:<id>`)
+                        // da mergePlayerPrestige, che riconcilia per ID e non
+                        // tocca mai le voci nascoste o i nomi veri.
+                        const idsPrestigio = fields
+                          .filter((f) => f.startsWith("prestige:"))
+                          .map((f) => f.slice("prestige:".length));
+                        const campiAmm = fields.filter((f) => !f.startsWith("prestige:"));
+                        let updated = applyAccepted(rosterChar, r.char, campiAmm);
+                        if (idsPrestigio.length) {
+                          const proposte = (r.char.prestige || [])
+                            .filter((e) => idsPrestigio.includes(String(e.id)));
+                          updated = { ...updated, prestige: mergePlayerPrestige(rosterChar.prestige, proposte) };
+                        }
                         onUpdateChar(updated);
                         const s = loadSeen(); s[key] = adminHash(r.char); saveSeen(s); setSeenTick((t) => t + 1);
                         setDiffFor(null); setMsg(`Accettati ${fields.length} campi su «${updated.name}».`);

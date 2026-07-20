@@ -210,6 +210,23 @@ export const styles = `
   }
   .prestige-name-input:focus { border-bottom-color: var(--gold); }
   .prestige-name-input::placeholder { color: var(--text3); font-style: italic; font-weight: 400; }
+  /* Segretezza per-voce (solo vista master): occhio + alias mostrato al giocatore.
+     width esplicita sull'input: il globale input{width:100%} lo sfonderebbe. */
+  .prestige-secret { display: flex; align-items: center; gap: 6px; margin: -2px 0 8px; }
+  .prestige-eye {
+    background: none; border: none; cursor: pointer; padding: 0 2px;
+    font-size: 0.85rem; line-height: 1; opacity: 0.75;
+  }
+  .prestige-eye:hover { opacity: 1; }
+  .prestige-alias-input {
+    width: 190px; max-width: 60%; flex: 0 1 auto;
+    font-family: 'Crimson Text', serif; font-size: 0.72rem; font-style: italic;
+    background: transparent; border: none; border-bottom: 1px dotted var(--border2);
+    color: var(--text2); padding: 1px 3px; outline: none;
+  }
+  .prestige-alias-input:focus { border-bottom-color: var(--gold2); }
+  .prestige-alias-input::placeholder { color: var(--text3); opacity: 0.7; }
+  .prestige-secret-note { font-size: 0.68rem; font-style: italic; color: var(--text3); }
   .prestige-score-display {
     font-family: 'Cinzel', serif; font-size: 1.7rem; font-weight: 900;
     color: var(--gold); min-width: 38px; text-align: center; line-height: 1;

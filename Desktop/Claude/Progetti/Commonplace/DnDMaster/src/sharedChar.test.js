@@ -369,3 +369,38 @@ describe("prestigio: visibilita' per-voce (alias / hidden)", () => {
     });
   });
 });
+
+describe("badge 📬 e prestigio", () => {
+  const master = () => ({
+    ...baseChar(),
+    prestige: [
+      { id: 1, name: "Flint", value: 3 },
+      { id: 4, name: "Clero", value: 2, alias: "Famiglia" },
+      { id: 5, name: "Obscurati", value: 1, hidden: true },
+    ],
+  });
+  const dalGiocatore = (v) => ({
+    ...baseChar(),
+    prestige: [{ id: 1, name: "Flint", value: 3 }, { id: 4, name: "Famiglia", value: v }],
+  });
+
+  it("una modifica al SOLO prestigio accende il badge", () => {
+    expect(hasPendingAdmin(master(), dalGiocatore(5), null)).toBe(true);
+  });
+
+  it("il prestigio invariato non accende il badge", () => {
+    expect(hasPendingAdmin(master(), dalGiocatore(2), null)).toBe(false);
+  });
+
+  it("dopo un 'Ignora', una nuova modifica al prestigio lo fa ricomparire", () => {
+    const primo = dalGiocatore(5);
+    const seen = adminHash(primo);                    // il master ignora
+    expect(hasPendingAdmin(master(), primo, seen)).toBe(false);
+    expect(hasPendingAdmin(master(), dalGiocatore(6), seen)).toBe(true);
+  });
+
+  it("l'alias non conta come modifica (i nomi sono del master)", () => {
+    // La riga del giocatore porta «Famiglia», il master ha «Clero»: stesso valore.
+    expect(hasPendingAdmin(master(), dalGiocatore(2), null)).toBe(false);
+  });
+});

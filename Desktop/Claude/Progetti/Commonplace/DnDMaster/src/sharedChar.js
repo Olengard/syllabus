@@ -129,6 +129,10 @@ export function adminHash(char) {
   const snap = pickAdmin(char);
   const p = char && char.portrait;
   snap.__portrait = p ? strHash(String(p)) : null;
+  // Il prestigio entra nell'hash (id+valore, non i nomi: quelli sono del
+  // master e non cambiano mai dal giocatore). Senza, dopo un "Ignora" una
+  // nuova modifica al solo prestigio non farebbe più ricomparire il badge.
+  snap.__prestige = ((char && char.prestige) || []).map((e) => [e.id, e.value || 0]);
   return strHash(stableStringify(snap));
 }
 
@@ -136,7 +140,10 @@ export function adminHash(char) {
 // qualcosa da quando il master ha premuto "Ignora"/accettato parziale (lastSeenHash).
 // Se il master accetta tutto, il diff si azzera → niente badge comunque.
 export function hasPendingAdmin(masterChar, sharedChar, lastSeenHash) {
-  if (diffAdmin(masterChar, sharedChar).length === 0) return false;
+  const nienteDaVedere =
+    diffAdmin(masterChar, sharedChar).length === 0 &&
+    diffPrestige(masterChar && masterChar.prestige, sharedChar && sharedChar.prestige).length === 0;
+  if (nienteDaVedere) return false;
   return adminHash(sharedChar) !== lastSeenHash;
 }
 

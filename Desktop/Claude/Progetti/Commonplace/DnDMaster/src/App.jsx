@@ -2080,7 +2080,9 @@ function weaponToAttack(item, char) {
   };
 }
 
-function CharacterSheet({ char, onChange, onDelete }) {
+// `secretsEditable`: false nella vista condivisa (il giocatore non deve nemmeno
+// sapere che una voce di prestigio PUÒ essere aliasata o nascosta).
+function CharacterSheet({ char, onChange, onDelete, secretsEditable = true }) {
   const [tab, setTab] = useState("stats");
   const [showRacePicker, setShowRacePicker]   = useState(false);
   const [showClassPicker, setShowClassPicker] = useState(false);
@@ -2910,6 +2912,32 @@ function CharacterSheet({ char, onChange, onDelete }) {
                       <button className="btn btn-sm btn-danger"
                         onClick={() => update({ prestige: (char.prestige||[]).filter(p => p.id !== entry.id) })}>✕</button>
                     </div>
+                    {/* Segretezza per-voce: solo il master la vede e la imposta.
+                        Nascosta = non lascia mai il suo device; alias = il
+                        giocatore vede un altro nome (Clero → «Famiglia»). */}
+                    {secretsEditable && (
+                      <div className="prestige-secret">
+                        <button type="button"
+                          className={`prestige-eye${entry.hidden ? " off" : ""}`}
+                          title={entry.hidden
+                            ? "Nascosta al giocatore: non viene condivisa"
+                            : "Visibile al giocatore"}
+                          onClick={() => updateEntry({ hidden: !entry.hidden })}>
+                          {entry.hidden ? "🙈" : "👁"}
+                        </button>
+                        {entry.hidden ? (
+                          <span className="prestige-secret-note">nascosta al giocatore</span>
+                        ) : (
+                          <input
+                            className="prestige-alias-input"
+                            value={entry.alias || ""}
+                            onChange={e => updateEntry({ alias: e.target.value.trim() || undefined })}
+                            placeholder="il giocatore la vede come…"
+                            title="Lascia vuoto perché veda il nome vero"
+                          />
+                        )}
+                      </div>
+                    )}
                     <div className="prestige-pips">
                       {Array.from({ length: 10 }, (_, i) => {
                         const filled = i < v;
@@ -5881,7 +5909,7 @@ function App() {
                 uid={getStoredUid()}
                 characters={characters}
                 onUpdateChar={updateChar}
-                renderSheet={(char, onChange) => <CharacterSheet char={char} onChange={onChange} onDelete={null} />}
+                renderSheet={(char, onChange) => <CharacterSheet char={char} onChange={onChange} onDelete={null} secretsEditable={false} />}
               />
             </ErrorBoundary>
           )}
