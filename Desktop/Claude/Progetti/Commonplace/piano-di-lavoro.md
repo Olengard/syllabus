@@ -40,9 +40,16 @@
    con le 11 tabelle Ledger — `transactions` 70 righe, zero tabelle in errore; il 18/07
    non ha ancora `bogav` (il 19 è il primo). Nota: la env sorgente è
    `SUPABASE_BOGAV_SERVICE_KEY` (in `backup.js`), non `LLV`.
-3. **[richiesto da Stefano, prossima sessione] GIRO DI DEBUG: Syllabus, Footnote,
-   ListenS** + valutazione di un miglioramento generale di ListenS. Se il tempo
-   (contratto Fable) finisce prima → documentare qui l'esito parziale per Opus.
+3. **GIRO DI DEBUG: Syllabus, Footnote, ListenS** — 🔶 **fatto a metà (#28, 2026-07-20)**.
+   Syllabus e Footnote fatti, su tre richieste concrete di Stefano che hanno avuto la
+   precedenza sull'ispezione sistematica: bottone «Completa scheda» riparato (era cieco su
+   5 sezioni su 11) + menu di rigenerazione a spunte in Footnote; risorse «già note» e
+   progressione a tappe in Syllabus. ⚠️ **Committati ma NON deployati** (Footnote SW v29,
+   Syllabus SW v6): al deploy alzare anche `SW_MIN` in `Suite/collauda.cjs`.
+   → **RESTA: ListenS** — il giro di debug e la valutazione del miglioramento generale.
+   → **DA DECIDERE: i tre bug latenti di Syllabus** trovati in #28 (tabella `sl_resources`
+   morta, `updateCurriculum` con chiavi non-colonna, `supabase-migration.sql` obsoleto):
+   nessuno visibile oggi, dettaglio e opzioni in coda a `Commonplace.md`.
 4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
    L'**export CSV/PDF** invece è adatto a Opus.
 5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
