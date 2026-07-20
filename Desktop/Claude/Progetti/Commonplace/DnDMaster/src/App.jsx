@@ -5919,6 +5919,7 @@ function App() {
             {id:'combat',      icon:'⚔',      label:'Combat'},
             {id:'monsters',    icon:'🐉',  label:'Mostri'},
             {id:'campaign',    icon:'🗺',      label:'Camp.'},
+            {id:'shared',      icon:'🤝',  label:'Tavolo'},
             {id:'names',       icon:'✨',      label:'Nomi'},
             {id:'descriptions',icon:'📖',  label:'Descr.'},
             {id:'shop',        icon:'🏪',  label:'Prezzi'},
