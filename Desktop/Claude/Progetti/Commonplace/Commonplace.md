@@ -1874,3 +1874,15 @@ fuori dall'ambito chiesto; sono tutti in `Syllabus/app`.
   il suo commit resta locale — il deploy passa da Vercel CLI.
 - Decidere sui tre ritrovamenti qui sopra.
 - Resta in piedi la **sospensione Render `digest-blqp` (~26/07)**.
+
+**Aggiunta a #28 (stessa sessione, dopo il primo commit).** Il menu di rigenerazione di
+Footnote **si apriva ma non riceveva i click**: visibile e inerte, il caso peggiore perché
+sembra a posto. Root cause: la card di intestazione ha `className="fu"` → `animation: fadeUp`,
+e **un'animazione CSS crea uno stacking context**, quindi lo `z-index: 41` del menu valeva
+solo dentro quella card mentre le card successive (sorelle più avanti nel DOM, ciascuna con
+la sua animazione) le passavano sopra. Corretto alzando la card d'intestazione
+(`position:relative` + z-index) **solo mentre il menu è aperto**, per non alterare le
+sovrapposizioni esistenti. Lezione generalizzabile alle altre app single-file, che usano
+tutte la classe `fu`: **qualunque popover/dropdown dentro una card animata va alzato**,
+oppure portato fuori con un portal. Trovato solo perché il menu è stato provato con click
+reali del mouse — il DOM e l'albero di accessibilità lo davano perfetto.
