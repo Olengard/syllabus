@@ -1966,12 +1966,14 @@ controllare che sparisca — dalle risorse e in particolare dalla prima tappa.
   (l'unico riscontro, `Syllabus/mockup.html`, è dentro una stringa JS ed è corretto).
 - ⚠️ **Trappola da conoscere prima di toccare questi file.** Scrivere il carattere con gli
   strumenti di modifica standard **non ha funzionato**: veniva ri-convertito in escape, e la
-  stessa cosa è successa al commento che si stava aggiungendo (× e ↺ diventati `×` e
-  `↺`). È servito uno script che costruisce il carattere da `String.fromCodePoint(0x270f)`.
+  stessa cosa è successa al commento che si stava aggiungendo: i caratteri "per" e "freccia" del testo
+  sono diventati le loro sequenze di escape (backslash-u-00d7 e backslash-u-21ba).
+  È servito uno script che costruisce il carattere da `String.fromCodePoint(0x270f)`.
   Stessa famiglia del problema UTF-8 documentato nella skill `app-single-file`. Se un
   carattere non-ASCII "non entra", non insistere con l'editor: passare da uno script.
 - 🔍 **Lezione di metodo, a mio carico.** L'escape era **visibile nell'output del collaudo di
-  #28** (il testo della pagina stampava `PDF / ✏ / Elimina`) e l'operatore l'ha letto
+  #28** (il testo della pagina stampava, fra PDF ed Elimina, la sequenza letterale
+  backslash-u-270f invece della matita) e l'operatore l'ha letto
   senza fermarsi, perché stava guardando le tappe. L'ha dovuto segnalare Stefano. Quando si
   ispeziona una vista, **leggere TUTTO l'output**, non solo la parte che riguarda il compito.
 
