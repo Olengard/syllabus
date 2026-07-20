@@ -135,3 +135,24 @@ export function hasPendingAdmin(masterChar, sharedChar, lastSeenHash) {
   if (diffAdmin(masterChar, sharedChar).length === 0) return false;
   return adminHash(sharedChar) !== lastSeenHash;
 }
+
+// ── Vitali → Combat Tracker (auto-popolamento, 2026-07-20) ───────────────────
+// Versa i vitali riportati dal giocatore dentro un combattente del tracker.
+// SNAPSHOT, non live: si applica all'avvio del combattimento e sul refresh ↻ del
+// master — durante lo scontro il tracker resta la copia di lavoro del master
+// ("in sessione fa fede lo schermo del Master"), quindi nulla lo sovrascrive a
+// sorpresa. Immutabile; se non c'è riga condivisa il combattente torna identico.
+// `dead` NON viene toccato: dichiarare un PG fuori combattimento è del master.
+export function applyVitaliToCombatant(combatant, sharedChar) {
+  if (!combatant || !sharedChar) return combatant;
+  const out = { ...combatant };
+  if (typeof sharedChar.currentHp === "number") out.currentHp = sharedChar.currentHp;
+  if (Array.isArray(sharedChar.conditions)) out.conditions = [...sharedChar.conditions];
+  if (sharedChar.deathSaves) {
+    out.deathSaves = {
+      successes: sharedChar.deathSaves.successes || 0,
+      failures: sharedChar.deathSaves.failures || 0,
+    };
+  }
+  return out;
+}

@@ -183,3 +183,50 @@ describe("Realtime (vista master live)", () => {
     expect(seen).toEqual([payload]);
   });
 });
+
+describe("vitaliByCharId (auto-popolamento Combat Tracker)", () => {
+  it("indicizza per char_id i vitali delle proprie campagne", async () => {
+    const c = await s.createCampaign("Zeitgeist");
+    await s.seedSharedChar(c.id, "player1", "7", { name: "Alaric", currentHp: 12 });
+    await s.seedSharedChar(c.id, "player2", "9", { name: "Bruna", currentHp: 30 });
+    const m = await s.vitaliByCharId("master1");
+    expect(Object.keys(m).sort()).toEqual(["7", "9"]);
+    expect(m["7"].currentHp).toBe(12);
+    expect(m["9"].name).toBe("Bruna");
+  });
+
+  it("unisce le righe di piu' campagne dello stesso master", async () => {
+    const a = await s.createCampaign("Campagna A");
+    const b = await s.createCampaign("Campagna B");
+    await s.seedSharedChar(a.id, "p1", "1", { currentHp: 5 });
+    await s.seedSharedChar(b.id, "p2", "2", { currentHp: 6 });
+    const m = await s.vitaliByCharId("master1");
+    expect(Object.keys(m).sort()).toEqual(["1", "2"]);
+  });
+
+  it("non espone le schede delle campagne di un altro master", async () => {
+    const mia = await s.createCampaign("Mia");
+    await s.seedSharedChar(mia.id, "p1", "1", { currentHp: 5 });
+    client._currentUid = "master2";
+    const altrui = await s.createCampaign("Altrui");
+    await s.seedSharedChar(altrui.id, "p9", "99", { currentHp: 1 });
+    const m = await s.vitaliByCharId("master1");
+    expect(Object.keys(m)).toEqual(["1"]);
+  });
+
+  it("master senza campagne → mappa vuota (nessun errore)", async () => {
+    expect(await s.vitaliByCharId("nessuno")).toEqual({});
+  });
+
+  it("campagna senza schede assegnate → mappa vuota", async () => {
+    await s.createCampaign("Vuota");
+    expect(await s.vitaliByCharId("master1")).toEqual({});
+  });
+
+  it("le chiavi sono stringhe (char_id numerico del roster)", async () => {
+    const c = await s.createCampaign("X");
+    await s.seedSharedChar(c.id, "p1", 42, { currentHp: 3 });
+    const m = await s.vitaliByCharId("master1");
+    expect(m["42"].currentHp).toBe(3);
+  });
+});

@@ -3,6 +3,7 @@ import {
   VITALI_FIELDS, ADMIN_FIELDS, MASTER_ONLY_FIELDS,
   pickVitali, pickAdmin, stableStringify,
   diffAdmin, applyAccepted, adminHash, hasPendingAdmin,
+  applyVitaliToCombatant,
 } from "./sharedChar.js";
 
 // Char minimale coi campi reali di defaultChar che ci servono nei test.
@@ -191,5 +192,71 @@ describe("adminHash & hasPendingAdmin (badge 📬)", () => {
     const seen = adminHash(s1);                 // il master ignora s1
     const s2 = { ...baseChar(), level: 4, xp: 8000 };  // il giocatore rimodifica
     expect(hasPendingAdmin(baseChar(), s2, seen)).toBe(true);
+  });
+});
+
+describe("applyVitaliToCombatant (auto-popolamento Combat Tracker)", () => {
+  const pc = () => ({
+    id: "pc-1", kind: "pc", name: "Alaric", currentHp: 30, maxHp: 30,
+    ac: 16, conditions: [], effects: [], dead: false, note: "",
+  });
+
+  it("versa PF correnti, condizioni e TS morte del giocatore", () => {
+    const out = applyVitaliToCombatant(pc(), {
+      currentHp: 12, conditions: ["Avvelenato"],
+      deathSaves: { successes: 1, failures: 2 },
+    });
+    expect(out.currentHp).toBe(12);
+    expect(out.conditions).toEqual(["Avvelenato"]);
+    expect(out.deathSaves).toEqual({ successes: 1, failures: 2 });
+  });
+
+  it("non tocca i campi del master (maxHp, ac, note, effects)", () => {
+    const out = applyVitaliToCombatant(
+      { ...pc(), note: "concentrato", effects: [{ id: "e1" }] },
+      { currentHp: 5, maxHp: 999, ac: 1, note: "hackerata" },
+    );
+    expect(out.maxHp).toBe(30);
+    expect(out.ac).toBe(16);
+    expect(out.note).toBe("concentrato");
+    expect(out.effects).toEqual([{ id: "e1" }]);
+  });
+
+  it("non dichiara mai morto un PG: 'dead' resta del master", () => {
+    // Il giocatore va a 0 PF, ma decidere il KO al tavolo spetta al master.
+    const out = applyVitaliToCombatant(pc(), { currentHp: 0 });
+    expect(out.currentHp).toBe(0);
+    expect(out.dead).toBe(false);
+  });
+
+  it("PF a 0 sono un valore valido, non un campo assente", () => {
+    // Regressione: un `if (shared.currentHp)` ignorerebbe lo 0.
+    expect(applyVitaliToCombatant(pc(), { currentHp: 0 }).currentHp).toBe(0);
+  });
+
+  it("senza riga condivisa il combattente resta identico", () => {
+    expect(applyVitaliToCombatant(pc(), null)).toEqual(pc());
+    expect(applyVitaliToCombatant(pc(), undefined)).toEqual(pc());
+  });
+
+  it("ignora i campi vitali assenti invece di azzerarli", () => {
+    const base = { ...pc(), currentHp: 20, conditions: ["Prono"] };
+    const out = applyVitaliToCombatant(base, { inspiration: true });
+    expect(out.currentHp).toBe(20);
+    expect(out.conditions).toEqual(["Prono"]);
+  });
+
+  it("e' immutabile: non modifica il combattente originale", () => {
+    const base = pc();
+    applyVitaliToCombatant(base, { currentHp: 1, conditions: ["Stordito"] });
+    expect(base.currentHp).toBe(30);
+    expect(base.conditions).toEqual([]);
+  });
+
+  it("clona l'array condizioni (niente aliasing con la riga condivisa)", () => {
+    const shared = { conditions: ["Prono"] };
+    const out = applyVitaliToCombatant(pc(), shared);
+    out.conditions.push("Cieco");
+    expect(shared.conditions).toEqual(["Prono"]);
   });
 });

@@ -29,6 +29,8 @@ import CampaignPage, { loadCampaign } from "./CampaignPage.jsx";
 import SharedTablePage from "./SharedTablePage.jsx";
 import { coherentWith, terrainAllows } from "./encounter.js";
 import { supabase } from "./supabaseClient.js";
+import { createSharedSync } from "./sharedSync.js";
+import { applyVitaliToCombatant } from "./sharedChar.js";
 import { createSyncEngine } from "./sync.js";
 
 // ─── Auth (Supabase, fase 2B) ─────────────────────────────────────────────────
@@ -55,6 +57,9 @@ const AUTH_UID_KEY = "dnd_auth_uid";
 const getStoredUid = () => { try { return localStorage.getItem(AUTH_UID_KEY); } catch { return null; } };
 
 const sync = createSyncEngine(supabase);
+// Layer schede condivise: qui serve solo al Combat Tracker per leggere i vitali
+// dei giocatori all'avvio dello scontro (SharedTablePage ha la sua istanza).
+const sharedForCombat = createSharedSync(supabase);
 sync.attach();
 
 
@@ -4065,7 +4070,7 @@ const COND_META = {
 const CONDITIONS = Object.keys(COND_META);
 
 // ─── CombatTracker ────────────────────────────────────────────────────────────
-function CombatTracker({ characters, pendingCombatant, onPendingConsumed }) {
+function CombatTracker({ characters, pendingCombatant, onPendingConsumed, fetchLiveVitals }) {
 
   // ── STATE ──────────────────────────────────────────────────────────────────
   const [view, setView]           = React.useState("combat");   // "combat" | "encounters"
@@ -4162,6 +4167,24 @@ function CombatTracker({ characters, pendingCombatant, onPendingConsumed }) {
     setCombatants(prev => [...prev, makeEnemyCombatant(cfg)]);
   }
 
+  // Ripesca i vitali di UN PG durante lo scontro (bottone ↻ sulla sua riga):
+  // il giocatore ha aggiornato i suoi PF sul proprio device e il master li tira
+  // dentro quando gli serve. Volontario, mai automatico: durante il combattimento
+  // il tracker resta la copia di lavoro del master.
+  const [vitaliBusy, setVitaliBusy] = React.useState(null);   // combatant id in corso
+  async function refreshVitaliFor(combatantId) {
+    const charId = String(combatantId).replace(/^pc-/, "");
+    setVitaliBusy(combatantId);
+    try {
+      const vitali = (await fetchLiveVitals?.()) || {};
+      const riga = vitali[charId];
+      if (!riga) { window.alert("Nessuna scheda condivisa per questo PG: non risulta assegnato a una tua campagna."); return; }
+      setCombatants(prev => prev.map(c => c.id === combatantId ? applyVitaliToCombatant(c, riga) : c));
+    } catch (e) {
+      window.alert(`Vitali non recuperati: ${e.message || e}`);
+    } finally { setVitaliBusy(null); }
+  }
+
   function updateCombatant(id, patch) {
     setCombatants(prev => prev.map(c => c.id === id ? {...c, ...patch} : c));
   }
@@ -4184,11 +4207,18 @@ function CombatTracker({ characters, pendingCombatant, onPendingConsumed }) {
   }
 
   // ── PHASE: SETUP → RUNNING ─────────────────────────────────────────────────
-  function confirmSetupAndRun() {
+  async function confirmSetupAndRun() {
+    // Snapshot dei vitali riportati dai giocatori (PF, condizioni, TS morte):
+    // i PG entrano in combattimento già "come stanno" al tavolo, senza ridigitare.
+    // Best-effort: se il layer condiviso non risponde (offline, nessuna campagna)
+    // si parte comunque coi valori del roster — il combattimento non si blocca.
+    let vitali = {};
+    try { vitali = (await fetchLiveVitals?.()) || {}; } catch { vitali = {}; }
+
     // Merge active PCs + existing enemies, assign initiatives, sort
     const pcs = characters
       .filter(c => pgToggles[c.id] && c.name && c.name !== "Nuovo Personaggio")
-      .map(makePcCombatant);
+      .map(c => applyVitaliToCombatant(makePcCombatant(c), vitali[String(c.id)]));
 
     const all = [...pcs, ...combatants.filter(c => c.kind === "enemy")];
     // Apply initiative values
@@ -4636,6 +4666,8 @@ function CombatTracker({ characters, pendingCombatant, onPendingConsumed }) {
                   onExpand={()=>setExpandedId(expandedId===c.id ? null : c.id)}
                   onUpdate={patch=>updateCombatant(c.id,patch)}
                   onRemove={()=>removeCombatant(c.id)}
+                  onRefreshVitali={c.kind==="pc" ? ()=>refreshVitaliFor(c.id) : null}
+                  vitaliBusy={vitaliBusy===c.id}
                 />
               ))}
             </div>
@@ -4690,7 +4722,7 @@ function CombatTracker({ characters, pendingCombatant, onPendingConsumed }) {
 }
 
 // ─── CombatantRow ─────────────────────────────────────────────────────────────
-function CombatantRow({ c, idx, currentIdx, expanded, onExpand, onUpdate, onRemove }) {
+function CombatantRow({ c, idx, currentIdx, expanded, onExpand, onUpdate, onRemove, onRefreshVitali, vitaliBusy }) {
   const isActive = idx === currentIdx;
   const [hpDelta, setHpDelta] = React.useState("");
   const [showCondPicker, setShowCondPicker] = React.useState(false);
@@ -4760,8 +4792,24 @@ function CombatantRow({ c, idx, currentIdx, expanded, onExpand, onUpdate, onRemo
               </span>}
             {c.dead &&
               <span style={{fontSize:"0.68rem",color:"var(--text3)"}}>💀 KO</span>}
+            {onRefreshVitali && (
+              <span title="Ripesca i vitali riportati dal giocatore (PF, condizioni, TS morte)"
+                style={{fontSize:"0.68rem",color:"var(--text3)",cursor:"pointer",opacity:vitaliBusy?0.5:1}}
+                onClick={e=>{e.stopPropagation();if(!vitaliBusy)onRefreshVitali();}}>
+                {vitaliBusy ? "…" : "↻"}
+              </span>
+            )}
           </div>
           {c.subname && <div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{c.subname}</div>}
+          {/* TS contro morte riportati dal giocatore: sola lettura, solo a 0 PF
+              (li tira lui sulla sua scheda; qui servono al master come sguardo). */}
+          {c.currentHp === 0 && c.deathSaves && (c.deathSaves.successes || c.deathSaves.failures) ? (
+            <div style={{fontSize:"0.68rem",color:"var(--text3)",marginTop:3}}
+              title="Tiri salvezza contro morte riportati dal giocatore">
+              💀 TS morte: <span style={{color:"#27ae60"}}>{c.deathSaves.successes}✓</span>
+              {" / "}<span style={{color:"var(--red2)"}}>{c.deathSaves.failures}✗</span>
+            </div>
+          ) : null}
           {/* condition badges */}
           {c.conditions.length > 0 && (
             <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:3}}>
@@ -5823,7 +5871,8 @@ function App() {
             />
           )}
           {!loading && mainTab === "combat" && (
-            <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)} />
+            <CombatTracker characters={characters} pendingCombatant={pendingCombatant} onPendingConsumed={() => setPendingCombatant(null)}
+              fetchLiveVitals={() => sharedForCombat.vitaliByCharId(getStoredUid())} />
           )}
           {!loading && mainTab === "campaign" && <ErrorBoundary><CampaignPage /></ErrorBoundary>}
           {!loading && mainTab === "shared" && (

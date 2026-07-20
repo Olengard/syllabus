@@ -65,6 +65,23 @@ export function createSharedSync(client) {
     return unwrap(res, "Lettura schede condivise fallita") || [];
   }
 
+  // Vitali riportati dai giocatori, indicizzati per char_id (= id della copia di
+  // roster del master, grazie al push-down del seed): serve al Combat Tracker per
+  // popolare i PG all'avvio dello scontro senza che il master ridigiti i PF.
+  // Fetch on-demand, NON una subscription: il tracker fa uno snapshot quando
+  // serve (avvio combattimento, refresh ↻), quindi non c'è nulla da tenere vivo.
+  // Un PG assegnato a più campagne è un caso che il modello non prevede: se
+  // accadesse, l'ultima riga letta vince (nessun merge, comportamento definito).
+  async function vitaliByCharId(uid) {
+    const campagne = await listMyCampaigns(uid);
+    const mappa = {};
+    for (const c of campagne) {
+      const righe = await listSharedForMaster(c.id);
+      for (const r of righe) if (r && r.char_id) mappa[String(r.char_id)] = r.char;
+    }
+    return mappa;
+  }
+
   // Rimuove una riga condivisa (il master ritira l'assegnazione).
   async function deleteSharedChar(campaignId, playerUid, charId) {
     const res = await client.from(TABLE).delete()
@@ -122,7 +139,7 @@ export function createSharedSync(client) {
 
   return {
     createCampaign, listMyCampaigns, listVisibleCampaigns, listMembers,
-    seedSharedChar, listSharedForMaster, deleteSharedChar,
+    seedSharedChar, listSharedForMaster, vitaliByCharId, deleteSharedChar,
     joinCampaign, listSharedForMe, upsertMySharedChar,
     subscribeSharedForMaster,
   };
