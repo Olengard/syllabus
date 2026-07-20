@@ -1788,6 +1788,9 @@ auto-popolamento del Combat Tracker fatto, code aperte chiuse. Dettaglio tecnico
   Stefano sugli account master/giocatore). ⚠️ Il cap. 4 rivela il *meccanismo* dei segreti di
   prestigio: se lo si gira ai giocatori, sanno che l'app può mostrare nomi diversi da quelli
   veri — all'occorrenza se ne fa una versione senza il cap. 4. Generato con `docx` (npm).
-  ⚠️ **Non verificato visivamente**: su questa macchina mancano LibreOffice e i convertitori
-  PDF, quindi la formattazione è stata controllata ispezionando il file (22 parti, 7 tabelle,
-  43 elenchi, TOC con updateFields, 26 titoli), non guardando le pagine renderizzate.
+  Su questa macchina mancano LibreOffice e i convertitori PDF, quindi l'operatore non ha potuto
+  vedere le pagine renderizzate (formattazione controllata ispezionando il file: 22 parti,
+  7 tabelle, 43 elenchi, TOC con updateFields, 26 titoli). ✅ **Rivisto e modificato da Stefano
+  lo stesso giorno**: la versione committata è la SUA, non quella generata dallo script.
+  Corollario per il futuro: **rigenerare il manuale dallo script sovrascriverebbe le sue
+  revisioni** — per le correzioni piccole editare il .docx a mano.

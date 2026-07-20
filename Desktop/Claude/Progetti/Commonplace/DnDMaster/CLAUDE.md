@@ -8,8 +8,9 @@ App **React 18 + Vite + PWA**, interfaccia in italiano. Persistenza **offline-fi
 scritto per essere condiviso con gli amici del tavolo. Struttura: cap. 3 **autosufficiente per
 i giocatori** (entrare col codice, curare la scheda, cosa arriva al master subito vs. cosa passa
 dall'approvazione), cap. 4 per il master, cap. 5 riferimento rapido + tabella «chi vede cosa»,
-cap. 6 problemi comuni. Generato con `docx` (npm); se va rigenerato, lo script sta nella
-scratchpad di sessione — più semplice editare il .docx a mano per correzioni piccole.
+cap. 6 problemi comuni. Generato con `docx` (npm), poi **rivisto a mano da Stefano**: la versione
+in repo è la sua. ⚠️ **Non rigenerarlo dallo script**: sovrascriveresti le sue revisioni —
+per le correzioni editare il .docx direttamente.
 ⚠️ **Il cap. 4 rivela il meccanismo dei segreti** (voci di prestigio nascoste/rinominabili):
 non svela nessun segreto specifico, ma dandolo ai giocatori sanno che l'app può mostrare nomi
 diversi. Se serve, farne una versione «solo giocatori» senza il cap. 4.
