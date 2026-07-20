@@ -36,6 +36,18 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "5183", "--directory", "Progetti/Commonplace/Subs"],
       "port": 5183
+    },
+    {
+      "name": "footnote-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5184", "--directory", "Progetti/Commonplace/Footnote"],
+      "port": 5184
+    },
+    {
+      "name": "syllabus",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "Progetti/Commonplace/Syllabus/app", "--", "--port", "5185", "--strictPort"],
+      "port": 5185
     }
   ]
 }
