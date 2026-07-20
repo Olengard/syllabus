@@ -446,54 +446,106 @@ function looksTruncated(s) {
   s = (s||'').trim();
   return s.length > 0 && !/[.!?…»”")\]]$/.test(s);
 }
-// La scheda ha sezioni vuote, tronche o sotto le quantità attese?
-function cardNeedsRepair(d) {
-  if (!d) return false;
-  const r = d.related||{};
-  const tot = (r.podcasts?.length||0)+(r.books?.length||0)+(r.films?.length||0);
-  return !d.overview || looksTruncated(d.overview)
-    || !d.readingGuide || looksTruncated(d.readingGuide)
-    || !d.controversies || looksTruncated(d.controversies)
-    || (d.focusQuestions?.length||0) < 6
-    || (d.readingJournal?.length||0) < 4
-    || tot < 8;
+
+// ── Anagrafe delle sezioni della scheda ──────────────────────────────────────
+// UNICA fonte di verità: da qui derivano il controllo di completezza, la riparazione
+// e le etichette del menu di rigenerazione.
+// Storia: prima cardNeedsRepair e repairCard tenevano DUE liste di requisiti scritte
+// a mano, ed erano divergenti — il controllo ignorava context/keyChapters/keyConcepts/
+// keyPassages/glossary, che invece la riparazione sapeva sistemare. Risultato: schede
+// con il glossario o i passi mancanti risultavano "sane", il bottone "Completa scheda"
+// non compariva e l'unica via era rigenerare tutto. Tenere le liste separate le fa
+// ri-divergere: si aggiunge una sezione QUI e basta.
+// `group` = quale chiamata AI la produce (g1 initPrompt1, g2 guidePrompt,
+// g3 questionsPrompt, g4 relatedPrompt): le sezioni dello stesso gruppo nascono
+// insieme da una sola chiamata.
+const CARD_SECTIONS = [
+  {key:'overview',       label:'Panoramica',             group:'g1', ok:d=>!!d.overview && !looksTruncated(d.overview)},
+  {key:'context',        label:'Contesto',               group:'g1', ok:d=>!!d.context},
+  {key:'keyChapters',    label:'Capitoli chiave',        group:'g1', ok:d=>(d.keyChapters?.length||0)>=3},
+  {key:'keyConcepts',    label:'Concetti chiave',        group:'g1', ok:d=>(d.keyConcepts?.length||0)>=4},
+  {key:'keyPassages',    label:'Passi da non perdere',   group:'g1', ok:d=>(d.keyPassages?.length||0)>=3},
+  {key:'glossary',       label:'Glossario',              group:'g1', ok:d=>(d.glossary?.length||0)>=4},
+  {key:'readingGuide',   label:'Guida di lettura',       group:'g2', ok:d=>!!d.readingGuide && !looksTruncated(d.readingGuide)},
+  {key:'controversies',  label:'Controversie',           group:'g2', ok:d=>!!d.controversies && !looksTruncated(d.controversies)},
+  {key:'focusQuestions', label:'Domande di riflessione', group:'g3', ok:d=>(d.focusQuestions?.length||0)>=6},
+  {key:'readingJournal', label:'Spunti per il diario',   group:'g3', ok:d=>(d.readingJournal?.length||0)>=4},
+  {key:'related',        label:'Risorse correlate',      group:'g4', ok:d=>{
+    const r=d.related||{}; return ((r.podcasts?.length||0)+(r.books?.length||0)+(r.films?.length||0))>=8; }},
+];
+
+// Le sezioni vuote, tronche o sotto le quantità attese
+function incompleteSections(d) {
+  if (!d) return [];
+  return CARD_SECTIONS.filter(s=>!s.ok(d)).map(s=>s.key);
 }
-// Ripara SOLO i gruppi di campi incompleti, con chiamate piccole e mirate
-async function repairCard(data, book) {
+// La scheda ha sezioni da sistemare?
+function cardNeedsRepair(d) { return incompleteSections(d).length > 0; }
+
+// ── Rigenerazione selettiva ──────────────────────────────────────────────────
+// Rigenera SOLO le sezioni indicate in `keys`.
+//   force=false → riparazione: scrive solo le sezioni davvero incomplete (non tocca il sano)
+//   force=true  → rigenerazione scelta dall'utente: sostituisce anche ciò che è già completo
+// Le sezioni dello stesso gruppo condividono una chiamata: sceglierne una sola non fa
+// risparmiare token, ma solo quelle richieste vengono scritte — il resto resta intatto.
+async function regenerateParts(data, book, keys, force=false) {
+  const want = new Set(keys||[]);
+  if (!want.size) return data;
   const sys = sysPrompt(book);
-  // Gruppo 1: overview, contesto, capitoli, concetti, passi, glossario
-  if (!data.overview || looksTruncated(data.overview) || !data.context
-      || (data.keyChapters?.length||0)<3 || (data.keyConcepts?.length||0)<4
-      || (data.keyPassages?.length||0)<3 || (data.glossary?.length||0)<4) {
+  const groups = new Set(CARD_SECTIONS.filter(s=>want.has(s.key)).map(s=>s.group));
+  const isOk = k => { const s = CARD_SECTIONS.find(x=>x.key===k); return s ? s.ok(data) : true; };
+  // Una sezione si scrive se è stata chiesta E (siamo in force, oppure è incompleta)
+  const write = k => want.has(k) && (force || !isOk(k));
+
+  // g1 per prima e DA SOLA: le altre chiamate ricevono overview e concetti come contesto
+  // (vedi cardCtx), quindi devono vedere il testo aggiornato, non quello che stiamo sostituendo.
+  if (groups.has('g1')) {
     try {
       const f = fillCardDefaults(await claudeJson([{role:'user',content:initPrompt1()}], sys, 6000, MODEL_CARD));
-      if (!data.overview || looksTruncated(data.overview)) data.overview = f.overview || data.overview;
-      if (!data.context || looksTruncated(data.context)) data.context = f.context || data.context;
-      if ((data.keyChapters?.length||0)<3 && f.keyChapters.length) data.keyChapters = f.keyChapters;
-      if ((data.keyConcepts?.length||0)<4 && f.keyConcepts.length) data.keyConcepts = f.keyConcepts;
-      if ((data.keyPassages?.length||0)<3 && f.keyPassages.length) data.keyPassages = f.keyPassages;
-      if ((data.glossary?.length||0)<4 && f.glossary.length) data.glossary = f.glossary;
+      if (write('overview')    && f.overview)          data.overview    = f.overview;
+      if (write('context')     && f.context)           data.context     = f.context;
+      if (write('keyChapters') && f.keyChapters.length) data.keyChapters = f.keyChapters;
+      if (write('keyConcepts') && f.keyConcepts.length) data.keyConcepts = f.keyConcepts;
+      if (write('keyPassages') && f.keyPassages.length) data.keyPassages = f.keyPassages;
+      if (write('glossary')    && f.glossary.length)    data.glossary    = f.glossary;
     } catch(e) {}
   }
-  // Gruppo 2: guida di lettura + controversie
-  if (!data.readingGuide || looksTruncated(data.readingGuide) || !data.controversies || looksTruncated(data.controversies)) {
-    try {
-      const f = await claudeJson([{role:'user',content:guidePrompt(book,data)}], sys, 3000, MODEL_CARD);
-      if (f.readingGuide && (!data.readingGuide || looksTruncated(data.readingGuide))) data.readingGuide = f.readingGuide;
-      if (f.controversies && (!data.controversies || looksTruncated(data.controversies))) data.controversies = f.controversies;
-    } catch(e) {}
+
+  // g2, g3, g4 sono indipendenti fra loro: in parallelo
+  const jobs = [];
+  if (groups.has('g2')) jobs.push(['g2', claudeJson([{role:'user',content:guidePrompt(book,data)}],     sys, 3000, MODEL_CARD)]);
+  if (groups.has('g3')) jobs.push(['g3', claudeJson([{role:'user',content:questionsPrompt(book,data)}], sys, 3500, MODEL_CARD)]);
+  if (groups.has('g4')) jobs.push(['g4', claudeJson([{role:'user',content:relatedPrompt(book,data)}],   sys, 3500, MODEL_CARD)]);
+  const settled = await Promise.allSettled(jobs.map(j=>j[1]));
+  const out = {};
+  jobs.forEach((j,i)=>{ if (settled[i].status==='fulfilled') out[j[0]] = settled[i].value; });
+
+  if (out.g2) {
+    if (write('readingGuide')  && out.g2.readingGuide)  data.readingGuide  = out.g2.readingGuide;
+    if (write('controversies') && out.g2.controversies) data.controversies = out.g2.controversies;
   }
-  // Gruppo 3: domande + diario di lettura
-  if ((data.focusQuestions?.length||0)<6 || (data.readingJournal?.length||0)<4) {
-    try {
-      const f = await claudeJson([{role:'user',content:questionsPrompt(book,data)}], sys, 3500, MODEL_CARD);
-      if (Array.isArray(f.focusQuestions) && f.focusQuestions.length > (data.focusQuestions?.length||0)) data.focusQuestions = f.focusQuestions;
-      if (Array.isArray(f.readingJournal) && f.readingJournal.length > (data.readingJournal?.length||0)) data.readingJournal = f.readingJournal;
-    } catch(e) {}
+  if (out.g3) {
+    const f = out.g3;
+    // In riparazione accettiamo il nuovo solo se è più ricco; in force sostituiamo comunque.
+    if (write('focusQuestions') && Array.isArray(f.focusQuestions) && f.focusQuestions.length
+        && (force || f.focusQuestions.length > (data.focusQuestions?.length||0))) data.focusQuestions = f.focusQuestions;
+    if (write('readingJournal') && Array.isArray(f.readingJournal) && f.readingJournal.length
+        && (force || f.readingJournal.length > (data.readingJournal?.length||0))) data.readingJournal = f.readingJournal;
   }
-  // Gruppo 4: risorse correlate
-  await ensureRelated(data, book);
+  if (out.g4 && write('related')) {
+    const r = out.g4, cur = data.related||{};
+    data.related = {
+      podcasts: Array.isArray(r.podcasts) && r.podcasts.length ? r.podcasts : (cur.podcasts||[]),
+      books:    Array.isArray(r.books)    && r.books.length    ? r.books    : (cur.books||[]),
+      films:    Array.isArray(r.films)    && r.films.length    ? r.films    : (cur.films||[]),
+    };
+  }
   return data;
+}
+
+// Ripara SOLO le sezioni incomplete, con chiamate piccole e mirate
+async function repairCard(data, book) {
+  return regenerateParts(data, book, incompleteSections(data), false);
 }
 
 function Dots({color}) {
@@ -1077,6 +1129,10 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
   const [bsMsg, setBsMsg] = useState('');
   const [generating, setGenerating] = useState(false);
   const [relBusy, setRelBusy] = useState(false);
+  // Menu di rigenerazione: chiuso → voci → elenco a spunte delle sezioni
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState([]);
   async function regenRelated() {
     setRelBusy(true);
     try {
@@ -1093,6 +1149,20 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
       const nd = fillCardDefaults({...book.data});
       await repairCard(nd, book);
       onUpdate({...book, data: nd});
+    } catch(e) { alert('Errore: '+e.message); }
+    setRelBusy(false);
+  }
+  // Rigenera le sole sezioni spuntate, anche se già complete (force)
+  async function regenPicked() {
+    if (!picked.length) return;
+    setRelBusy(true);
+    setMenuOpen(false);
+    try {
+      const nd = fillCardDefaults({...book.data});
+      await regenerateParts(nd, book, picked, true);
+      onUpdate({...book, data: nd});
+      setPicked([]);
+      setPicking(false);
     } catch(e) { alert('Errore: '+e.message); }
     setRelBusy(false);
   }
@@ -1163,10 +1233,57 @@ function Dashboard({t, book, onUpdate, collections, onCollections, user}) {
               style={{padding:'6px 13px',background:t.accentBg,border:`1px solid ${t.accent}`,borderRadius:8,color:t.accent,fontSize:13,cursor:relBusy?'default':'pointer',opacity:relBusy?0.5:1}}>
               {relBusy?'⏳ Riparo…':'🩹 Completa scheda'}
             </button>}
-            {book.data&&<button onClick={()=>{ if(confirm('Rigenerare la scheda? Il contenuto attuale verrà sostituito.')) generateCard(null); }} disabled={generating}
-              style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:generating?'default':'pointer',opacity:generating?0.5:1}}>
-              {generating?'⏳ Generando…':'↺ Rigenera'}
-            </button>}
+            {book.data&&<div style={{position:'relative'}}>
+              <button onClick={()=>{ setMenuOpen(o=>!o); setPicking(false); }} disabled={generating||relBusy}
+                style={{padding:'6px 13px',background:'none',border:`1px solid ${t.border}`,borderRadius:8,color:t.textSec,fontSize:13,cursor:(generating||relBusy)?'default':'pointer',opacity:(generating||relBusy)?0.5:1}}>
+                {generating?'⏳ Generando…':relBusy?'⏳ Rigenero…':'↺ Rigenera ▾'}
+              </button>
+              {menuOpen&&<>
+                {/* velo per chiudere cliccando fuori */}
+                <div onClick={()=>{setMenuOpen(false);setPicking(false);}} style={{position:'fixed',inset:0,zIndex:40}}/>
+                <div style={{position:'absolute',right:0,top:'calc(100% + 6px)',zIndex:41,minWidth:picking?260:220,
+                  background:t.bgCard,border:`1px solid ${t.border}`,borderRadius:10,boxShadow:`0 6px 24px ${t.shadow}`,padding:6}}>
+                  {!picking&&<>
+                    <button onClick={()=>{ setMenuOpen(false); if(confirm('Rigenerare tutta la scheda? Il contenuto attuale verrà sostituito.')) generateCard(null); }}
+                      style={{display:'block',width:'100%',textAlign:'left',padding:'9px 11px',background:'none',border:'none',borderRadius:7,color:t.text,fontSize:13,cursor:'pointer'}}>
+                      ↺ Rigenera tutta la scheda
+                    </button>
+                    <button onClick={()=>{ setPicked([]); setPicking(true); }}
+                      style={{display:'block',width:'100%',textAlign:'left',padding:'9px 11px',background:'none',border:'none',borderRadius:7,color:t.text,fontSize:13,cursor:'pointer'}}>
+                      ◧ Rigenera solo alcune parti…
+                    </button>
+                  </>}
+                  {picking&&<>
+                    <div style={{padding:'7px 11px 4px',fontSize:11,color:t.textMuted,letterSpacing:'.05em',textTransform:'uppercase'}}>
+                      Quali parti rifare
+                    </div>
+                    <div style={{maxHeight:260,overflowY:'auto'}}>
+                      {CARD_SECTIONS.map(s=>{
+                        const on = picked.includes(s.key);
+                        const incompleta = !s.ok(book.data||{});
+                        return <label key={s.key} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 11px',
+                          fontSize:13,color:t.text,cursor:'pointer',borderRadius:6}}>
+                          <input type="checkbox" checked={on} onChange={()=>setPicked(p=>on?p.filter(k=>k!==s.key):[...p,s.key])}/>
+                          <span>{s.label}</span>
+                          {incompleta&&<span style={{fontSize:10,color:t.accent,border:`1px solid ${t.accent}`,borderRadius:4,padding:'0 4px'}}>incompleta</span>}
+                        </label>;
+                      })}
+                    </div>
+                    <div style={{display:'flex',gap:6,padding:'8px 8px 4px',borderTop:`1px solid ${t.borderLight}`,marginTop:4}}>
+                      <button onClick={()=>setPicking(false)}
+                        style={{flex:'0 0 auto',padding:'6px 10px',background:'none',border:`1px solid ${t.border}`,borderRadius:7,color:t.textSec,fontSize:12,cursor:'pointer'}}>
+                        ← Indietro
+                      </button>
+                      <button onClick={regenPicked} disabled={!picked.length}
+                        style={{flex:1,padding:'6px 10px',background:picked.length?t.accentBg:'none',border:`1px solid ${picked.length?t.accent:t.border}`,borderRadius:7,
+                          color:picked.length?t.accent:t.textMuted,fontSize:12,cursor:picked.length?'pointer':'default'}}>
+                        Rigenera {picked.length>0?`(${picked.length})`:''}
+                      </button>
+                    </div>
+                  </>}
+                </div>
+              </>}
+            </div>}
           </div>
         </div>
         {mine.length>0&&<div style={{marginTop:8}}>{mine.map(c=><Tag key={c.id} label={'◈ '+c.name} t={t}/>)}</div>}
