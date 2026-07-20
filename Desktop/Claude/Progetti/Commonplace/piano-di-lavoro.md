@@ -51,9 +51,17 @@
    anche i **tre bug latenti** trovati in #28 (tabella `sl_resources` morta,
    `updateCurriculum` con chiavi non-colonna, `supabase-migration.sql` obsoleto): nessuno
    visibile oggi, dettaglio e opzioni in coda a `Commonplace.md`.
-   → Da provare per prima cosa ora che è live: **generare un percorso Syllabus reale**. In
-   sessione le risposte AI erano tutte simulate, quindi la qualità delle tappe e l'effetto
-   delle «già note» non è mai stata osservata davvero.
+   → **#28b (21/07)**: Stefano ha segnalato "l'exclude non funziona". Non era rotto: **non era
+   mai entrato in funzione** (esclusione scritta nell'argomento in prosa, campo vuoto).
+   Root cause di progettazione: mancava il modo di dire «non lo voglio». Aggiunta la lista
+   **«Non le voglio»**, step 4 reso trovabile, e «mai in prima tappa» nella progressione.
+   Deployato (SW v7) e pushato, collaudo verde.
+   → ⚠️ **IN ATTESA DEL TEST DI STEFANO**, ed è il punto che conta: è verificato che i divieti
+   ARRIVINO al modello, **non che il modello li rispetti**. Test: rifare il percorso "oltre
+   McCarthy" con *Cormac McCarthy* nel campo «Non le voglio» e controllare che sparisca, in
+   particolare dalla prima tappa. Se rientra lo stesso, il problema è di obbedienza al prompt
+   e va affrontato diversamente (es. filtro deterministico post-generazione sui titoli/autori
+   esclusi, invece che per sola istruzione).
 4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
    L'**export CSV/PDF** invece è adatto a Opus.
 5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
