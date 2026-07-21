@@ -56,12 +56,15 @@
    Root cause di progettazione: mancava il modo di dire «non lo voglio». Aggiunta la lista
    **«Non le voglio»**, step 4 reso trovabile, e «mai in prima tappa» nella progressione.
    Deployato (SW v7) e pushato, collaudo verde.
-   → ⚠️ **IN ATTESA DEL TEST DI STEFANO**, ed è il punto che conta: è verificato che i divieti
-   ARRIVINO al modello, **non che il modello li rispetti**. Test: rifare il percorso "oltre
-   McCarthy" con *Cormac McCarthy* nel campo «Non le voglio» e controllare che sparisca, in
-   particolare dalla prima tappa. Se rientra lo stesso, il problema è di obbedienza al prompt
-   e va affrontato diversamente (es. filtro deterministico post-generazione sui titoli/autori
-   esclusi, invece che per sola istruzione).
+   → **#28c (21/07)**: il test di Stefano ha mostrato che il prompt NON basta (McCarthy
+   rientrava). Aggiunto lo **scarto deterministico** `filterExcluded` (post-generazione, su
+   titolo+autore, con top-up che rimpiazza) — non dipende dall'obbedienza del modello.
+   Deployato (SW v9). Verificato con test unitari + integrazione; un giro reale in più da
+   parte di Stefano è comunque benvenuto.
+   → **#28c**: chiusa anche la **PWA di Syllabus** — non si installava con la sua icona (il
+   manifest puntava a un favicon minuscolo, e le icone presenti erano di BookShelf). Generate
+   le icone dedicate e ricucito il manifest. ⚠️ Stefano: reinstallare (l'icona vecchia resta
+   in cache OS finché non si disinstalla).
 4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
    L'**export CSV/PDF** invece è adatto a Opus.
 5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
