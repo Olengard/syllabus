@@ -48,6 +48,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "Progetti/Commonplace/Syllabus/app", "--", "--port", "5185", "--strictPort"],
       "port": 5185
+    },
+    {
+      "name": "cru-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5188", "--directory", "Progetti/Commonplace/Cru"],
+      "port": 5188
     }
   ]
 }

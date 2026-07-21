@@ -392,6 +392,35 @@ Commonplace
 
 ---
 
+## 🍷 Cru
+
+**Scopo:** Gestione della cantina personale di vini — inventario, valutazioni, degustazioni.
+
+**Tech stack:** single-file `index.html` (pattern Marginalia/Footnote: React inline + Babel standalone @7), PWA con `sw.js` network-first (`cru-v1`).
+
+**Cartella:** `Claude/Progetti/Commonplace/Cru/`
+
+**Funzionalità:**
+- Inventario a movimenti: giacenza = somma dei delta; aggiungi/togli bottiglie con motivo (bevuto/regalato/guasto/altro) e storico consumi.
+- CRUD vino: cantina, nome, denominazione, tipologia, regione, annata, vitigni, formato, prezzo, voto (mezze stelle), commento.
+- Autocomplete denominazioni italiane (dataset curato `denominazioni.js`, ~91 voci: regione, tipologia, vitigni tipici, potenziale d'invecchiamento).
+- Scheda di degustazione AIS completa (visivo/olfattivo/gustativo + descrittori + punteggio /100), salvata in `tasting` jsonb.
+- Finestra di bevuta stimata (euristica da tipo+denominazione+annata, sovrascrivibile a mano).
+- Lookup EAN via Open Food Facts (precompila nome/produttore).
+- Statistiche: bottiglie totali, per tipologia/regione/annata, valore stimato, "da bere presto".
+
+**Deploy:** Vercel — progetto `cru` (`olengards-projects/cru`), dominio `cru.commonplaceapp.org` ✅ (2026-07-21). Nessuna env var (anon key nel file, come Marginalia). Collaudo locale: `cru-static` in launch.json (porta 5188).
+
+**Supabase:** progetto `pchldmiavycxzpkzochn` — tabelle `cru_wines`, `cru_movements`. RLS `user_id = auth.uid()`, auth suite. Migration `cru-migration.sql` applicata 2026-07-21.
+
+**Roadmap:**
+- Scan barcode con fotocamera (BarcodeDetector).
+- Ampliare il dataset denominazioni.
+- Campo "posizione in cantina" (colonna `location` già presente, da esporre in UI).
+- Collaudo del flusso autenticato completo (login suite di Stefano).
+
+---
+
 ## ðŸ—“ï¸ Roadmap aprile 2026 â€” Sprint consolidato
 
 > Regola: i build si fanno UNA VOLTA, solo quando tutte le modifiche sono finalizzate.
