@@ -65,6 +65,11 @@
    manifest puntava a un favicon minuscolo, e le icone presenti erano di BookShelf). Generate
    le icone dedicate e ricucito il manifest. ⚠️ Stefano: reinstallare (l'icona vecchia resta
    in cache OS finché non si disinstalla).
+   → **#28d**: l'esclusione ancora non funzionava, ma NON per il filtro — la `avoidList` era
+   vuota perché (a) il campo a chip perdeva il testo non confermato (fix: commit onBlur) e
+   (b) Stefano scriveva l'esclusione nell'argomento, non nel campo (fix: rilevamento +
+   suggerimento opt-in). SW v10, deployato. La difesa è ora a tre strati. ⚠️ Attende un
+   ultimo giro reale di Stefano; se rientra, la query su `avoidList` dice se è UI o filtro.
 4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
    L'**export CSV/PDF** invece è adatto a Opus.
 5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
