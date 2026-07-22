@@ -68,8 +68,20 @@
    → **#28d**: l'esclusione ancora non funzionava, ma NON per il filtro — la `avoidList` era
    vuota perché (a) il campo a chip perdeva il testo non confermato (fix: commit onBlur) e
    (b) Stefano scriveva l'esclusione nell'argomento, non nel campo (fix: rilevamento +
-   suggerimento opt-in). SW v10, deployato. La difesa è ora a tre strati. ⚠️ Attende un
-   ultimo giro reale di Stefano; se rientra, la query su `avoidList` dice se è UI o filtro.
+   suggerimento opt-in). SW v10, deployato. La difesa è ora a tre strati. ✅ **Confermato
+   funzionante da Stefano** (28d).
+   → **#28d (nuovo, da fare): BookShelf — statistiche per anno rotte.** Segnalato da Stefano:
+   le stat non mostrano i libri del 2026 (uso limitato, "per pulizia"). **Root cause già
+   trovata** (triage read-only, non ancora corretta): la colonna `bs_books.read_year` è di
+   tipo `text`, e `App.jsx:1696` la carica così com'è (`readYear: r.read_year` → stringa
+   `"2026"`), ma `StatsView` filtra con `b.readYear === scopeYear` (`App.jsx:360`) dove
+   `scopeYear` è un **numero** (`getFullYear()`), quindi `"2026" === 2026` è falso e l'anno
+   selezionato risulta vuoto. Stesso difetto su `readMonth` (`:370`, confronto `=== i+1`).
+   La barra "libri per anno" (`:428`) invece regge perché confronta stringa con stringa.
+   **Fix minimo**: coercire a numero al caricamento (`readYear: Number(r.read_year)||null`,
+   idem `readMonth`) in `App.jsx:1696`, controllando che dropdown anni (`:226/:766`) e
+   `byYear` restino coerenti coi numeri. BookShelf è Vite: build + deploy `deploya.bat`, e
+   c'è un SW (`BookShelf/public/sw.js`, ora v2) da bumpare. ~10 minuti.
 4. **[Claude/insieme] Ledger push notifications** (pre-APK, architetturalmente delicata).
    L'**export CSV/PDF** invece è adatto a Opus.
 5. **Sprint build**: ReadS (EAS, pronto da marzo); prossima build Platea quando il lotto
