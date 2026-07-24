@@ -157,6 +157,19 @@ function MasterPanel({ uid, characters, onUpdateChar }) {
     catch (e) { setMsg(e.message); }
   };
 
+  // Ri-invia al giocatore nomi/alias/visibilità della reputazione dalla copia di
+  // roster del master (i suoi valori restano). Serve dopo aver cambiato un alias
+  // o nascosto una voce: il seed li applica solo all'assegnazione.
+  const refreshRep = async (r) => {
+    const rosterChar = characters.find((c) => String(c.id) === r.char_id);
+    if (!rosterChar) return;
+    try {
+      await shared.refreshSharedPrestige(r.campaign_id, r.player_uid, r.char_id, rosterChar);
+      setMsg(`Reputazione aggiornata per il giocatore su «${r.char?.name || rosterChar.name}».`);
+      await refreshSel(sel.id);
+    } catch (e) { setMsg(e.message); }
+  };
+
   const seen = loadSeen();
   const memberName = (puid) => members.find((m) => m.player_uid === puid)?.display_name || puid.slice(0, 8);
 
@@ -221,6 +234,11 @@ function MasterPanel({ uid, characters, onUpdateChar }) {
                       <button className="btn btn-sm" onClick={() => setDiffFor(diffFor === key ? null : key)}>Confronta</button>
                     )}
                     {!rosterChar && <span style={{ fontSize: "0.72rem", color: "var(--red2)" }}>⚠ il PG non è più nel tuo roster</span>}
+                    {rosterChar && (
+                      <button className="btn btn-sm"
+                        title="Ri-invia al giocatore nomi, alias e visibilità della reputazione (i suoi valori restano invariati)"
+                        onClick={() => refreshRep(r)}>🏛 Aggiorna reputazione</button>
+                    )}
                     <button className="btn btn-sm btn-danger" style={{ marginLeft: "auto" }} onClick={() => unassign(r)}>Ritira</button>
                   </div>
                   <div style={{ marginTop: 8 }}><VitaliView char={r.char} /></div>

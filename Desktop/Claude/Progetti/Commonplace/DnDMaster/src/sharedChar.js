@@ -166,6 +166,21 @@ export function publicPrestige(list) {
     .map((e) => ({ id: e.id, name: e.alias || e.name, value: e.value || 0 }));
 }
 
+// Ricalcola la forma pubblica del prestigio dai dati AGGIORNATI del master
+// (alias applicati, voci nascoste tolte, rinomini inclusi) ma PRESERVANDO i
+// valori correnti della riga condivisa, per id. Motivo: nomi/alias/visibilità
+// sono autorità del master; i valori li possiede il giocatore (canale
+// propose→accept), quindi un refresh dei segreti non deve azzerarli. Le voci
+// nuove del master entrano col loro valore. Immutabile.
+// Serve all'azione «aggiorna reputazione del giocatore»: il seed applica gli
+// alias solo all'assegnazione, questo li ripropaga dopo, senza toccare il resto.
+export function refreshPublicPrestige(masterPrestige, sharedPrestige) {
+  const valById = new Map((sharedPrestige || []).map((e) => [e.id, e.value || 0]));
+  return publicPrestige(masterPrestige).map((e) =>
+    valById.has(e.id) ? { ...e, value: valById.get(e.id) } : e,
+  );
+}
+
 // Le variazioni proposte dal giocatore, etichettate col nome VERO (il master
 // deve leggere «Clero», non l'alias). Solo voci visibili e solo il `value`:
 // una voce nascosta non può essere toccata, e i nomi restano del master.

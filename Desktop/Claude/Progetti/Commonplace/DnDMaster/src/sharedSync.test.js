@@ -116,6 +116,43 @@ describe("master: campagne e assegnazione", () => {
     expect(rows[0].char.name).toBe("v2");
   });
 
+  it("refreshSharedPrestige ripropaga alias/visibilità preservando i valori del giocatore e il resto della scheda", async () => {
+    const c = await s.createCampaign("C");
+    // Seed con la reputazione VECCHIA del master (nessun alias su id:4).
+    await s.seedSharedChar(c.id, "player1", "char-1", {
+      name: "Teofilo",
+      prestige: [{ id: 1, name: "Flint", value: 1 }, { id: 4, name: "Clero", value: 2 }],
+    });
+    // Il giocatore gioca: alza il valore del 4 (canale suo) e aggiorna i PF.
+    client._currentUid = "player1";
+    await s.upsertMySharedChar(c.id, "player1", "char-1", {
+      name: "Teofilo", currentHp: 8,
+      prestige: [{ id: 1, name: "Flint", value: 1 }, { id: 4, name: "Clero", value: 5 }],
+    });
+    // Il master ora aliasa il 4 e nasconde il 5 nella sua copia di roster, poi ripropaga.
+    const rosterNow = {
+      id: "char-1", name: "Teofilo",
+      prestige: [
+        { id: 1, name: "Flint", value: 0 },
+        { id: 4, name: "Clero", value: 2, alias: "Famiglia" },
+        { id: 5, name: "Obscurati", value: 3, hidden: true },
+      ],
+    };
+    await s.refreshSharedPrestige(c.id, "player1", "char-1", rosterNow);
+    const rows = await s.listSharedForMaster(c.id);
+    expect(rows[0].char.currentHp).toBe(8);            // il resto della scheda è intatto
+    expect(rows[0].char.prestige).toEqual([
+      { id: 1, name: "Flint", value: 1 },              // valore del giocatore preservato (non lo 0 del master)
+      { id: 4, name: "Famiglia", value: 5 },           // alias applicato, valore del giocatore (5) preservato
+    ]);                                                 // Obscurati (hidden) non è mai stato inviato
+  });
+
+  it("refreshSharedPrestige su riga inesistente → errore leggibile", async () => {
+    const c = await s.createCampaign("C");
+    await expect(s.refreshSharedPrestige(c.id, "playerX", "nope", { prestige: [] }))
+      .rejects.toThrow("Scheda condivisa non trovata");
+  });
+
   it("deleteSharedChar rimuove solo la riga giusta", async () => {
     const c = await s.createCampaign("C");
     await s.seedSharedChar(c.id, "player1", "a", { name: "A" });

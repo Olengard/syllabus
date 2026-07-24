@@ -3,7 +3,7 @@ import {
   VITALI_FIELDS, ADMIN_FIELDS, MASTER_ONLY_FIELDS,
   pickVitali, pickAdmin, stableStringify,
   diffAdmin, applyAccepted, adminHash, hasPendingAdmin,
-  applyVitaliToCombatant, publicPrestige, diffPrestige, mergePlayerPrestige,
+  applyVitaliToCombatant, publicPrestige, refreshPublicPrestige, diffPrestige, mergePlayerPrestige,
 } from "./sharedChar.js";
 
 // Char minimale coi campi reali di defaultChar che ci servono nei test.
@@ -294,6 +294,43 @@ describe("prestigio: visibilita' per-voce (alias / hidden)", () => {
     it("lista vuota o assente → array vuoto", () => {
       expect(publicPrestige([])).toEqual([]);
       expect(publicPrestige(null)).toEqual([]);
+    });
+  });
+
+  describe("refreshPublicPrestige (aggiorna reputazione del giocatore)", () => {
+    // Ciò che il giocatore ha oggi nella riga condivisa (forma pubblica di un
+    // seed VECCHIO, fatto prima che il master impostasse l'alias): vede «Clero»
+    // e ha alzato il valore a 4 giocando.
+    const sharedOld = () => [
+      { id: 1, name: "Flint", value: 3 },
+      { id: 4, name: "Clero", value: 4 },
+    ];
+
+    it("applica alias/nascondi aggiornati MA preserva i valori del giocatore", () => {
+      expect(refreshPublicPrestige(masterPrestige(), sharedOld())).toEqual([
+        { id: 1, name: "Flint", value: 3 },      // valore del giocatore preservato
+        { id: 4, name: "Famiglia", value: 4 },   // ora alias applicato, valore 4 (non 2 del master)
+      ]);
+      // Obscurati (hidden) resta fuori.
+    });
+
+    it("le voci NUOVE del master entrano col loro valore", () => {
+      const master = [...masterPrestige(), { id: 9, name: "Corte", value: 1 }];
+      const out = refreshPublicPrestige(master, sharedOld());
+      expect(out.find((e) => e.id === 9)).toEqual({ id: 9, name: "Corte", value: 1 });
+    });
+
+    it("non fa trapelare nome vero né metadati delle voci aliasate/nascoste", () => {
+      const s = JSON.stringify(refreshPublicPrestige(masterPrestige(), sharedOld()));
+      expect(s).not.toContain("Clero");
+      expect(s).not.toContain("Obscurati");
+      expect(s).not.toContain("alias");
+      expect(s).not.toContain("hidden");
+    });
+
+    it("liste vuote/assenti → array vuoto, nessun crash", () => {
+      expect(refreshPublicPrestige(null, null)).toEqual([]);
+      expect(refreshPublicPrestige([], undefined)).toEqual([]);
     });
   });
 

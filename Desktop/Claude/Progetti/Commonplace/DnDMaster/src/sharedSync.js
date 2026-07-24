@@ -11,7 +11,7 @@
 // Convenzione: i metodi ritornano i dati oppure lanciano Error con messaggio
 // leggibile (l'uid dell'utente lo passa il chiamante — App lo conosce dal login).
 
-import { MASTER_ONLY_FIELDS, publicPrestige } from "./sharedChar.js";
+import { MASTER_ONLY_FIELDS, publicPrestige, refreshPublicPrestige } from "./sharedChar.js";
 
 const TABLE = "dnd_shared_chars";
 const now = () => new Date().toISOString();
@@ -70,6 +70,28 @@ export function createSharedSync(client) {
     const res = await client.from(TABLE).upsert(row);
     unwrap(res, "Assegnazione scheda fallita");
     return row;
+  }
+
+  // Il master aggiorna SOLO la reputazione (prestige) della riga condivisa di un
+  // giocatore, senza toccare il resto della sua scheda (equip, incantesimi,
+  // vitali, valori del prestigio). Serve quando cambia alias/visibilità/nome
+  // DOPO l'assegnazione: il seed applica gli alias una volta sola, all'assegnazione.
+  // Legge la riga corrente, ricalcola il prestigio pubblico preservando i valori
+  // del giocatore, riscrive la riga (upsert sulla PK). RLS: il master può UPDATE
+  // le righe delle sue campagne (policy dsc_update_own, verificata).
+  async function refreshSharedPrestige(campaignId, playerUid, charId, masterChar) {
+    const rows = unwrap(
+      await client.from(TABLE).select("*")
+        .eq("campaign_id", campaignId).eq("player_uid", playerUid).eq("char_id", String(charId)),
+      "Lettura reputazione condivisa fallita",
+    ) || [];
+    const cur = rows[0];
+    if (!cur) throw new Error("Scheda condivisa non trovata");
+    const prevChar = cur.char || {};
+    const nextChar = { ...prevChar, prestige: refreshPublicPrestige(masterChar?.prestige, prevChar.prestige) };
+    const row = { campaign_id: campaignId, player_uid: playerUid, char_id: String(charId), char: nextChar, updated_at: now() };
+    unwrap(await client.from(TABLE).upsert(row), "Aggiornamento reputazione fallito");
+    return nextChar.prestige;
   }
 
   // Tutte le schede condivise di una campagna (per la vista master).
@@ -152,7 +174,7 @@ export function createSharedSync(client) {
 
   return {
     createCampaign, listMyCampaigns, listVisibleCampaigns, listMembers,
-    seedSharedChar, listSharedForMaster, vitaliByCharId, deleteSharedChar,
+    seedSharedChar, refreshSharedPrestige, listSharedForMaster, vitaliByCharId, deleteSharedChar,
     joinCampaign, listSharedForMe, upsertMySharedChar,
     subscribeSharedForMaster,
   };
