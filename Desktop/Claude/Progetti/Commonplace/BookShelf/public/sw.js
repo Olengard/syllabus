@@ -1,5 +1,5 @@
 // BookShelf Service Worker
-const CACHE = 'bookshelf-v2';
+const CACHE = 'bookshelf-v3';
 
 self.addEventListener('install', e => {
   e.waitUntil(
