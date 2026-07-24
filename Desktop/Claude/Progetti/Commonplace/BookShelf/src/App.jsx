@@ -1693,7 +1693,12 @@ export default function App() {
         const mapped=bR.data.map(r=>({
           id:r.id,title:r.title,originalTitle:r.original_title,author:r.author,
           publisher:r.publisher,year:r.year,pages:r.pages,currentPage:r.current_page,
-          readMonth:r.read_month,readYear:r.read_year,rating:r.rating,
+          // read_month/read_year sono colonne text: coercizione a numero al load,
+          // così i confronti in StatsView/StatsBar (=== scopeYear numerico) reggono
+          // come per i libri creati dal form (parseInt). Vuoto resta "" (sentinella).
+          readMonth:r.read_month==null||r.read_month===""?"":Number(r.read_month),
+          readYear:r.read_year==null||r.read_year===""?"":Number(r.read_year),
+          rating:r.rating,
           tags:r.tags||[],notes:r.notes,cover:r.cover,isbn:r.isbn,
           status:r.status,addedAt:r.added_at,
         }));
