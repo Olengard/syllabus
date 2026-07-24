@@ -388,6 +388,21 @@ con la «Famiglia», il master sa che è il «Clero».
   amministrativi; l'accept le smista su `mergePlayerPrestige`.
 - **Deployato e verificato live** (bundle: `il giocatore la vede come`, `prestige-alias-input`).
 
+✅ **Propagazione post-assegnazione FATTA (2026-07-24, #30)** — chiude un buco della funzione
+sopra: l'alias/nascondi entrava nella riga del giocatore **solo al seed** (`seedSharedChar`,
+all'assegnazione), quindi impostarlo DOPO non arrivava mai (root cause verificata sui dati:
+la riga condivisa restava col nome vero). Bottone **«🏛 Aggiorna reputazione»** nella vista
+Master (`SharedTablePage`, per riga assegnata).
+- `sharedChar.refreshPublicPrestige(master, shared)` (**puro**): forma pubblica aggiornata
+  (alias applicati, nascoste tolte) **preservando i valori del giocatore per id** (i valori
+  sono del giocatore via propose→accept; nomi/alias/visibilità sono del master).
+- `sharedSync.refreshSharedPrestige()` (**trasporto**): legge la riga, riscrive **solo**
+  `char.prestige`, il resto della scheda (equip/incantesimi/vitali) resta intatto. **NON** è un
+  re-seed: un re-seed ri-spingerebbe l'intera copia master e cancellerebbe la scheda del
+  giocatore. RLS `dsc_update_own` consente al master l'UPDATE (verificata su `pg_policy`).
+- ⚠️ Verifica finale a due account (master+giocatore loggati) non esercitabile in build: fatta
+  a test (fake-client) + RLS reale. 238 test verdi.
+
 ✅ **Campagna-scoping del roster FATTO (2026-07-20, #27)** — il roster del master non è più
 globale. Le campagne del roster sono **locali e indipendenti** da quelle condivise del tab
 Tavolo (scelta di Stefano: funzionano senza giocatori collegati e offline).
